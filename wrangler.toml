@@ -1,0 +1,20 @@
+name = "app"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ─── D1 Database Binding ───
+[[d1_databases]]
+binding = "DB"
+database_name = "todo-db"
+database_id = "ee9cc188-e5e9-4f79-82e5-06ccb5d0b570"  # Thay bằng ID thật sau khi chạy `wrangler d1 create todo-db`
+
+# ─── Biến môi trường ───
+[vars]
+JWT_SECRET = "72d442fc9a03bdc47f4bd4e4e4e1e174ea11f3f81a49fe3eab9c82563075ee0a"  # ⚠️ Đổi trước khi deploy!
+COOKIE_NAME = "todo_session"
+
+# ─── Cron Triggers: Quét ngầm mỗi phút trên server Cloudflare ───
+[triggers]
+crons = ["* * * * *"]
+
