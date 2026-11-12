@@ -13,11 +13,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install & Sync
         run: |
+          rm -rf node_modules
           npm install
+          chmod -R +x node_modules/.bin
           mkdir -p dist
           echo "<!DOCTYPE html><html><body>Loading...</body></html>" > dist/index.html
           npx cap sync ios
