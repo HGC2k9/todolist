@@ -29,6 +29,9 @@ export function renderHTML(): string {
   <script>
     tailwind.config = {
       darkMode: 'class',
+      future: {
+        hoverOnlyWhenSupported: true,
+      },
       theme: {
         extend: {
           colors: {
@@ -82,90 +85,38 @@ export function renderHTML(): string {
       animation: pulse-warning 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
 
-    button, a, input, select {
+    /* Tối ưu hóa phản hồi nút bấm & Cảm ứng trên iOS WKWebView / Mobile */
+    *, *::before, *::after {
       -webkit-tap-highlight-color: transparent;
+    }
+
+    button, a, [role="button"], input[type="button"], input[type="submit"] {
+      -webkit-tap-highlight-color: transparent !important;
       touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    button:focus:not(:focus-visible), a:focus:not(:focus-visible), [role="button"]:focus:not(:focus-visible) {
+      outline: none !important;
+      box-shadow: none !important;
+    }
+
+    /* Chỉ kích hoạt hiệu ứng :hover khi dùng thiết bị có chuột thực sự (ngăn ngừa lỗi kẹt nút / vết ấn lưu lại trên iPhone) */
+    @media (hover: none) and (pointer: coarse) {
+      button:hover, a:hover, [role="button"]:hover, .group:hover {
+        filter: none !important;
+      }
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      button:hover, a:hover {
+        transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+      }
     }
   </style>
 </head>
-<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-200 ios-safe-bottom pb-24 sm:pb-8 selection:bg-brand-500 selection:text-white"
-      @touchstart="handleTouchStart($event)"
-      @touchmove="handleTouchMove($event)"
-      @touchend="handleTouchEnd($event)"
-      @touchcancel="handleTouchCancel($event)">
-
-<!-- ═══════ PULL-TO-REFRESH INDICATOR (ĐO CHÍNH XÁC KHOẢNG CÁCH NGÓN TAY) ═══════ -->
-<div x-data="{
-       pullDistance: 0,
-       isRefreshing: false,
-       startX: 0,
-       startY: 0,
-       canPull: false,
-       onStart(e) {
-         if (this.isRefreshing) return;
-         const scrollTop = window.scrollY || document.documentElement.scrollTop;
-         this.canPull = scrollTop <= 0;
-         if (this.canPull) {
-           this.startX = e.touches[0].clientX;
-           this.startY = e.touches[0].clientY;
-         }
-       },
-       onMove(e) {
-         if (!this.canPull || this.isRefreshing) return;
-         const dx = e.touches[0].clientX - this.startX;
-         const dy = e.touches[0].clientY - this.startY;
-         
-         if (dy < 0 || Math.abs(dx) > Math.abs(dy)) {
-           this.canPull = false;
-           this.pullDistance = 0;
-           return;
-         }
-         
-         // Lấy ĐÚNG khoảng cách thật của ngón tay (không nhân hệ số làm giảm số nữa)
-         this.pullDistance = dy;
-       },
-       async onEnd() {
-         if (!this.canPull || this.isRefreshing) return;
-         this.canPull = false;
-         
-         // Đúng mốc 165px ngón tay thật để thả ra làm mới
-         if (this.pullDistance >= 165) {
-           this.isRefreshing = true;
-           this.pullDistance = 165; 
-           try {
-             if (typeof loadTasks === 'function') await loadTasks();
-             else location.reload();
-           } finally {
-             this.isRefreshing = false;
-             this.pullDistance = 0;
-           }
-         } else {
-           this.pullDistance = 0;
-         }
-       }
-     }"
-     @touchstart.window.passive="onStart($event)"
-     @touchmove.window.passive="onMove($event)"
-     @touchend.window="onEnd()"
-     x-show="pullDistance >= 60 || isRefreshing" x-cloak
-     x-transition:enter="transition ease-out duration-200"
-     x-transition:enter-start="opacity-0 -translate-y-4 scale-95"
-     x-transition:enter-end="opacity-100 translate-y-0 scale-100"
-     x-transition:leave="transition ease-in duration-150"
-     x-transition:leave-start="opacity-100 translate-y-0 scale-100"
-     x-transition:leave-end="opacity-0 -translate-y-4 scale-95"
-     class="fixed top-0 left-0 right-0 z-[130] flex items-center justify-center pointer-events-none"
-     :style="'padding-top: calc(max(12px, env(safe-area-inset-top, 0px)) + ' + (pullDistance >= 60 ? (pullDistance - 60) * 0.3 : 0) + 'px);'">
-  <div class="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-md shadow-2xl border border-slate-700/80 text-xs font-bold text-white transition-all">
-    <svg class="w-4 h-4 text-brand-400 transition-transform duration-200"
-         :class="{ 'rotate-180': pullDistance >= 165, 'spinner': isRefreshing }"
-         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
-      <polyline points="21 3 21 9 15 9"></polyline>
-    </svg>
-    <span x-text="isRefreshing ? 'Đang cập nhật công việc...' : (pullDistance >= 165 ? 'Thả ra để làm mới' : 'Kéo xuống thêm để làm mới')"></span>
-  </div>
-</div>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-200 ios-safe-bottom pb-24 sm:pb-8 selection:bg-brand-500 selection:text-white">
 
 <!-- ═══════ TOAST NOTIFICATIONS (Vuốt lên/sang để tắt, xếp chồng, 3s tự tắt) ═══════ -->
 <div class="fixed right-4 left-4 sm:left-auto z-[120] space-y-2 pointer-events-none"
@@ -261,7 +212,7 @@ export function renderHTML(): string {
     </div>
 
     <div class="mt-6 text-center">
-      <button @click="toggleDarkMode()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-semibold inline-flex items-center gap-2 p-2 rounded-xl transition">
+      <button @click="toggleDarkMode($event)" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-semibold inline-flex items-center gap-2 p-2 rounded-xl transition active:scale-95">
         <svg x-show="!darkMode" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         <svg x-show="darkMode" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
         <span x-text="darkMode ? 'Chuyển sang Chế độ Sáng' : 'Chuyển sang Chế độ Tối'"></span>
@@ -293,6 +244,16 @@ export function renderHTML(): string {
         </div>
       </div>
 
+      <!-- Trạng thái Ngoại tuyến / Chờ đồng bộ (Offline Sync Indicator) -->
+      <div x-show="isOffline || offlineQueue.length > 0" x-cloak
+           @click="syncOfflineQueue()"
+           class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold cursor-pointer transition select-none animate-pulse"
+           :class="isOffline ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300 dark:border-amber-800' : 'bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-300 dark:border-blue-800'"
+           :title="isOffline ? 'Đang ngoại tuyến. Bấm để thử đồng bộ lại.' : 'Bấm để đồng bộ ngay'">
+        <span class="w-2 h-2 rounded-full" :class="isOffline ? 'bg-amber-500' : 'bg-blue-500'"></span>
+        <span x-text="isSyncing ? 'Đang đồng bộ...' : (isOffline ? 'Ngoại tuyến (' + offlineQueue.length + ' chờ gửi)' : 'Chờ đồng bộ (' + offlineQueue.length + ')')"></span>
+      </div>
+
       <!-- Action Toolbar -->
       <div class="flex items-center gap-1 sm:gap-2">
         
@@ -308,58 +269,36 @@ export function renderHTML(): string {
           <span>Download</span>
         </button>
 
-        <!-- Chuông thông báo -->
-        <button @click="toggleNotificationPermission()"
-                class="p-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition"
-                :class="notificationsEnabled
-                  ? 'text-amber-600 bg-amber-50 dark:bg-amber-950/60 dark:text-amber-400 ring-1 ring-amber-300 dark:ring-amber-800'
-                  : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'"
-                :title="notificationsEnabled ? 'Đã bật thông báo' : 'Bật thông báo'">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        <!-- Nút Mở thẳng Bot Telegram @hgc_todolist_bot -->
+        <a href="https://t.me/hgc_todolist_bot" target="_blank" rel="noopener noreferrer"
+           @click="openTelegramBot($event)"
+           class="px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/70 dark:hover:bg-sky-900 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800 transition shadow-sm active:scale-95"
+           title="Mở Bot Telegram @hgc_todolist_bot">
+          <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+            <path d="m20.665 3.717-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l-.313 4.693c.46 0 .663-.211.921-.46l2.211-2.15 4.599 3.397c.848.467 1.457.227 1.668-.785l3.019-14.228c.309-1.239-.473-1.8-1.282-1.434z"/>
           </svg>
-        </button>
+          <span class="hidden sm:inline">@hgc_todolist_bot</span>
+          <span class="sm:hidden">Bot</span>
+        </a>
 
         <!-- Làm mới thủ công -->
-        <button @click="refreshDataManual()" class="p-2 rounded-xl text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition" :class="{ 'spinner text-brand-600': isRefreshing }" title="Làm mới dữ liệu">
+        <button @click="refreshDataManual($event)" class="p-2 rounded-xl text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95" :class="{ 'spinner text-brand-600': isRefreshing }" title="Làm mới dữ liệu">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path><polyline points="21 3 21 9 15 9"></polyline></svg>
         </button>
 
         <!-- Đổi Theme -->
-        <button @click="toggleDarkMode()" class="p-2 rounded-xl text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+        <button @click="toggleDarkMode($event)" class="p-2 rounded-xl text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95" title="Đổi giao diện">
           <svg x-show="!darkMode" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
           <svg x-show="darkMode" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
         </button>
 
-        <!-- Đăng xuất -->
-        <button @click="logout()" class="p-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl transition" title="Đăng xuất">
+        <!-- Đăng xuất (Có xác nhận an toàn) -->
+        <button @click="confirmLogout($event)" class="p-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl transition active:scale-95" title="Đăng xuất">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
         </button>
       </div>
     </div>
   </header>
-
-  <!-- ─── Banner yêu cầu cấp quyền thông báo nếu chưa bật (1 Click) ─── -->
-  <div x-show="showNotificationBannerPrompt" x-cloak
-       class="bg-blue-600 dark:bg-blue-700 text-white py-2 px-4 shadow-sm border-b border-blue-500/50">
-    <div class="max-w-5xl mx-auto flex items-center justify-between gap-3 text-xs sm:text-sm">
-      <div class="flex items-center gap-2 overflow-hidden">
-        <span class="text-base flex-shrink-0">🔔</span>
-        <span class="font-medium truncate">Bật thông báo tự động theo ưu tiên (Low: 5p, Medium: 15p, High: 30p, lặp mỗi 5p)!</span>
-      </div>
-      <div class="flex items-center gap-2 flex-shrink-0">
-        <button @click="enableNotificationFromBanner()"
-                class="px-3 py-1 bg-white text-blue-600 font-bold rounded-lg text-xs shadow hover:bg-blue-50 transition active:scale-95">
-          Bật ngay
-        </button>
-        <button @click="notificationBannerDismissed = true; localStorage.setItem('notificationBannerDismissed', 'true')"
-                class="p-1 text-white/80 hover:text-white transition" title="Đóng">
-          ✕
-        </button>
-      </div>
-    </div>
-  </div>
 
   <!-- ─── Banner thông báo nhắc nhở theo mức độ ưu tiên ─── -->
   <div x-show="imminentTodos.length > 0" x-cloak
@@ -507,7 +446,7 @@ export function renderHTML(): string {
           <div class="flex items-start gap-3 sm:gap-4">
             
             <!-- Checkbox: Hết hạn tự hiện dấu ✕ (hủy), bấm vào sẽ tick thành xong việc ✓ -->
-            <button @click="toggleTodo(todo)" class="mt-0.5 flex-shrink-0 w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95"
+            <button @click="toggleTodo(todo, $event)" class="mt-0.5 flex-shrink-0 w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95"
                     :class="{
                       'bg-emerald-500 border-emerald-500 text-white': todo.is_completed,
                       'bg-rose-50 dark:bg-rose-950/80 border-rose-500 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900': !todo.is_completed && isOverdue(todo),
@@ -535,23 +474,23 @@ export function renderHTML(): string {
 
                 <div class="flex-shrink-0 flex items-center gap-0.5 sm:gap-1">
                   <!-- Ghim (Pushpin Solid) -->
-                  <button @click="togglePin(todo)" class="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95"
+                  <button @click="togglePin(todo, $event)" class="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95"
                           :class="todo.is_pinned ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'" :title="todo.is_pinned ? 'Bỏ ghim' : 'Ghim lên đầu'">
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
                   </button>
 
                   <!-- Nhân bản (Copy Layer) -->
-                  <button @click="duplicateTodo(todo)" class="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-blue-500 transition active:scale-95" title="Nhân bản">
+                  <button @click="duplicateTodo(todo, $event)" class="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-blue-500 transition active:scale-95" title="Nhân bản">
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                   </button>
 
                   <!-- Chỉnh sửa (Pen Icon) -->
-                  <button @click="openEditModal(todo)" class="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-brand-600 transition active:scale-95" title="Sửa">
+                  <button @click="openEditModal(todo, $event)" class="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-brand-600 transition active:scale-95" title="Sửa">
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                   </button>
 
                   <!-- Xoá (Trash Icon) -->
-                  <button @click="confirmDelete(todo)" class="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-500 transition active:scale-95" title="Xóa">
+                  <button @click="confirmDelete(todo, $event)" class="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-500 transition active:scale-95" title="Xóa">
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                   </button>
                 </div>
@@ -666,27 +605,46 @@ export function renderHTML(): string {
         <span class="font-bold text-slate-800 dark:text-slate-200">Cloudflare Workers + D1</span>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-slate-500 dark:text-slate-400">Thông báo màn hình:</span>
-        <span class="font-bold"
-              :class="{
-                'text-emerald-600 dark:text-emerald-400': notificationStatus === 'granted',
-                'text-amber-600 dark:text-amber-400': notificationStatus === 'default',
-                'text-rose-600 dark:text-rose-400': notificationStatus === 'denied'
-              }">
-          <span x-show="notificationStatus === 'granted'">Đã bật ✅</span>
-          <span x-show="notificationStatus === 'default'">Chưa cấp quyền ⚠️</span>
-          <span x-show="notificationStatus === 'denied'">Bị chặn trong trình duyệt ❌</span>
-        </span>
+        <span class="text-slate-500 dark:text-slate-400">Nhắc nhở công việc:</span>
+        <span class="font-bold text-emerald-600 dark:text-emerald-400">Chuông In-App & Telegram 🔔</span>
       </div>
     </div>
 
     <!-- Nút hành động trong Modal -->
     <div class="flex flex-col gap-2">
-      <!-- Nút Thử thông báo màn hình ngay lập tức -->
-      <button @click="testNotificationOnScreen()"
+      <!-- Nút Mở thẳng Bot Telegram @hgc_todolist_bot -->
+      <a href="https://t.me/hgc_todolist_bot" target="_blank" rel="noopener noreferrer"
+         @click="openTelegramBot($event)"
+         class="w-full py-2.5 px-4 bg-sky-500 hover:bg-sky-600 active:scale-95 text-white font-bold rounded-2xl shadow-md shadow-sky-500/25 transition text-xs flex items-center justify-center gap-1.5 cursor-pointer">
+        <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+          <path d="m20.665 3.717-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l-.313 4.693c.46 0 .663-.211.921-.46l2.211-2.15 4.599 3.397c.848.467 1.457.227 1.668-.785l3.019-14.228c.309-1.239-.473-1.8-1.282-1.434z"/>
+        </svg>
+        <span>Mở Bot Telegram (@hgc_todolist_bot)</span>
+      </a>
+
+      <!-- Nút Gửi thử Telegram Bot (Tự động xóa sau 15s) -->
+      <button @click="testTelegram()"
+              :disabled="testingTelegram"
+              class="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 active:scale-95 text-slate-700 dark:text-slate-200 font-bold rounded-2xl transition text-xs flex items-center justify-center gap-1.5 disabled:opacity-50">
+        <svg class="w-4 h-4 text-sky-500" viewBox="0 0 24 24" fill="currentColor">
+          <path d="m20.665 3.717-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l-.313 4.693c.46 0 .663-.211.921-.46l2.211-2.15 4.599 3.397c.848.467 1.457.227 1.668-.785l3.019-14.228c.309-1.239-.473-1.8-1.282-1.434z"/>
+        </svg>
+        <span x-text="testingTelegram ? 'Đang gửi qua Telegram...' : 'Gửi thử Telegram (Tự xóa sau 15s)'"></span>
+      </button>
+
+      <!-- Nút Kích hoạt Telegram Webhook 2 chiều (1-Click) -->
+      <button @click="setupTelegramWebhook()"
+              :disabled="settingUpWebhook"
+              class="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-2xl shadow-md shadow-emerald-500/25 transition text-xs flex items-center justify-center gap-1.5 disabled:opacity-50">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        <span x-text="settingUpWebhook ? 'Đang kích hoạt...' : 'Kích hoạt Webhook Telegram 2 Chiều (1-Click)'"></span>
+      </button>
+
+      <!-- Nút Thử âm thanh & thông báo In-App -->
+      <button @click="testInAppAlert()"
               class="w-full py-2.5 px-4 bg-brand-600 hover:bg-brand-700 active:scale-95 text-white font-bold rounded-2xl shadow-md shadow-brand-500/25 transition text-xs flex items-center justify-center gap-1.5">
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        Bật thử thông báo màn hình (Test Notification)
+        Thử âm thanh & thông báo nhắc việc (Test Alert)
       </button>
 
       <!-- Nút Kiểm tra bản cập nhật -->
@@ -721,7 +679,7 @@ export function renderHTML(): string {
         <img src="/icon-192.png" alt="Logo" class="w-8 h-8 rounded-xl shadow-sm" />
         <h2 class="text-lg sm:text-xl font-black text-slate-900 dark:text-white">Cài đặt ứng dụng To-Do List</h2>
       </div>
-      <button @click="showDownloadModal=false" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+      <button @click="showDownloadModal=false" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95">
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
@@ -823,7 +781,7 @@ export function renderHTML(): string {
 
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-lg sm:text-xl font-black text-slate-900 dark:text-white" x-text="editingTodo ? 'Chỉnh sửa công việc' : 'Tạo công việc mới'"></h2>
-      <button @click="showModal=false" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+      <button @click="showModal=false" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95">
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
@@ -1024,20 +982,73 @@ export function renderHTML(): string {
   </div>
 </div>
 
+<!-- ═══════ CONFIRM LOGOUT MODAL ═══════ -->
+<div x-show="showLogoutModal" x-cloak class="fixed inset-0 z-[115] flex items-center justify-center p-4">
+  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showLogoutModal=false"></div>
+  <div class="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 text-center animate-bounce-once" @click.stop>
+    <div class="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-500 mx-auto flex items-center justify-center mb-3">
+      <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+        <polyline points="16 17 21 12 16 7"></polyline>
+        <line x1="21" y1="12" x2="9" y2="12"></line>
+      </svg>
+    </div>
+    <h3 class="text-base font-bold mb-1.5">Xác nhận đăng xuất?</h3>
+    <p class="text-xs text-slate-500 dark:text-slate-400 mb-5">
+      Bạn có chắc chắn muốn đăng xuất khỏi tài khoản <strong x-text="currentUser?.username || 'này'" class="text-slate-800 dark:text-slate-200"></strong> không?
+    </p>
+    <div class="flex gap-2.5">
+      <button @click="showLogoutModal=false" class="flex-1 py-2.5 px-3 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition">Huỷ</button>
+      <button @click="confirmLogoutAction()" class="flex-1 py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/30 transition">Đăng xuất ngay</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════ JAVASCRIPT CONTROLLER ═══════ -->
 <script>
 function app() {
   return {
     darkMode: localStorage.getItem('darkMode') === 'true',
-    authenticated: false,
-    currentUser: null,
+    authenticated: Boolean(localStorage.getItem('cached_user')),
+    currentUser: (() => {
+      try {
+        return JSON.parse(localStorage.getItem('cached_user') || 'null');
+      } catch (e) {
+        return null;
+      }
+    })(),
     authMode: 'login',
     authForm: { email: '', username: '', password: '' },
     authLoading: false,
 
-    todos: [],
+    // Tải tức thì từ LocalStorage (Instant Load)
+    todos: (() => {
+      try {
+        return JSON.parse(localStorage.getItem('cached_todos') || '[]');
+      } catch (e) {
+        return [];
+      }
+    })(),
     todosLoading: false,
-    categories: ['Personal', 'Work', 'Shopping', 'Health', 'Study'],
+    categories: (() => {
+      try {
+        return JSON.parse(localStorage.getItem('cached_categories') || '["Personal", "Work", "Shopping", "Health", "Study"]');
+      } catch (e) {
+        return ['Personal', 'Work', 'Shopping', 'Health', 'Study'];
+      }
+    })(),
+
+    // Quản lý Ngoại tuyến & Hàng đợi thao tác (Offline Sync Queue)
+    isOffline: !navigator.onLine,
+    isSyncing: false,
+    offlineQueue: (() => {
+      try {
+        return JSON.parse(localStorage.getItem('offline_queue') || '[]');
+      } catch (e) {
+        return [];
+      }
+    })(),
+    settingUpWebhook: false,
 
     // Filters
     searchQuery: '',
@@ -1084,10 +1095,10 @@ function app() {
       category: 'Personal',
       priority: 'Medium',
       repeat_mode: 'none',
-      due_datetime: '',
-      daily_time: '18:00',
-      weekly_day: 1,
-      weekly_time: '18:00',
+      due_datetime: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
+      daily_time: String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0'),
+      weekly_day: new Date().getDay(),
+      weekly_time: String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0'),
       is_pinned: false
     },
     todoSaving: false,
@@ -1096,15 +1107,14 @@ function app() {
     showDeleteModal: false,
     deletingTodo: null,
     showClearCompletedModal: false,
+    showLogoutModal: false,
 
     // Download Modal State
     showDownloadModal: false,
     downloadTab: 'ios',
     deferredInstallPrompt: null,
 
-    // Pull to Refresh State
-    pullStartY: 0,
-    pullDistance: 0,
+    // Refresh State
     isRefreshing: false,
 
     // Toasts
@@ -1113,25 +1123,17 @@ function app() {
 
     // Modal About & Version
     showAboutModal: false,
-    appVersion: '1.5.5',
-    notificationStatus: ('Notification' in window ? Notification.permission : 'unsupported'),
+    appVersion: '1.8.2',
+    testingTelegram: false,
 
-    // Notifications, Priorities & Auto-Update
+    // In-App Notifications, Priorities & Auto-Update
     notificationsEnabled: localStorage.getItem('notificationsEnabled') !== 'false',
-    notificationBannerDismissed: localStorage.getItem('notificationBannerDismissed') === 'true',
     lastNotifiedTimes: {},
     reminderInterval: null,
     autoPollInterval: null,
     bgWorker: null,
     swRegistration: null,
     audioCtx: null,
-
-    get showNotificationBannerPrompt() {
-      return this.authenticated &&
-        ('Notification' in window) &&
-        Notification.permission === 'default' &&
-        !this.notificationBannerDismissed;
-    },
 
     get stats() {
       const total = this.todos.length;
@@ -1267,9 +1269,29 @@ function app() {
         this.deferredInstallPrompt = e;
       });
 
-      // 4. Lắng nghe khi người dùng mở lại app / tab từ background
+      // 4. Lắng nghe trạng thái Online / Offline để kích hoạt đồng bộ hàng đợi
+      window.addEventListener('online', () => {
+        this.isOffline = false;
+        this.syncOfflineQueue();
+      });
+      window.addEventListener('offline', () => {
+        this.isOffline = true;
+        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
+      });
+
+      // Kiểm tra và đồng bộ hàng đợi ngoại tuyến định kỳ mỗi 15 giây
+      setInterval(() => {
+        if (navigator.onLine && this.offlineQueue.length > 0 && !this.isSyncing) {
+          this.syncOfflineQueue();
+        }
+      }, 15000);
+
+      // 5. Lắng nghe khi người dùng mở lại app / tab từ background
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && this.authenticated) {
+          if (navigator.onLine && this.offlineQueue.length > 0) {
+            this.syncOfflineQueue();
+          }
           this.fetchTodos(true);
           this.checkDueReminders();
           this.checkAppVersion();
@@ -1277,6 +1299,9 @@ function app() {
       });
       window.addEventListener('focus', () => {
         if (this.authenticated) {
+          if (navigator.onLine && this.offlineQueue.length > 0) {
+            this.syncOfflineQueue();
+          }
           this.fetchTodos(true);
           this.checkDueReminders();
           this.checkAppVersion();
@@ -1288,24 +1313,9 @@ function app() {
         this.checkAppVersion();
       }, 60000);
 
-      // Đảm bảo Pull-to-refresh không bao giờ bị kẹt trên màn hình
-      window.addEventListener('touchend', () => {
-        if (!this.isRefreshing) {
-          this.pullDistance = 0;
-          this.pullStartY = 0;
-        }
-      }, { passive: true });
-
-      window.addEventListener('touchcancel', () => {
-        if (!this.isRefreshing) {
-          this.pullDistance = 0;
-          this.pullStartY = 0;
-        }
-      }, { passive: true });
-
       await this.checkAuth();
-      if (this.authenticated && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        this.registerPushSubscription();
+      if (navigator.onLine && this.offlineQueue.length > 0) {
+        this.syncOfflineQueue();
       }
 
       // 5. Khởi động Web Worker chạy ngầm (chống trình duyệt bóp nghẹt timer khi mở ngầm)
@@ -1322,60 +1332,29 @@ function app() {
           this.fetchTodos(true);
         }
       }, 30000);
+
+      // 8. Tự động nhả focus (.blur()) sau khi chạm/click để loại bỏ triệt để lỗi nút bị kẹt lõm trên iOS/Safari
+      const handleTouchEndBlur = (e) => {
+        const btn = e.target?.closest ? e.target.closest('button, a, [role="button"]') : null;
+        if (btn && typeof btn.blur === 'function') {
+          btn.blur();
+          setTimeout(() => {
+            if (typeof btn.blur === 'function') btn.blur();
+            if (document.activeElement && typeof document.activeElement.blur === 'function') {
+              document.activeElement.blur();
+            }
+          }, 40);
+        }
+      };
+      window.addEventListener('touchend', handleTouchEndBlur, { passive: true });
+      window.addEventListener('mouseup', handleTouchEndBlur, { passive: true });
     },
 
-    // ─── PULL-TO-REFRESH HANDLERS ───
-    handleTouchStart(e) {
-      const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
-      if (scrollY <= 0) {
-        this.pullStartY = e.touches[0].clientY;
-      } else {
-        this.pullStartY = 0;
+    async refreshDataManual(e) {
+      if (e?.currentTarget?.blur) e.currentTarget.blur();
+      if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
       }
-    },
-
-    handleTouchMove(e) {
-      if (this.pullStartY === 0 || this.isRefreshing) return;
-      const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
-      if (scrollY > 0) {
-        this.pullStartY = 0;
-        this.pullDistance = 0;
-        return;
-      }
-      const currentY = e.touches[0].clientY;
-      const diff = currentY - this.pullStartY;
-      if (diff > 25) {
-        // Áp dụng vùng chết 25px và độ trễ tự nhiên (damping factor 0.38)
-        this.pullDistance = Math.min(95, (diff - 25) * 0.38);
-      } else {
-        this.pullDistance = 0;
-      }
-    },
-
-    handleTouchCancel(e) {
-      if (!this.isRefreshing) {
-        this.pullDistance = 0;
-      }
-      this.pullStartY = 0;
-    },
-
-    async handleTouchEnd(e) {
-      if (this.isRefreshing) return;
-      if (this.pullDistance >= 75) {
-        this.isRefreshing = true;
-        this.pullDistance = 50;
-        if (navigator.vibrate) navigator.vibrate(25);
-        await this.refreshDataManual();
-        this.pullDistance = 0;
-        this.isRefreshing = false;
-        this.showToast('Đã làm mới dữ liệu! ✨', 'success');
-      } else {
-        this.pullDistance = 0;
-      }
-      this.pullStartY = 0;
-    },
-
-    async refreshDataManual() {
       this.isRefreshing = true;
       try {
         await Promise.all([this.fetchTodos(), this.fetchCategories()]);
@@ -1398,7 +1377,11 @@ function app() {
       }
     },
 
-    toggleDarkMode() {
+    toggleDarkMode(e) {
+      if (e?.currentTarget?.blur) e.currentTarget.blur();
+      if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+      }
       this.darkMode = !this.darkMode;
       localStorage.setItem('darkMode', this.darkMode);
     },
@@ -1515,231 +1498,155 @@ function app() {
       }
     },
 
-    async enableNotificationFromBanner() {
-      if (!('Notification' in window)) {
-        this.showToast('Trình duyệt không hỗ trợ thông báo.', 'error');
-        return;
-      }
-      try {
-        const perm = await Notification.requestPermission();
-        if (perm === 'granted') {
-          this.notificationsEnabled = true;
-          localStorage.setItem('notificationsEnabled', 'true');
-          this.notificationBannerDismissed = true;
-          localStorage.setItem('notificationBannerDismissed', 'true');
-          this.showToast('Đã kích hoạt thông báo thành công! 🎉', 'success');
-          this.playChime();
-          this.triggerSystemNotification(
-            'To-Do List',
-            'Đã kích hoạt nhắc nhở trước 30 phút thành công!',
-            'welcome'
-          );
-          this.registerPushSubscription();
-        } else {
-          this.notificationBannerDismissed = true;
-          localStorage.setItem('notificationBannerDismissed', 'true');
-          this.showToast('Bạn đã từ chối nhận thông báo.', 'warning');
-        }
-      } catch (e) {
-        this.showToast('Lỗi yêu cầu quyền: ' + e.message, 'error');
-      }
-    },
-
-    async toggleNotificationPermission() {
-      if (!('Notification' in window)) {
-        this.showToast('Trình duyệt không hỗ trợ thông báo.', 'error');
-        return;
-      }
-
-      if (Notification.permission === 'granted') {
-        this.notificationsEnabled = !this.notificationsEnabled;
-        localStorage.setItem('notificationsEnabled', this.notificationsEnabled);
-        this.showToast(this.notificationsEnabled ? 'Đã bật nhắc nhở màn hình theo mức ưu tiên!' : 'Đã tạm tắt thông báo.', 'info');
-        if (this.notificationsEnabled) {
-          this.testNotificationOnScreen();
-        }
-      } else if (Notification.permission !== 'denied') {
-        const permission = await Notification.requestPermission();
-        this.notificationStatus = permission;
-        if (permission === 'granted') {
-          this.notificationsEnabled = true;
-          localStorage.setItem('notificationsEnabled', true);
-          this.showToast('Đã cấp quyền thông báo thành công! 🎉', 'success');
-          this.testNotificationOnScreen();
-        } else {
-          this.showToast('Bạn đã từ chối quyền thông báo.', 'warning');
-        }
-      } else {
-        this.showToast('Trình duyệt đang chặn thông báo! Vui lòng bấm vào biểu tượng ổ khóa 🔒 trên thanh địa chỉ để Cho phép.', 'warning');
-      }
-    },
-
     openAboutModal() {
-      if ('Notification' in window) {
-        this.notificationStatus = Notification.permission;
-      }
       this.showAboutModal = true;
     },
 
-    async testNotificationOnScreen() {
-      if (!('Notification' in window)) {
-        this.showToast('Trình duyệt này không hỗ trợ Notification.', 'error');
-        return;
-      }
+    testInAppAlert() {
+      this.playChime();
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+      this.showToast('🔔 Âm thanh và thông báo nhắc việc đang hoạt động hoàn hảo!', 'info');
+    },
 
-      if (Notification.permission === 'denied') {
-        this.showToast('Trình duyệt đang chặn thông báo! Vui lòng bấm vào ổ khóa 🔒 ở cạnh thanh địa chỉ để Cho phép.', 'error');
-        return;
+    async testTelegram() {
+      this.testingTelegram = true;
+      this.showToast('Đang kết nối và gửi thử qua Telegram Bot...', 'info');
+      try {
+        const res = await this.api('/api/test-telegram', { method: 'POST' });
+        if (res && res.success) {
+          this.playChime();
+          this.showToast(res.message || 'Gửi tin nhắn Telegram thành công! 🎉', 'success');
+        } else {
+          this.showToast(res?.error || res?.message || 'Chưa gửi được tin nhắn Telegram.', 'warning');
+        }
+      } catch (err) {
+        this.showToast(err.message || 'Lỗi gửi Telegram', 'error');
+      } finally {
+        this.testingTelegram = false;
       }
+    },
 
-      if (Notification.permission !== 'granted') {
-        const perm = await Notification.requestPermission();
-        this.notificationStatus = perm;
-        if (perm !== 'granted') {
-          this.showToast('Bạn chưa cho phép thông báo màn hình.', 'warning');
+    async setupTelegramWebhook() {
+      this.settingUpWebhook = true;
+      this.showToast('Đang kích hoạt Webhook 2 chiều trên Telegram...', 'info');
+      try {
+        const res = await fetch('/api/setup-telegram-webhook');
+        const data = await res.json();
+        if (data && data.success) {
+          this.playChime();
+          this.showToast('Kích hoạt Webhook Telegram thành công! 🎉', 'success');
+        } else {
+          this.showToast(data?.error || data?.telegram_response?.description || 'Chưa thể kích hoạt Webhook.', 'warning');
+        }
+      } catch (err) {
+        this.showToast(err.message || 'Lỗi kết nối Webhook', 'error');
+      } finally {
+        this.settingUpWebhook = false;
+      }
+    },
+
+    openTelegramBot(event) {
+      if (event) event.preventDefault();
+      const url = 'https://t.me/hgc_todolist_bot';
+      try {
+        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
+          window.Capacitor.Plugins.Browser.open({ url });
           return;
         }
+      } catch {}
+      const w = window.open(url, '_blank', 'noopener,noreferrer');
+      if (!w || w.closed || typeof w.closed === 'undefined') {
+        window.location.href = url;
       }
+    },
 
-      this.notificationStatus = Notification.permission;
-      this.notificationsEnabled = true;
-      localStorage.setItem('notificationsEnabled', 'true');
-      this.playChime();
-      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-      this.showToast('Đang phát thông báo màn hình thử nghiệm... 🚀', 'info');
+    confirmLogout(e) {
+      if (e?.currentTarget?.blur) e.currentTarget.blur();
+      if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+      }
+      this.showLogoutModal = true;
+    },
 
-      await this.triggerSystemNotification(
-        'To-Do List (Designed by Chung)',
-        '🎉 Thông báo màn hình đang hoạt động hoàn hảo! Bạn sẽ nhận được nhắc nhở đúng giờ.',
-        'test-screen-notif'
-      );
+    async confirmLogoutAction() {
+      this.showLogoutModal = false;
+      await this.logout();
+    },
 
-      // Đồng thời đăng ký & thử nghiệm Web Push chạy ngầm từ server
-      await this.registerPushSubscription();
+    getCurrentLocalDatetime() {
+      return new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    },
+
+    saveOfflineQueue() {
       try {
-        await fetch('/api/push/test', { method: 'POST' });
+        localStorage.setItem('offline_queue', JSON.stringify(this.offlineQueue));
       } catch {}
     },
 
-    async registerPushSubscription() {
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        console.log('PushManager not supported in this browser');
-        return;
-      }
+    saveCachedTodos() {
       try {
-        const reg = await navigator.serviceWorker.ready;
-        const res = await fetch('/api/push/vapid-public-key');
-        if (!res.ok) return;
-        const data = await res.json();
-        const publicKey = data.publicKey;
-        if (!publicKey) return;
-
-        const padding = '='.repeat((4 - (publicKey.length % 4)) % 4);
-        const base64 = (publicKey + padding).replace(/-/g, '+').replace(/_/g, '/');
-        const rawData = window.atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
-        for (let i = 0; i < rawData.length; ++i) {
-          outputArray[i] = rawData.charCodeAt(i);
-        }
-
-        let sub = await reg.pushManager.getSubscription();
-        if (!sub) {
-          sub = await reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: outputArray
-          });
-        }
-
-        const subJson = sub.toJSON();
-        await fetch('/api/push/subscribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            endpoint: sub.endpoint,
-            keys: {
-              p256dh: subJson.keys ? subJson.keys.p256dh : '',
-              auth: subJson.keys ? subJson.keys.auth : ''
-            }
-          })
-        });
-        console.log('Web Push subscription registered with server!');
-      } catch (err) {
-        console.warn('Register push error:', err);
-      }
+        localStorage.setItem('cached_todos', JSON.stringify(this.todos));
+      } catch {}
     },
 
-    async triggerSystemNotification(title, body, tag) {
-      if (!('Notification' in window)) return;
+    addToOfflineQueue(action) {
+      this.offlineQueue.push({
+        id: 'queue_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+        timestamp: Date.now(),
+        ...action
+      });
+      this.saveOfflineQueue();
+      this.saveCachedTodos();
+    },
 
-      // Nếu đang default, chủ động xin quyền ngay
-      if (Notification.permission === 'default') {
-        try {
-          const p = await Notification.requestPermission();
-          this.notificationStatus = p;
-          if (p !== 'granted') return;
-        } catch {
-          return;
-        }
-      }
+    async syncOfflineQueue() {
+      if (this.isSyncing || this.offlineQueue.length === 0 || !navigator.onLine) return;
+      this.isSyncing = true;
+      let syncedCount = 0;
 
-      if (Notification.permission !== 'granted') {
-        this.notificationStatus = Notification.permission;
-        return;
-      }
-
-      this.notificationStatus = 'granted';
-      const iconUrl = window.location.origin + '/icon-192.png';
-      const uniqueTag = (tag || 'todo-reminder') + '-' + Date.now();
-      const options = {
-        body: body,
-        icon: iconUrl,
-        badge: iconUrl,
-        tag: uniqueTag,
-        renotify: true,
-        requireInteraction: false,
-        silent: false,
-        vibrate: [200, 100, 200],
-        data: { url: '/' }
-      };
-
-      // 1. Thử gửi trực tiếp qua new Notification (cực kỳ nhạy và lập tức trên PC/Windows/Mac)
-      let sent = false;
       try {
-        const notif = new Notification(title, options);
-        notif.onclick = () => {
-          window.focus();
-          notif.close();
-        };
-        sent = true;
-      } catch (e) {
-        // Trên iOS Safari / WebKit WebClip, new Notification() bị chặn, chuyển sang Service Worker
-        console.log('Direct Notification not supported, trying Service Worker:', e);
-      }
-
-      // 2. Đồng thời hoặc fallback qua Service Worker (chuẩn cho Mobile iOS/Android)
-      if ('serviceWorker' in navigator) {
-        try {
-          const reg = await Promise.race([
-            navigator.serviceWorker.ready,
-            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 800))
-          ]);
-          if (reg && reg.showNotification && !sent) {
-            await reg.showNotification(title, options);
-            sent = true;
+        while (this.offlineQueue.length > 0) {
+          const item = this.offlineQueue[0];
+          try {
+            if (item.type === 'CREATE') {
+              const res = await this.api('/api/todos', { method: 'POST', body: JSON.stringify(item.body) });
+              if (res && res.todo) {
+                const idx = this.todos.findIndex(t => t.id === item.tempId);
+                if (idx !== -1) {
+                  this.todos[idx] = res.todo;
+                }
+              }
+            } else if (item.type === 'UPDATE') {
+              await this.api('/api/todos/' + item.todoId, { method: 'PUT', body: JSON.stringify(item.body) });
+            } else if (item.type === 'TOGGLE') {
+              await this.api('/api/todos/' + item.todoId + '/toggle', { method: 'PATCH' });
+            } else if (item.type === 'PIN') {
+              await this.api('/api/todos/' + item.todoId + '/pin', { method: 'PATCH' });
+            } else if (item.type === 'DELETE') {
+              await this.api('/api/todos/' + item.todoId, { method: 'DELETE' });
+            }
+            this.offlineQueue.shift();
+            this.saveOfflineQueue();
+            this.saveCachedTodos();
+            syncedCount++;
+          } catch (err) {
+            console.warn('[Offline Sync] Item failed:', item, err);
+            if (!navigator.onLine || String(err.message).toLowerCase().includes('fetch') || String(err.message).toLowerCase().includes('network')) {
+              this.isOffline = true;
+              break;
+            } else {
+              this.offlineQueue.shift();
+              this.saveOfflineQueue();
+            }
           }
-        } catch (e) {
-          console.warn('SW notification fallback error:', e);
         }
-      }
-
-      // 3. Dự phòng gửi message qua Service Worker Controller
-      if (!sent && navigator.serviceWorker && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'SHOW_NOTIFICATION',
-          title: title,
-          body: body,
-          tag: uniqueTag
-        });
+      } finally {
+        this.isSyncing = false;
+        if (syncedCount > 0) {
+          this.showToast('Đã đồng bộ dữ liệu lên Cloud', 'success');
+          await this.fetchTodos(true);
+          await this.fetchCategories();
+        }
       }
     },
 
@@ -1810,31 +1717,6 @@ function app() {
       }
     },
 
-    syncScheduleWithSW() {
-      if (!('serviceWorker' in navigator)) return;
-      try {
-        const tasks = (this.todos || [])
-          .filter(t => !t.is_completed && t.due_date)
-          .map(t => ({
-            id: t.id,
-            title: t.title,
-            priority: t.priority,
-            due_date: t.due_date,
-            warningMinutes: this.getPriorityWarningMinutes(t.priority),
-            repeat_mode: t.repeat_mode || 'none'
-          }));
-
-        if (navigator.serviceWorker.controller) {
-          navigator.serviceWorker.controller.postMessage({
-            type: 'SYNC_SCHEDULE',
-            tasks: tasks
-          });
-        }
-      } catch (e) {
-        console.warn('Sync schedule with SW error:', e);
-      }
-    },
-
     checkDueReminders() {
       if (!this.todos || this.todos.length === 0) return;
       const now = Date.now();
@@ -1862,19 +1744,8 @@ function app() {
             this.playChime();
             if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
 
-            const timeStr = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-
-            // 1. Toast cảnh báo
+            // Toast cảnh báo trực tiếp trong app
             this.showToast('⏰ Sắp hết hạn trong ' + minutesLeft + ' phút! Việc "' + todo.title + '"', 'warning');
-
-            // 2. Thông báo hệ thống (Notification)
-            if (this.notificationsEnabled) {
-              this.triggerSystemNotification(
-                'Sắp hết hạn trong ' + minutesLeft + ' phút',
-                'Công việc "' + todo.title + '" cần hoàn thành trước ' + timeStr,
-                'reminder-' + todo.id + '-' + Math.floor(now / FIVE_MINUTES_MS)
-              );
-            }
           }
         }
       });
@@ -2000,10 +1871,23 @@ function app() {
         if (data.authenticated) {
           this.authenticated = true;
           this.currentUser = data.user;
+          try {
+            localStorage.setItem('cached_user', JSON.stringify(data.user));
+          } catch {}
           await this.fetchCategories();
           await this.fetchTodos();
+        } else {
+          this.authenticated = false;
+          this.currentUser = null;
+          try {
+            localStorage.removeItem('cached_user');
+          } catch {}
         }
-      } catch {}
+      } catch (e) {
+        if (!navigator.onLine) {
+          this.isOffline = true;
+        }
+      }
     },
 
     async handleAuth() {
@@ -2017,6 +1901,9 @@ function app() {
         const data = await this.api(url, { method: 'POST', body: JSON.stringify(body) });
         this.authenticated = true;
         this.currentUser = data.user;
+        try {
+          localStorage.setItem('cached_user', JSON.stringify(data.user));
+        } catch {}
         this.showToast(this.authMode === 'login' ? 'Đăng nhập thành công!' : 'Tạo tài khoản thành công!');
         this.authForm = { email: '', username: '', password: '' };
         await this.fetchCategories();
@@ -2035,10 +1922,20 @@ function app() {
       this.authenticated = false;
       this.currentUser = null;
       this.todos = [];
+      try {
+        localStorage.removeItem('cached_user');
+        localStorage.removeItem('cached_todos');
+        localStorage.removeItem('cached_categories');
+        localStorage.removeItem('offline_queue');
+      } catch {}
       this.showToast('Đã đăng xuất an toàn.', 'info');
     },
 
     async fetchTodos(isSilent = false) {
+      if (!navigator.onLine) {
+        this.isOffline = true;
+        return;
+      }
       if (!isSilent) this.todosLoading = true;
       try {
         const [sort, order] = this.sortBy.split('-');
@@ -2051,9 +1948,11 @@ function app() {
         params.set('order', order);
 
         const data = await this.api('/api/todos?' + params.toString());
-        this.todos = data.todos;
+        if (this.offlineQueue.length === 0) {
+          this.todos = data.todos;
+          this.saveCachedTodos();
+        }
         this.checkDueReminders();
-        this.syncScheduleWithSW();
       } catch (err) {
         if (!isSilent) this.showToast(err.message, 'error');
       } finally {
@@ -2062,9 +1961,13 @@ function app() {
     },
 
     async fetchCategories() {
+      if (!navigator.onLine) return;
       try {
         const data = await this.api('/api/categories');
         this.categories = data.categories;
+        try {
+          localStorage.setItem('cached_categories', JSON.stringify(data.categories));
+        } catch {}
       } catch {}
     },
 
@@ -2073,23 +1976,28 @@ function app() {
       this.customCategoryMode = false;
       const now = new Date();
       const pad = (n) => String(n).padStart(2, '0');
-      const defaultDue = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) + 'T' + pad(Math.min(23, now.getHours() + 2)) + ':00';
+      const localNow = this.getCurrentLocalDatetime();
+      const currentTime = pad(now.getHours()) + ':' + pad(now.getMinutes());
       this.todoForm = {
         title: '',
         description: '',
         category: 'Personal',
         priority: 'Medium',
         repeat_mode: 'none',
-        due_datetime: defaultDue,
-        daily_time: '18:00',
-        weekly_day: 1,
-        weekly_time: '18:00',
+        due_datetime: localNow,
+        daily_time: currentTime,
+        weekly_day: now.getDay(),
+        weekly_time: currentTime,
         is_pinned: false
       };
       this.showModal = true;
     },
 
-    openEditModal(todo) {
+    openEditModal(todo, e) {
+      if (e?.currentTarget?.blur) e.currentTarget.blur();
+      if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+      }
       this.editingTodo = todo;
       this.customCategoryMode = false;
       const d = this.parseDateSafe(todo.due_date);
@@ -2158,16 +2066,65 @@ function app() {
         };
 
         if (this.editingTodo) {
-          await this.api('/api/todos/' + this.editingTodo.id, { method: 'PUT', body: JSON.stringify(body) });
-          this.showToast('Đã cập nhật công việc!');
+          const editId = this.editingTodo.id;
+          const idx = this.todos.findIndex(t => t.id === editId);
+          if (idx !== -1) {
+            Object.assign(this.todos[idx], body, { updated_at: new Date().toISOString() });
+            this.saveCachedTodos();
+          }
+
+          if (!navigator.onLine) {
+            this.addToOfflineQueue({ type: 'UPDATE', todoId: editId, body });
+            this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
+          } else {
+            try {
+              await this.api('/api/todos/' + editId, { method: 'PUT', body: JSON.stringify(body) });
+              this.showToast('Đã cập nhật công việc!');
+              await this.fetchTodos(true);
+            } catch (err) {
+              this.addToOfflineQueue({ type: 'UPDATE', todoId: editId, body });
+              this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
+            }
+          }
         } else {
-          await this.api('/api/todos', { method: 'POST', body: JSON.stringify(body) });
-          this.showToast('Đã tạo công việc mới!');
+          const tempId = 'temp_' + Date.now();
+          const newTodo = {
+            id: tempId,
+            user_id: this.currentUser?.id || 'temp',
+            title: body.title,
+            description: body.description,
+            category: body.category,
+            priority: body.priority,
+            repeat_mode: body.repeat_mode,
+            due_date: body.due_date,
+            is_pinned: body.is_pinned,
+            is_completed: 0,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          this.todos.unshift(newTodo);
+          this.saveCachedTodos();
+
+          if (!navigator.onLine) {
+            this.addToOfflineQueue({ type: 'CREATE', tempId, body });
+            this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
+          } else {
+            try {
+              const res = await this.api('/api/todos', { method: 'POST', body: JSON.stringify(body) });
+              if (res && res.todo) {
+                const idx = this.todos.findIndex(t => t.id === tempId);
+                if (idx !== -1) this.todos[idx] = res.todo;
+                this.saveCachedTodos();
+              }
+              this.showToast('Đã tạo công việc mới!');
+              await this.fetchCategories();
+            } catch (err) {
+              this.addToOfflineQueue({ type: 'CREATE', tempId, body });
+              this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
+            }
+          }
         }
         this.showModal = false;
-        await this.fetchTodos();
-        await this.fetchCategories();
-        this.syncScheduleWithSW();
       } catch (err) {
         this.showToast(err.message, 'error');
       } finally {
@@ -2175,70 +2132,154 @@ function app() {
       }
     },
 
-    async toggleTodo(todo) {
+    async toggleTodo(todo, e) {
+      if (e?.currentTarget?.blur) e.currentTarget.blur();
+      if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+      }
+      const prevStatus = todo.is_completed;
+      const newStatus = prevStatus ? 0 : 1;
+      todo.is_completed = newStatus;
+
+      if (newStatus === 1 && todo.repeat_mode && todo.repeat_mode !== 'none' && todo.due_date) {
+        const d = new Date(todo.due_date);
+        if (!isNaN(d.getTime())) {
+          const increment = todo.repeat_mode === 'daily' ? 1 : 7;
+          d.setDate(d.getDate() + increment);
+          while (d.getTime() < Date.now()) {
+            d.setDate(d.getDate() + increment);
+          }
+          todo.due_date = d.toISOString();
+        }
+      }
+      this.saveCachedTodos();
+
+      if (!navigator.onLine) {
+        this.addToOfflineQueue({ type: 'TOGGLE', todoId: todo.id });
+        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
+        return;
+      }
+
       try {
         const res = await this.api('/api/todos/' + todo.id + '/toggle', { method: 'PATCH' });
         if (res && res.todo) {
           Object.assign(todo, res.todo);
-        } else {
-          todo.is_completed = todo.is_completed ? 0 : 1;
+          this.saveCachedTodos();
         }
         this.showToast(todo.is_completed ? 'Hoàn thành xuất sắc! 🎉' : 'Đã chuyển sang đang chờ.', 'info');
-        this.syncScheduleWithSW();
       } catch (err) {
-        this.showToast(err.message, 'error');
+        this.addToOfflineQueue({ type: 'TOGGLE', todoId: todo.id });
+        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
       }
     },
 
-    async togglePin(todo) {
+    async togglePin(todo, e) {
+      if (e?.currentTarget?.blur) e.currentTarget.blur();
+      if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+      }
+      todo.is_pinned = todo.is_pinned ? 0 : 1;
+      this.saveCachedTodos();
+      this.showToast(todo.is_pinned ? '📌 Đã ghim lên đầu' : 'Đã bỏ ghim', 'info');
+
+      if (!navigator.onLine) {
+        this.addToOfflineQueue({ type: 'PIN', todoId: todo.id });
+        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
+        return;
+      }
+
       try {
         const res = await this.api('/api/todos/' + todo.id + '/pin', { method: 'PATCH' });
         if (res && res.todo) {
           todo.is_pinned = res.todo.is_pinned;
-        } else {
-          todo.is_pinned = todo.is_pinned ? 0 : 1;
+          this.saveCachedTodos();
         }
-        this.showToast(todo.is_pinned ? '📌 Đã ghim lên đầu' : 'Đã bỏ ghim', 'info');
+        await this.fetchTodos(true);
       } catch (err) {
-        this.showToast(err.message, 'error');
+        this.addToOfflineQueue({ type: 'PIN', todoId: todo.id });
+        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
       }
     },
 
-    async duplicateTodo(todo) {
+    async duplicateTodo(todo, e) {
+      if (e?.currentTarget?.blur) e.currentTarget.blur();
+      if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+      }
+      const tempId = 'temp_' + Date.now();
+      const body = {
+        title: todo.title + ' (Bản sao)',
+        description: todo.description || '',
+        category: todo.category,
+        priority: todo.priority,
+        repeat_mode: todo.repeat_mode || 'none',
+        due_date: todo.due_date,
+        is_pinned: 0
+      };
+
+      const newTodo = {
+        id: tempId,
+        user_id: this.currentUser?.id || 'temp',
+        ...body,
+        is_completed: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      this.todos.unshift(newTodo);
+      this.saveCachedTodos();
+
+      if (!navigator.onLine) {
+        this.addToOfflineQueue({ type: 'CREATE', tempId, body });
+        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
+        return;
+      }
+
       try {
-        const body = {
-          title: todo.title + ' (Bản sao)',
-          description: todo.description || '',
-          category: todo.category,
-          priority: todo.priority,
-          repeat_mode: todo.repeat_mode || 'none',
-          due_date: todo.due_date,
-          is_pinned: 0
-        };
-        await this.api('/api/todos', { method: 'POST', body: JSON.stringify(body) });
+        const res = await this.api('/api/todos', { method: 'POST', body: JSON.stringify(body) });
+        if (res && res.todo) {
+          const idx = this.todos.findIndex(t => t.id === tempId);
+          if (idx !== -1) this.todos[idx] = res.todo;
+          this.saveCachedTodos();
+        }
         this.showToast('Đã nhân bản công việc!');
-        await this.fetchTodos();
-        this.syncScheduleWithSW();
       } catch (err) {
-        this.showToast(err.message, 'error');
+        this.addToOfflineQueue({ type: 'CREATE', tempId, body });
+        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
       }
     },
 
-    confirmDelete(todo) {
+    confirmDelete(todo, e) {
+      if (e?.currentTarget?.blur) e.currentTarget.blur();
+      if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+      }
       this.deletingTodo = todo;
       this.showDeleteModal = true;
     },
 
     async deleteTodo() {
       this.todoSaving = true;
+      const targetId = this.deletingTodo?.id;
+      if (!targetId) return;
+
+      this.todos = this.todos.filter(t => t.id !== targetId);
+      this.saveCachedTodos();
+      this.showDeleteModal = false;
+      this.deletingTodo = null;
+
+      if (!navigator.onLine) {
+        this.addToOfflineQueue({ type: 'DELETE', todoId: targetId });
+        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
+        this.todoSaving = false;
+        return;
+      }
+
       try {
-        await this.api('/api/todos/' + this.deletingTodo.id, { method: 'DELETE' });
+        await this.api('/api/todos/' + targetId, { method: 'DELETE' });
         this.showToast('Đã xoá công việc!');
-        this.showDeleteModal = false;
-        this.deletingTodo = null;
-        await this.fetchTodos();
       } catch (err) {
-        this.showToast(err.message, 'error');
+        this.addToOfflineQueue({ type: 'DELETE', todoId: targetId });
+        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
       } finally {
         this.todoSaving = false;
       }
@@ -2250,13 +2291,24 @@ function app() {
 
     async clearCompleted() {
       this.todoSaving = true;
+      const completedTodos = this.todos.filter(t => t.is_completed);
+      this.todos = this.todos.filter(t => !t.is_completed);
+      this.saveCachedTodos();
+      this.showClearCompletedModal = false;
+
+      if (!navigator.onLine) {
+        completedTodos.forEach(t => this.addToOfflineQueue({ type: 'DELETE', todoId: t.id }));
+        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
+        this.todoSaving = false;
+        return;
+      }
+
       try {
         await this.api('/api/todos/clear-completed', { method: 'POST' });
         this.showToast('Đã dọn dẹp tất cả việc đã hoàn thành!');
-        this.showClearCompletedModal = false;
-        await this.fetchTodos();
       } catch (err) {
-        this.showToast(err.message, 'error');
+        completedTodos.forEach(t => this.addToOfflineQueue({ type: 'DELETE', todoId: t.id }));
+        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
       } finally {
         this.todoSaving = false;
       }

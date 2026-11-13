@@ -11,10 +11,9 @@ database_id = "ee9cc188-e5e9-4f79-82e5-06ccb5d0b570"  # Thay bằng ID thật sa
 
 # ─── Biến môi trường ───
 [vars]
-JWT_SECRET = "72d442fc9a03bdc47f4bd4e4e4e1e174ea11f3f81a49fe3eab9c82563075ee0a"  # ⚠️ Đổi trước khi deploy!
+JWT_SECRET = "72d442fc9a03bdc47f4bd4e4e4e1e174ea11f3f81a49fe3eab9c82563075ee0a"
 COOKIE_NAME = "todo_session"
 
-# ─── Cron Triggers: Quét ngầm mỗi phút trên server Cloudflare ───
+# ─── Cron Triggers: Quét tự động reset việc Hàng ngày & Hàng tuần trên server Cloudflare ───
 [triggers]
 crons = ["* * * * *"]
-

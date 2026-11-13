@@ -42,13 +42,16 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE TABLE IF NOT EXISTS push_subscriptions (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
+  platform TEXT NOT NULL DEFAULT 'web',
   endpoint TEXT NOT NULL UNIQUE,
-  p256dh TEXT NOT NULL,
-  auth TEXT NOT NULL,
+  p256dh TEXT DEFAULT '',
+  auth TEXT DEFAULT '',
+  device_token TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_push_sub_user ON push_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_push_platform ON push_subscriptions(platform);
 
 -- Bảng nhật ký nhắc việc chạy ngầm trên server
 CREATE TABLE IF NOT EXISTS reminder_logs (

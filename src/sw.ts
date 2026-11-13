@@ -1,10 +1,10 @@
 // ============================================================
-// Service Worker — To-Do List (Background, PWA & Auto-Update)
+// Service Worker — To-Do List (PWA Offline Cache & Auto-Update)
 // ============================================================
 
 export function renderServiceWorker(): string {
   return /*javascript*/ `
-const CACHE_NAME = 'todolist-v11';
+const CACHE_NAME = 'todolist-v18';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -31,75 +31,14 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// ─── CHẠY NGẦM QUÉT NHẮC VIỆC TRONG SERVICE WORKER (NGAY CẢ KHI TAB MỞ NGẦM) ───
-let scheduledTasks = [];
-let lastNotifiedInSW = {};
-
-function checkSWReminders() {
-  if (!scheduledTasks || scheduledTasks.length === 0) return;
-  const now = Date.now();
-  const FIVE_MIN = 5 * 60 * 1000;
-
-  scheduledTasks.forEach((task) => {
-    if (task.is_completed || !task.due_date) return;
-    const dueTime = new Date(task.due_date).getTime();
-    if (isNaN(dueTime)) return;
-
-    const diffMs = dueTime - now;
-    const minLeft = Math.ceil(diffMs / 60000);
-    const windowMin = task.warningMinutes || 15;
-
-    // Khi vào khung nhắc nhở (Low: 5p, Medium: 15p, High: 30p)
-    if (minLeft >= 0 && minLeft <= windowMin) {
-      const last = lastNotifiedInSW[task.id] || 0;
-      const isRepeat = (task.priority === 'High' || task.priority === 'Medium');
-      const shouldNotify = isRepeat ? (now - last >= FIVE_MIN) : (!last);
-
-      if (shouldNotify) {
-        lastNotifiedInSW[task.id] = now;
-        const timeStr = new Date(dueTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-        const iconUrl = self.location.origin + '/icon-192.png';
-        self.registration.showNotification('Sắp hết hạn trong ' + minLeft + ' phút', {
-          body: 'Công việc "' + task.title + '" cần hoàn thành trước ' + timeStr,
-          icon: iconUrl,
-          badge: iconUrl,
-          tag: 'sw-rem-' + task.id + '-' + Math.floor(now / FIVE_MIN),
-          renotify: true,
-          vibrate: [200, 100, 200],
-          data: { url: '/' }
-        });
-      }
-    }
-  });
-}
-
 // Lắng nghe lệnh từ frontend
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
-  if (event.data && event.data.type === 'SYNC_SCHEDULE') {
-    scheduledTasks = event.data.tasks || [];
-    checkSWReminders();
-  }
-  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
-    const { title, body, tag } = event.data;
-    const iconUrl = self.location.origin + '/icon-192.png';
-    self.registration.showNotification(title || 'To-Do List', {
-      body: body || 'Bạn có công việc cần hoàn thành!',
-      icon: iconUrl,
-      badge: iconUrl,
-      tag: tag || 'todo-reminder',
-      renotify: true,
-      vibrate: [200, 100, 200],
-      data: { url: '/' }
-    });
-  }
 });
 
-setInterval(checkSWReminders, 8000);
-
-// ─── NETWORK-FIRST CHO TRANG CHÍNH: ĐẢM BẢO IOS APP LUÔN TỰ CẬP NHẬT MỚI NHẤT ───
+// ─── NETWORK-FIRST CHO TRANG CHÍNH: ĐẢM BẢO APP LUÔN TỰ CẬP NHẬT MỚI NHẤT ───
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
@@ -140,51 +79,5 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
-
-// ─── LẮNG NGHE WEB PUSH NOTIFICATION KHI TẮT TRÌNH DUYỆT ───
-self.addEventListener('push', (event) => {
-  let data = {};
-  if (event.data) {
-    try {
-      data = event.data.json();
-    } catch {
-      data = { title: 'To-Do List', body: event.data.text() };
-    }
-  }
-
-  const title = data.title || 'To-Do List';
-  const iconUrl = self.location.origin + '/icon-192.png';
-  const options = {
-    body: data.body || 'Nhắc nhở công việc sắp đến hạn!',
-    icon: iconUrl,
-    badge: iconUrl,
-    tag: data.tag || 'todo-push',
-    renotify: true,
-    vibrate: [200, 100, 200],
-    data: { url: data.url || '/' }
-  };
-
-  event.waitUntil(self.registration.showNotification(title, options));
-});
-
-// ─── XỬ LÝ KHI NGƯỜI DÙNG BẤM VÀO THÔNG BÁO ───
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
-
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if (client.url.includes(targetUrl) && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      if (clients.openWindow) {
-        return clients.openWindow(targetUrl);
-      }
-    })
-  );
-});
 `;
 }
-

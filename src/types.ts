@@ -39,12 +39,3 @@ export interface JWTPayload {
   iat: number;
   exp: number;
 }
-
-export interface PushSubscriptionRecord {
-  id: string;
-  user_id: string;
-  endpoint: string;
-  p256dh: string;
-  auth: string;
-  created_at: string;
-}

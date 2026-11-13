@@ -20,7 +20,174 @@ import { renderHTML } from './frontend';
 import { getIconPNGBytes } from './icon';
 import { renderServiceWorker } from './sw';
 import { generateIOSMobileConfig } from './iosProfile';
-import { sendWebPush, VAPID_PUBLIC_KEY, PushSubscriptionData } from './push';
+import {
+  sendTelegramTaskReminder,
+  sendTelegramTestMessage,
+  deleteTelegramMessage,
+  answerCallbackQuery
+} from './telegram';
+
+// ─── Helper: Lấy thông tin thời gian theo múi giờ Việt Nam (UTC+7) ───
+export function getVnDateParts(date: Date) {
+  const vnTime = new Date(date.getTime() + 7 * 3600 * 1000);
+  const year = vnTime.getUTCFullYear();
+  const month = vnTime.getUTCMonth(); // 0-11
+  const day = vnTime.getUTCDate();
+  const dayOfWeek = vnTime.getUTCDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  const hours = vnTime.getUTCHours();
+  const minutes = vnTime.getUTCMinutes();
+  const seconds = vnTime.getUTCSeconds();
+  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const mondayMs = vnTime.getTime() - diffToMonday * 24 * 3600 * 1000;
+  const mondayVn = new Date(mondayMs);
+  const mondayStr = `${mondayVn.getUTCFullYear()}-${String(mondayVn.getUTCMonth() + 1).padStart(2, '0')}-${String(mondayVn.getUTCDate()).padStart(2, '0')}`;
+  return { year, month, day, dayOfWeek, hours, minutes, seconds, dateStr, mondayStr, mondayMs };
+}
+
+// ─── Helper: Tự động reset các công việc lặp lại Hàng ngày & Hàng tuần ───
+export async function resetRecurringTasks(db: D1Database, userId?: string): Promise<number> {
+  try {
+    const now = new Date();
+    const nowVn = getVnDateParts(now);
+    const nowIso = now.toISOString();
+
+    let query = "SELECT id, user_id, title, priority, due_date, is_completed, repeat_mode, updated_at FROM todos WHERE repeat_mode IN ('daily', 'weekly')";
+    const params: any[] = [];
+    if (userId) {
+      query += ' AND user_id = ?';
+      params.push(userId);
+    }
+
+    const tasksRes = await db.prepare(query).bind(...params).all<Todo>();
+    const tasks = tasksRes.results || [];
+    let resetCount = 0;
+
+    for (const task of tasks) {
+      const mode = task.repeat_mode;
+      let shouldReset = false;
+      let newDueDate: string | null = task.due_date;
+
+      if (mode === 'daily') {
+        if (task.due_date) {
+          const dueVn = getVnDateParts(new Date(task.due_date));
+          if (dueVn.dateStr < nowVn.dateStr) {
+            shouldReset = true;
+            const newVnMs = Date.UTC(nowVn.year, nowVn.month, nowVn.day, dueVn.hours, dueVn.minutes, 0) - (7 * 3600 * 1000);
+            newDueDate = new Date(newVnMs).toISOString();
+          }
+        } else if (task.is_completed === 1 && task.updated_at) {
+          const updatedVn = getVnDateParts(new Date(task.updated_at));
+          if (updatedVn.dateStr < nowVn.dateStr) {
+            shouldReset = true;
+          }
+        }
+      } else if (mode === 'weekly') {
+        if (task.due_date) {
+          const dueVn = getVnDateParts(new Date(task.due_date));
+          if (dueVn.mondayStr < nowVn.mondayStr) {
+            shouldReset = true;
+            const dayOffsetFromMonday = dueVn.dayOfWeek === 0 ? 6 : dueVn.dayOfWeek - 1;
+            const targetDayVn = new Date(nowVn.mondayMs + dayOffsetFromMonday * 24 * 3600 * 1000);
+            const newWkMs = Date.UTC(targetDayVn.getUTCFullYear(), targetDayVn.getUTCMonth(), targetDayVn.getUTCDate(), dueVn.hours, dueVn.minutes, 0) - (7 * 3600 * 1000);
+            newDueDate = new Date(newWkMs).toISOString();
+          }
+        } else if (task.is_completed === 1 && task.updated_at) {
+          const updatedVn = getVnDateParts(new Date(task.updated_at));
+          if (updatedVn.mondayStr < nowVn.mondayStr) {
+            shouldReset = true;
+          }
+        }
+      }
+
+      if (shouldReset) {
+        await db.prepare(
+          'UPDATE todos SET is_completed = 0, due_date = ?, updated_at = ? WHERE id = ?'
+        ).bind(newDueDate, nowIso, task.id).run();
+        resetCount++;
+      }
+    }
+
+    return resetCount;
+  } catch (err) {
+    console.error('[resetRecurringTasks] Error:', err);
+    return 0;
+  }
+}
+
+// ─── Helper: Quét và gửi thông báo nhắc việc sắp đến hạn qua Telegram Bot ───
+export async function checkAndSendReminders(env: Env): Promise<{ checked: number; sent: number }> {
+  if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) {
+    return { checked: 0, sent: 0 };
+  }
+
+  const now = Date.now();
+  const FIVE_MINUTES_MS = 5 * 60 * 1000;
+
+  try {
+    await ensureDbColumns(env.DB);
+    const todosRes = await env.DB.prepare(
+      `SELECT id, user_id, title, description, category, priority, due_date, repeat_mode, is_completed, telegram_message_id, created_at, updated_at
+       FROM todos WHERE is_completed = 0 AND due_date IS NOT NULL`
+    ).all<Todo>();
+
+    const todos = todosRes.results || [];
+    let sentCount = 0;
+
+    for (const task of todos) {
+      if (!task.due_date) continue;
+      const normalizedDate = task.due_date.includes('T') ? task.due_date : task.due_date.replace(' ', 'T');
+      const dueTime = new Date(normalizedDate).getTime();
+      if (isNaN(dueTime)) continue;
+
+      const diffMs = dueTime - now;
+      const minLeft = Math.ceil(diffMs / 60000);
+
+      let windowMin = 15;
+      if (task.priority === 'High') windowMin = 30;
+      else if (task.priority === 'Low') windowMin = 5;
+
+      // Nằm trong khung thông báo (từ 0 đến windowMin phút trước hạn)
+      if (minLeft >= 0 && minLeft <= windowMin) {
+        // Kiểm tra xem đã gửi nhắc nhở gần đây chưa
+        const logRes = await env.DB.prepare(
+          `SELECT MAX(notified_at) as last_notified, COUNT(*) as total_count FROM reminder_logs WHERE todo_id = ?`
+        ).bind(task.id).first<{ last_notified: number | null; total_count: number }>();
+
+        const lastNotified = logRes?.last_notified || 0;
+        const totalCount = logRes?.total_count || 0;
+
+        // High và Medium: lặp lại mỗi 5 phút một lần; Low: chỉ thông báo 1 lần duy nhất
+        const isRecurring = (task.priority === 'High' || task.priority === 'Medium');
+        const shouldNotify = isRecurring ? (now - lastNotified >= FIVE_MINUTES_MS) : (totalCount === 0);
+
+        if (shouldNotify) {
+          const res = await sendTelegramTaskReminder(env, task, minLeft);
+          if (res.success) {
+            sentCount++;
+            // Ghi nhật ký vào reminder_logs để không bị gửi lặp lại
+            const logId = crypto.randomUUID();
+            await env.DB.prepare(
+              `INSERT INTO reminder_logs (id, todo_id, notified_at) VALUES (?, ?, ?)`
+            ).bind(logId, task.id, now).run();
+
+            // Cập nhật ID tin nhắn Telegram mới nhất vào bảng todos để đồng bộ
+            if (res.messageId) {
+              await env.DB.prepare(
+                `UPDATE todos SET telegram_message_id = ? WHERE id = ?`
+              ).bind(res.messageId, task.id).run();
+            }
+          }
+        }
+      }
+    }
+
+    return { checked: todos.length, sent: sentCount };
+  } catch (err) {
+    console.error('[checkAndSendReminders] Error:', err);
+    return { checked: 0, sent: 0 };
+  }
+}
 
 // ─── Hono App ───
 
@@ -53,6 +220,9 @@ async function ensureDbColumns(db: D1Database) {
   } catch { }
   try {
     await db.prepare("ALTER TABLE todos ADD COLUMN repeat_mode TEXT DEFAULT 'none'").run();
+  } catch { }
+  try {
+    await db.prepare('ALTER TABLE todos ADD COLUMN telegram_message_id INTEGER DEFAULT NULL').run();
   } catch { }
   dbMigrated = true;
 }
@@ -274,6 +444,10 @@ app.get('/api/auth/me', async (c) => {
 // GET /api/todos — Lấy danh sách todos (hỗ trợ filter, search, sort, repeat_mode)
 app.get('/api/todos', async (c) => {
   const user = c.get('user');
+
+  // Tự động reset các công việc lặp lại (Hàng ngày & Hàng tuần) nếu đã qua ngày/tuần mới
+  await resetRecurringTasks(c.env.DB, user.sub);
+
   const url = new URL(c.req.url);
 
   const status = url.searchParams.get('status'); // all | pending | completed | overdue | recurring
@@ -412,6 +586,23 @@ app.put('/api/todos/:id', async (c) => {
     const normalizedDueDate = body.due_date !== undefined ? normalizeDate(body.due_date) : existing.due_date;
     const repeatMode = body.repeat_mode !== undefined ? body.repeat_mode : existing.repeat_mode;
 
+    // Kiểm tra nếu thời hạn (due_date) có thay đổi so với giá trị cũ trong D1
+    const dueDateChanged = body.due_date !== undefined && normalizedDueDate !== existing.due_date;
+    let newTelegramMessageId = existing.telegram_message_id;
+
+    if (dueDateChanged) {
+      // 1. Xóa lời nhắc cũ trên Telegram nếu có
+      if (existing.telegram_message_id && c.env.TELEGRAM_BOT_TOKEN && c.env.TELEGRAM_CHAT_ID) {
+        await deleteTelegramMessage(c.env.TELEGRAM_BOT_TOKEN, c.env.TELEGRAM_CHAT_ID, existing.telegram_message_id);
+      }
+      newTelegramMessageId = null;
+
+      // 2. Đặt lại cờ trạng thái nhắc nhở để đến đúng hạn mới sẽ tự động gửi lời nhắc mới
+      try {
+        await c.env.DB.prepare('DELETE FROM reminder_logs WHERE todo_id = ?').bind(todoId).run();
+      } catch { }
+    }
+
     await c.env.DB.prepare(
       `UPDATE todos SET
         title = ?,
@@ -422,6 +613,7 @@ app.put('/api/todos/:id', async (c) => {
         is_completed = ?,
         is_pinned = ?,
         repeat_mode = ?,
+        telegram_message_id = ?,
         updated_at = ?
        WHERE id = ? AND user_id = ?`
     ).bind(
@@ -433,6 +625,7 @@ app.put('/api/todos/:id', async (c) => {
       body.is_completed !== undefined ? body.is_completed : existing.is_completed,
       body.is_pinned !== undefined ? body.is_pinned : existing.is_pinned,
       repeatMode,
+      newTelegramMessageId,
       now,
       todoId,
       user.sub
@@ -481,9 +674,14 @@ app.patch('/api/todos/:id/toggle', async (c) => {
       }
     }
 
+    // Khi hoàn thành: Xóa tin nhắn nhắc nhở cũ trên Telegram nếu có
+    if (newStatus === 1 && existing.telegram_message_id && c.env.TELEGRAM_BOT_TOKEN && c.env.TELEGRAM_CHAT_ID) {
+      await deleteTelegramMessage(c.env.TELEGRAM_BOT_TOKEN, c.env.TELEGRAM_CHAT_ID, existing.telegram_message_id);
+    }
+
     await c.env.DB.prepare(
-      'UPDATE todos SET is_completed = ?, due_date = ?, updated_at = ? WHERE id = ? AND user_id = ?'
-    ).bind(newStatus, nextDueDate, now, todoId, user.sub).run();
+      'UPDATE todos SET is_completed = ?, due_date = ?, telegram_message_id = CASE WHEN ? = 1 THEN NULL ELSE telegram_message_id END, updated_at = ? WHERE id = ? AND user_id = ?'
+    ).bind(newStatus, nextDueDate, newStatus, now, todoId, user.sub).run();
 
     const updated = await c.env.DB.prepare(
       "SELECT *, COALESCE(is_pinned, 0) as is_pinned, COALESCE(repeat_mode, 'none') as repeat_mode FROM todos WHERE id = ?"
@@ -535,12 +733,22 @@ app.delete('/api/todos/:id', async (c) => {
     const todoId = c.req.param('id');
 
     const existing = await c.env.DB.prepare(
-      'SELECT id FROM todos WHERE id = ? AND user_id = ?'
-    ).bind(todoId, user.sub).first();
+      'SELECT id, telegram_message_id FROM todos WHERE id = ? AND user_id = ?'
+    ).bind(todoId, user.sub).first<{ id: string; telegram_message_id?: number | null }>();
 
     if (!existing) {
       return c.json({ error: 'Không tìm thấy công việc.' }, 404);
     }
+
+    // Xóa tin nhắn nhắc nhở trên Telegram nếu có
+    if (existing.telegram_message_id && c.env.TELEGRAM_BOT_TOKEN && c.env.TELEGRAM_CHAT_ID) {
+      await deleteTelegramMessage(c.env.TELEGRAM_BOT_TOKEN, c.env.TELEGRAM_CHAT_ID, existing.telegram_message_id);
+    }
+
+    // Xóa nhật ký nhắc nhở
+    try {
+      await c.env.DB.prepare('DELETE FROM reminder_logs WHERE todo_id = ?').bind(todoId).run();
+    } catch { }
 
     await c.env.DB.prepare(
       'DELETE FROM todos WHERE id = ? AND user_id = ?'
@@ -660,94 +868,236 @@ app.get('/sw.js', async () => {
 });
 
 // ════════════════════════════════════════════════════════════
-//  PUSH NOTIFICATIONS — Web Push (APNs cho iOS & FCM cho Chrome/Android)
+//  TELEGRAM NOTIFICATIONS
 // ════════════════════════════════════════════════════════════
 
-// GET /api/push/vapid-public-key — Lấy VAPID Public Key để client đăng ký push
-app.get('/api/push/vapid-public-key', (c) => {
-  return c.json({ publicKey: VAPID_PUBLIC_KEY });
+// POST /api/test-telegram — Gửi tin nhắn thử nghiệm tới Telegram Bot
+app.post('/api/test-telegram', async (c) => {
+  try {
+    const cookieHeader = c.req.header('Cookie') || '';
+    const cookies = parseCookies(cookieHeader);
+    const token = cookies[c.env.COOKIE_NAME];
+    let username = 'Chung';
+
+    if (token) {
+      const user = await verifyJWT(token, c.env.JWT_SECRET);
+      if (user?.username) {
+        username = user.username;
+      }
+    }
+
+    if (!c.env.TELEGRAM_BOT_TOKEN || !c.env.TELEGRAM_CHAT_ID) {
+      return c.json({
+        success: false,
+        error: 'Chưa cấu hình TELEGRAM_BOT_TOKEN hoặc TELEGRAM_CHAT_ID trong Cloudflare Secrets. Hãy thiết lập bằng lệnh: npx wrangler secret put TELEGRAM_BOT_TOKEN và npx wrangler secret put TELEGRAM_CHAT_ID'
+      }, 400);
+    }
+
+    const res = await sendTelegramTestMessage(c.env.TELEGRAM_BOT_TOKEN, c.env.TELEGRAM_CHAT_ID, username);
+    if (res.success) {
+      // Tự động xóa tin nhắn thử nghiệm sau 15 giây qua ctx.waitUntil
+      if (res.messageId) {
+        const botToken = c.env.TELEGRAM_BOT_TOKEN;
+        const chatId = c.env.TELEGRAM_CHAT_ID;
+        const msgId = res.messageId;
+        const autoDeletePromise = (async () => {
+          await new Promise((resolve) => setTimeout(resolve, 15000));
+          await deleteTelegramMessage(botToken, chatId, msgId);
+        })();
+        try {
+          c.executionCtx.waitUntil(autoDeletePromise);
+        } catch {
+          autoDeletePromise.catch(() => {});
+        }
+      }
+      return c.json({
+        success: true,
+        message: 'Đã gửi tin nhắn thử nghiệm tới Telegram Bot thành công! (Tin nhắn sẽ tự động xóa sau 15 giây) 🎉'
+      });
+    } else {
+      return c.json({
+        success: false,
+        error: `Lỗi gửi Telegram: ${res.error || 'Không xác định'}`
+      }, 500);
+    }
+  } catch (err: any) {
+    return c.json({ success: false, error: err.message || 'Lỗi xử lý test Telegram' }, 500);
+  }
 });
 
-// POST /api/push/subscribe — Lưu thông tin push subscription của thiết bị vào D1
-app.post('/api/push/subscribe', async (c) => {
-  const cookieHeader = c.req.header('Cookie') || '';
-  const cookies = parseCookies(cookieHeader);
-  const token = cookies[c.env.COOKIE_NAME];
-  if (!token) return c.json({ error: 'Chưa đăng nhập' }, 401);
+// GET /api/test-telegram — Cho phép kiểm tra nhanh qua URL trình duyệt
+app.get('/api/test-telegram', async (c) => {
+  if (!c.env.TELEGRAM_BOT_TOKEN || !c.env.TELEGRAM_CHAT_ID) {
+    return c.json({
+      success: false,
+      error: 'Chưa cấu hình TELEGRAM_BOT_TOKEN hoặc TELEGRAM_CHAT_ID trong Cloudflare Secrets.'
+    }, 400);
+  }
+  const res = await sendTelegramTestMessage(c.env.TELEGRAM_BOT_TOKEN, c.env.TELEGRAM_CHAT_ID, 'Chung');
+  if (res.success && res.messageId) {
+    const botToken = c.env.TELEGRAM_BOT_TOKEN;
+    const chatId = c.env.TELEGRAM_CHAT_ID;
+    const msgId = res.messageId;
+    const autoDeletePromise = (async () => {
+      await new Promise((resolve) => setTimeout(resolve, 15000));
+      await deleteTelegramMessage(botToken, chatId, msgId);
+    })();
+    try {
+      c.executionCtx.waitUntil(autoDeletePromise);
+    } catch {
+      autoDeletePromise.catch(() => {});
+    }
+  }
+  return c.json(res);
+});
 
-  const user = await verifyJWT(token, c.env.JWT_SECRET);
-  if (!user) return c.json({ error: 'Phiên đăng nhập hết hạn' }, 401);
+// POST /api/telegram-webhook — Tiếp nhận phản hồi từ Inline Keyboard của Telegram
+app.post('/api/telegram-webhook', async (c) => {
+  try {
+    const update: any = await c.req.json();
+    const callbackQuery = update?.callback_query;
+    if (!callbackQuery) {
+      return c.json({ ok: true, message: 'No callback_query' });
+    }
+
+    const callbackQueryId = callbackQuery.id;
+    const messageId = callbackQuery.message?.message_id;
+    const chatId = String(callbackQuery.message?.chat?.id || '');
+    const data = String(callbackQuery.data || '');
+
+    // Xác thực chat.id khớp với env.TELEGRAM_CHAT_ID để bảo mật
+    if (c.env.TELEGRAM_CHAT_ID && chatId !== String(c.env.TELEGRAM_CHAT_ID).trim()) {
+      console.warn('[Telegram Webhook] Unauthorized chat ID:', chatId);
+      if (c.env.TELEGRAM_BOT_TOKEN) {
+        await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Bạn không có quyền thực hiện thao tác này!', true);
+      }
+      return c.json({ ok: false, error: 'Unauthorized chat ID' }, 403);
+    }
+
+    await ensureDbColumns(c.env.DB);
+
+    // 1. Hoàn thành công việc: complete_<task_id>
+    if (data.startsWith('complete_')) {
+      const taskId = data.replace('complete_', '');
+      const task = await c.env.DB.prepare(
+        "SELECT *, COALESCE(repeat_mode, 'none') as repeat_mode FROM todos WHERE id = ?"
+      ).bind(taskId).first<Todo>();
+
+      if (!task) {
+        if (c.env.TELEGRAM_BOT_TOKEN) {
+          await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Không tìm thấy công việc tương ứng!');
+        }
+        return c.json({ ok: true, message: 'Task not found' });
+      }
+
+      let nextDueDate = task.due_date;
+      if (task.repeat_mode && task.repeat_mode !== 'none' && task.due_date) {
+        const d = new Date(task.due_date);
+        if (!isNaN(d.getTime())) {
+          const increment = task.repeat_mode === 'daily' ? 1 : 7;
+          d.setDate(d.getDate() + increment);
+          while (d.getTime() < Date.now()) {
+            d.setDate(d.getDate() + increment);
+          }
+          nextDueDate = d.toISOString();
+        }
+      }
+
+      const now = new Date().toISOString();
+      await c.env.DB.prepare(
+        'UPDATE todos SET is_completed = 1, due_date = ?, telegram_message_id = NULL, updated_at = ? WHERE id = ?'
+      ).bind(nextDueDate, now, taskId).run();
+
+      // Xóa tin nhắn nhắc nhở trên Telegram
+      if (messageId && c.env.TELEGRAM_BOT_TOKEN && c.env.TELEGRAM_CHAT_ID) {
+        await deleteTelegramMessage(c.env.TELEGRAM_BOT_TOKEN, c.env.TELEGRAM_CHAT_ID, messageId);
+      }
+
+      if (c.env.TELEGRAM_BOT_TOKEN) {
+        await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Đã hoàn thành công việc! 🎉');
+      }
+      return c.json({ ok: true, action: 'completed', taskId });
+    }
+
+    // 2. Hoãn 15 phút: snooze_<task_id>
+    if (data.startsWith('snooze_')) {
+      const taskId = data.replace('snooze_', '');
+      const task = await c.env.DB.prepare(
+        'SELECT * FROM todos WHERE id = ?'
+      ).bind(taskId).first<Todo>();
+
+      if (!task) {
+        if (c.env.TELEGRAM_BOT_TOKEN) {
+          await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Không tìm thấy công việc tương ứng!');
+        }
+        return c.json({ ok: true, message: 'Task not found' });
+      }
+
+      // Cộng thêm 15 phút vào due_date
+      const currentDue = task.due_date ? new Date(task.due_date).getTime() : Date.now();
+      const baseTime = (isNaN(currentDue) || currentDue < Date.now()) ? Date.now() : currentDue;
+      const newDueTime = baseTime + 15 * 60 * 1000;
+      const newDueDate = new Date(newDueTime).toISOString();
+      const now = new Date().toISOString();
+
+      await c.env.DB.prepare(
+        'UPDATE todos SET due_date = ?, is_completed = 0, telegram_message_id = NULL, updated_at = ? WHERE id = ?'
+      ).bind(newDueDate, now, taskId).run();
+
+      // Đặt lại trạng thái chưa gửi nhắc nhở (xóa reminder_logs của việc này)
+      await c.env.DB.prepare(
+        'DELETE FROM reminder_logs WHERE todo_id = ?'
+      ).bind(taskId).run();
+
+      // Xóa tin nhắn Telegram cũ
+      if (messageId && c.env.TELEGRAM_BOT_TOKEN && c.env.TELEGRAM_CHAT_ID) {
+        await deleteTelegramMessage(c.env.TELEGRAM_BOT_TOKEN, c.env.TELEGRAM_CHAT_ID, messageId);
+      }
+
+      if (c.env.TELEGRAM_BOT_TOKEN) {
+        await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Đã hoãn 15 phút (Hạn chót đã lùi +15p) ⏰');
+      }
+      return c.json({ ok: true, action: 'snoozed', taskId, new_due_date: newDueDate });
+    }
+
+    return c.json({ ok: true, message: 'Unknown action' });
+  } catch (err: any) {
+    console.error('[Telegram Webhook] Error:', err);
+    return c.json({ ok: false, error: err.message }, 500);
+  }
+});
+
+// GET /api/setup-telegram-webhook — Kích hoạt Webhook 1-Click
+app.get('/api/setup-telegram-webhook', async (c) => {
+  if (!c.env.TELEGRAM_BOT_TOKEN) {
+    return c.json({ success: false, error: 'Chưa cấu hình TELEGRAM_BOT_TOKEN trong Cloudflare Secrets.' }, 400);
+  }
+
+  const host = new URL(c.req.url).host;
+  const webhookUrl = `https://${host}/api/telegram-webhook`;
 
   try {
-    const body = await c.req.json<any>();
-    if (!body || !body.endpoint || !body.keys?.p256dh || !body.keys?.auth) {
-      return c.json({ error: 'Dữ liệu đăng ký không hợp lệ' }, 400);
-    }
-
-    const subId = generateId();
-    await c.env.DB.prepare(
-      `INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(endpoint) DO UPDATE SET
-         user_id = excluded.user_id,
-         p256dh = excluded.p256dh,
-         auth = excluded.auth`
-    ).bind(subId, user.sub, body.endpoint, body.keys.p256dh, body.keys.auth).run();
-
-    return c.json({ success: true, message: 'Đăng ký thông báo đẩy thành công!' });
+    const url = `https://api.telegram.org/bot${c.env.TELEGRAM_BOT_TOKEN.trim()}/setWebhook?url=${encodeURIComponent(webhookUrl)}&drop_pending_updates=true`;
+    const res = await fetch(url);
+    const data: any = await res.json();
+    return c.json({
+      success: res.ok && data?.ok,
+      webhook_url: webhookUrl,
+      telegram_response: data
+    });
   } catch (err: any) {
-    return c.json({ error: err.message || 'Lỗi đăng ký push' }, 500);
+    return c.json({ success: false, error: err.message || 'Lỗi gọi Telegram setWebhook' }, 500);
   }
-});
-
-// POST /api/push/test — Bắn thông báo đẩy thử nghiệm đến các thiết bị của user
-app.post('/api/push/test', async (c) => {
-  const cookieHeader = c.req.header('Cookie') || '';
-  const cookies = parseCookies(cookieHeader);
-  const token = cookies[c.env.COOKIE_NAME];
-  if (!token) return c.json({ error: 'Chưa đăng nhập' }, 401);
-
-  const user = await verifyJWT(token, c.env.JWT_SECRET);
-  if (!user) return c.json({ error: 'Phiên đăng nhập hết hạn' }, 401);
-
-  const subsRes = await c.env.DB.prepare(
-    `SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?`
-  ).bind(user.sub).all<{ id: string; endpoint: string; p256dh: string; auth: string }>();
-
-  const subs = subsRes.results || [];
-  if (subs.length === 0) {
-    return c.json({ success: false, message: 'Chưa tìm thấy thiết bị đăng ký nhận thông báo đẩy. Hãy bấm Bật thông báo trên thiết bị!' });
-  }
-
-  const payload = {
-    title: 'To-Do List (Designed by Chung)',
-    body: '🎉 Thông báo đẩy chạy ngầm đang hoạt động hoàn hảo ngay cả khi tắt toàn bộ ứng dụng!',
-    url: '/'
-  };
-
-  let sentCount = 0;
-  for (const sub of subs) {
-    const res = await sendWebPush(
-      { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-      payload
-    );
-    if (res.success) sentCount++;
-    if (res.expired) {
-      await c.env.DB.prepare(`DELETE FROM push_subscriptions WHERE id = ?`).bind(sub.id).run();
-    }
-  }
-
-  return c.json({ success: true, sentCount, total: subs.length });
 });
 
 // GET /api/version — Kiểm tra phiên bản mới nhất để App iOS / PWA tự cập nhật ngầm
-export const APP_VERSION = '1.5.5';
+export const APP_VERSION = '1.8.2';
 app.get('/api/version', (c) => {
   return c.json({
     version: APP_VERSION,
     name: 'To-Do List',
     author: 'Designed by Chung',
-    updated_at: '2026-11-12T15:00:00Z',
+    updated_at: '2026-11-13T12:00:00Z',
   }, 200, {
     'Cache-Control': 'no-cache, no-store, must-revalidate',
   });
@@ -786,87 +1136,13 @@ app.get('*', async (c) => {
 export default {
   fetch: app.fetch,
   async scheduled(event: any, env: Env, ctx: ExecutionContext) {
-    const now = Date.now();
-    const FIVE_MINUTES_MS = 5 * 60 * 1000;
-
     try {
-      // 1. Lấy tất cả công việc chưa hoàn thành và có thời hạn
-      const todosRes = await env.DB.prepare(
-        `SELECT id, user_id, title, priority, due_date FROM todos WHERE is_completed = 0 AND due_date IS NOT NULL`
-      ).all<Todo>();
-
-      const todos = todosRes.results || [];
-      if (todos.length === 0) return;
-
-      // 2. Lọc các công việc đang trong khung cảnh báo
-      for (const task of todos) {
-        if (!task.due_date) continue;
-        const normalizedDate = task.due_date.includes('T') ? task.due_date : task.due_date.replace(' ', 'T');
-        const dueTime = new Date(normalizedDate).getTime();
-        if (isNaN(dueTime)) continue;
-
-        const diffMs = dueTime - now;
-        const minLeft = Math.ceil(diffMs / 60000);
-
-        let windowMin = 15;
-        if (task.priority === 'High') windowMin = 30;
-        else if (task.priority === 'Low') windowMin = 5;
-
-        // Nếu công việc nằm trong khoảng từ 0 phút đến windowMin phút trước hạn
-        if (minLeft >= 0 && minLeft <= windowMin) {
-          // Kiểm tra xem đã gửi nhắc nhở gần đây chưa
-          const logRes = await env.DB.prepare(
-            `SELECT MAX(notified_at) as last_notified, COUNT(*) as total_count FROM reminder_logs WHERE todo_id = ?`
-          ).bind(task.id).first<{ last_notified: number | null; total_count: number }>();
-
-          const lastNotified = logRes?.last_notified || 0;
-          const totalCount = logRes?.total_count || 0;
-
-          // High và Medium: lặp lại mỗi 5 phút một lần; Low: chỉ thông báo đúng 1 lần duy nhất
-          const isRecurring = (task.priority === 'High' || task.priority === 'Medium');
-          const shouldNotify = isRecurring ? (now - lastNotified >= FIVE_MINUTES_MS) : (totalCount === 0);
-
-          if (shouldNotify) {
-            // Lấy tất cả subscription của người dùng sở hữu công việc này
-            const subsRes = await env.DB.prepare(
-              `SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?`
-            ).bind(task.user_id).all<{ id: string; endpoint: string; p256dh: string; auth: string }>();
-
-            const subs = subsRes.results || [];
-            if (subs.length > 0) {
-              const d = new Date(dueTime);
-              const timeStr = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-
-              const payload = {
-                title: `Sắp hết hạn trong ${minLeft} phút`,
-                body: `Công việc "${task.title}" cần hoàn thành trước ${timeStr}`,
-                tag: `rem-${task.id}-${Math.floor(now / FIVE_MINUTES_MS)}`,
-                url: '/'
-              };
-
-              for (const sub of subs) {
-                const res = await sendWebPush(
-                  { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-                  payload
-                );
-
-                // Nếu user đã hủy quyền hoặc gỡ app (404/410), xóa khỏi DB
-                if (res.expired) {
-                  await env.DB.prepare(`DELETE FROM push_subscriptions WHERE id = ?`).bind(sub.id).run();
-                }
-              }
-            }
-
-            // Ghi nhật ký vào reminder_logs
-            const logId = crypto.randomUUID();
-            await env.DB.prepare(
-              `INSERT INTO reminder_logs (id, todo_id, notified_at) VALUES (?, ?, ?)`
-            ).bind(logId, task.id, now).run();
-          }
-        }
-      }
+      // 1. Quét tự động reset các công việc lặp lại Hàng ngày & Hàng tuần khi qua ngày/tuần mới
+      await resetRecurringTasks(env.DB);
+      // 2. Quét và gửi thông báo nhắc việc đến hạn qua Telegram Bot
+      await checkAndSendReminders(env);
     } catch (err) {
-      console.error('[Cloudflare Cron] Reminder check error:', err);
+      console.error('[Cloudflare Cron] Scheduled error:', err);
     }
   }
 };
