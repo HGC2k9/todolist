@@ -24,6 +24,11 @@ export function renderHTML(): string {
   <link rel="icon" type="image/png" href="/icon-192.png">
   <link rel="apple-touch-icon" href="/icon-192.png">
 
+  <!-- Font chữ Plus Jakarta Sans hiện đại, tinh gọn -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script>
@@ -34,6 +39,9 @@ export function renderHTML(): string {
       },
       theme: {
         extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+          },
           colors: {
             brand: {
               50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd',
@@ -48,6 +56,17 @@ export function renderHTML(): string {
   <style>
     [x-cloak] { display: none !important; }
     
+    html {
+      scroll-behavior: smooth;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+
+    body {
+      transition: background-color 0.25s ease, color 0.2s ease;
+    }
+
     :root {
       --sat: env(safe-area-inset-top, 0px);
       --sab: env(safe-area-inset-bottom, 0px);
@@ -67,7 +86,7 @@ export function renderHTML(): string {
     @keyframes toastIn { from { opacity:0; transform:translateY(-16px) scale(0.94); } to { opacity:1; transform:translateY(0) scale(1); } }
     @keyframes spin { to { transform:rotate(360deg); } }
     .spinner { animation: spin 0.7s linear infinite; }
-    .line-through-anim { text-decoration: line-through; color: #9ca3af; }
+    .line-through-anim { text-decoration: line-through; color: #94a3b8; }
     
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -83,6 +102,17 @@ export function renderHTML(): string {
     }
     .animate-pulse-warning {
       animation: pulse-warning 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    /* Hiệu ứng thẻ mượt mà & nâng nhẹ khi hover trên màn hình có chuột */
+    .todo-card {
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s ease, background-color 0.15s ease, opacity 0.2s ease;
+      will-change: transform;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .todo-card:hover {
+        transform: translateY(-1.5px);
+      }
     }
 
     /* Tối ưu hóa phản hồi nút bấm & Cảm ứng trên iOS WKWebView / Mobile */
@@ -102,6 +132,15 @@ export function renderHTML(): string {
       box-shadow: none !important;
     }
 
+    /* Tiêu chuẩn trợ năng a11y: hiển thị viền focus rõ ràng cho điều hướng bằng bàn phím */
+    :focus-visible {
+      outline: 2px solid #2563eb !important;
+      outline-offset: 2px !important;
+    }
+    .dark :focus-visible {
+      outline: 2px solid #60a5fa !important;
+    }
+
     /* Chỉ kích hoạt hiệu ứng :hover khi dùng thiết bị có chuột thực sự (ngăn ngừa lỗi kẹt nút / vết ấn lưu lại trên iPhone) */
     @media (hover: none) and (pointer: coarse) {
       button:hover, a:hover, [role="button"]:hover, .group:hover {
@@ -114,9 +153,19 @@ export function renderHTML(): string {
         transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
       }
     }
+
+    /* Tôn trọng cài đặt giảm chuyển động cho người nhạy cảm (Accessibility) */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
   </style>
 </head>
-<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-200 ios-safe-bottom pb-24 sm:pb-8 selection:bg-brand-500 selection:text-white">
+<body class="bg-slate-50 dark:bg-[#0b0f19] text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-200 ios-safe-bottom pb-24 sm:pb-8 selection:bg-brand-500 selection:text-white">
 
 <!-- ═══════ TOAST NOTIFICATIONS (Vuốt lên/sang để tắt, xếp chồng, 3s tự tắt) ═══════ -->
 <div class="fixed right-4 left-4 sm:left-auto z-[120] space-y-2 pointer-events-none"
@@ -158,12 +207,12 @@ export function renderHTML(): string {
     </div>
 
     <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 backdrop-blur-xl">
-      <div class="flex bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 mb-6">
-        <button @click="authMode='login'" class="flex-1 py-2.5 text-sm font-bold rounded-xl transition-all"
+      <div class="flex bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 mb-6" role="tablist" aria-label="Phương thức xác thực">
+        <button @click="authMode='login'" role="tab" :aria-selected="authMode==='login'" class="flex-1 py-2.5 text-sm font-bold rounded-xl transition-all"
                 :class="authMode==='login' ? 'bg-white dark:bg-slate-700 shadow-sm text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'">
           Đăng nhập
         </button>
-        <button @click="authMode='register'" class="flex-1 py-2.5 text-sm font-bold rounded-xl transition-all"
+        <button @click="authMode='register'" role="tab" :aria-selected="authMode==='register'" class="flex-1 py-2.5 text-sm font-bold rounded-xl transition-all"
                 :class="authMode==='register' ? 'bg-white dark:bg-slate-700 shadow-sm text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'">
           Đăng ký
         </button>
@@ -171,34 +220,34 @@ export function renderHTML(): string {
 
       <form @submit.prevent="handleAuth" class="space-y-4">
         <div x-show="authMode==='register'" class="space-y-1.5">
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Tên người dùng</label>
+          <label for="auth-username" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Tên người dùng</label>
           <div class="relative">
             <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </span>
-            <input x-model="authForm.username" type="text" placeholder="Họ và tên..."
+            <input id="auth-username" x-model="authForm.username" type="text" placeholder="Họ và tên..."
                    class="w-full pl-11 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 focus:ring-2 focus:ring-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-sm font-medium" />
           </div>
         </div>
 
         <div class="space-y-1.5">
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Email</label>
+          <label for="auth-email" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Email</label>
           <div class="relative">
             <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
             </span>
-            <input x-model="authForm.email" type="email" placeholder="you@example.com" required
+            <input id="auth-email" x-model="authForm.email" type="email" placeholder="you@example.com" required
                    class="w-full pl-11 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 focus:ring-2 focus:ring-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-sm font-medium" />
           </div>
         </div>
 
         <div class="space-y-1.5">
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Mật khẩu</label>
+          <label for="auth-password" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Mật khẩu</label>
           <div class="relative">
             <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </span>
-            <input x-model="authForm.password" type="password" placeholder="••••••••" required minlength="6"
+            <input id="auth-password" x-model="authForm.password" type="password" placeholder="••••••••" required minlength="6"
                    class="w-full pl-11 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 focus:ring-2 focus:ring-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-sm font-medium" />
           </div>
         </div>
@@ -225,13 +274,17 @@ export function renderHTML(): string {
 <div x-show="authenticated" x-cloak class="min-h-screen flex flex-col">
 
   <!-- ─── HEADER ĐÃ SỬA: ĐỆM AN TOÀN TRÁNH TAI THỎ / DYNAMIC ISLAND ─── -->
-  <header class="sticky top-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800 transition-all"
+  <header class="sticky top-0 z-50 bg-white/90 dark:bg-[#0b0f19]/90 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 transition-all"
           style="padding-top: calc(max(14px, env(safe-area-inset-top, 0px)) + 12px); padding-left: max(0.75rem, env(safe-area-inset-left, 0px)); padding-right: max(0.75rem, env(safe-area-inset-right, 0px));">
     <div class="max-w-5xl mx-auto px-2 sm:px-4 pb-3 flex items-center justify-between gap-2">
       
       <!-- Brand Logo & App Name (Bấm vào để xem Version & Designed by Chung) -->
-      <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0 cursor-pointer select-none group"
+      <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0 cursor-pointer select-none group focus:outline-none"
+           role="button" tabindex="0"
            @click="openAboutModal()"
+           @keydown.enter="openAboutModal()"
+           @keydown.space.prevent="openAboutModal()"
+           aria-label="Xem thông tin phiên bản và tác giả Designed by Chung"
            title="Bấm để xem Thông tin phiên bản & Tác giả (Designed by Chung)">
         <img src="/icon-192.png" alt="Logo" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl shadow-sm transition-transform group-hover:scale-105 active:scale-95 ring-2 ring-transparent group-hover:ring-brand-400/50" />
         <div>
@@ -244,9 +297,19 @@ export function renderHTML(): string {
         </div>
       </div>
 
+      <!-- User Profile Chip (Desktop / Tablet) -->
+      <div x-show="currentUser" class="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 text-xs font-semibold text-slate-700 dark:text-slate-300 select-none shadow-xs">
+        <div class="w-5 h-5 rounded-full bg-gradient-to-tr from-brand-600 to-indigo-500 text-white flex items-center justify-center text-[10px] font-black uppercase"
+             x-text="(currentUser?.username || currentUser?.email || 'U').slice(0, 1)"></div>
+        <span class="max-w-[130px] truncate" x-text="currentUser?.username || currentUser?.email"></span>
+      </div>
+
       <!-- Trạng thái Ngoại tuyến / Chờ đồng bộ (Offline Sync Indicator) -->
       <div x-show="isOffline || offlineQueue.length > 0" x-cloak
            @click="syncOfflineQueue()"
+           role="button" tabindex="0"
+           @keydown.enter="syncOfflineQueue()"
+           aria-label="Trạng thái đồng bộ ngoại tuyến. Bấm để đồng bộ ngay"
            class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold cursor-pointer transition select-none animate-pulse"
            :class="isOffline ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300 dark:border-amber-800' : 'bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-300 dark:border-blue-800'"
            :title="isOffline ? 'Đang ngoại tuyến. Bấm để thử đồng bộ lại.' : 'Bấm để đồng bộ ngay'">
@@ -259,6 +322,7 @@ export function renderHTML(): string {
         
         <!-- Nút Download App -->
         <button @click="showDownloadModal = true"
+                aria-label="Tải ứng dụng To-Do List cho PC hoặc iOS"
                 class="px-2 sm:px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 bg-brand-50 hover:bg-brand-100 dark:bg-brand-950/70 dark:hover:bg-brand-900 text-brand-600 dark:text-brand-400 border border-brand-200 dark:border-brand-800 transition shadow-sm active:scale-95"
                 title="Tải ứng dụng cho PC hoặc iOS">
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -272,6 +336,7 @@ export function renderHTML(): string {
         <!-- Nút Mở thẳng Bot Telegram @hgc_todolist_bot -->
         <a href="https://t.me/hgc_todolist_bot" target="_blank" rel="noopener noreferrer"
            @click="openTelegramBot($event)"
+           aria-label="Mở Bot Telegram To-Do List @hgc_todolist_bot"
            class="px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/70 dark:hover:bg-sky-900 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800 transition shadow-sm active:scale-95"
            title="Mở Bot Telegram @hgc_todolist_bot">
           <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
@@ -282,18 +347,24 @@ export function renderHTML(): string {
         </a>
 
         <!-- Làm mới thủ công -->
-        <button @click="refreshDataManual($event)" class="p-2 rounded-xl text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95" :class="{ 'spinner text-brand-600': isRefreshing }" title="Làm mới dữ liệu">
+        <button @click="refreshDataManual($event)"
+                aria-label="Làm mới dữ liệu danh sách công việc"
+                class="p-2 rounded-xl text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95" :class="{ 'spinner text-brand-600': isRefreshing }" title="Làm mới dữ liệu">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path><polyline points="21 3 21 9 15 9"></polyline></svg>
         </button>
 
         <!-- Đổi Theme -->
-        <button @click="toggleDarkMode($event)" class="p-2 rounded-xl text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95" title="Đổi giao diện">
+        <button @click="toggleDarkMode($event)"
+                aria-label="Chuyển đổi giao diện Sáng / Tối"
+                class="p-2 rounded-xl text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95" title="Đổi giao diện">
           <svg x-show="!darkMode" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
           <svg x-show="darkMode" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
         </button>
 
         <!-- Đăng xuất (Có xác nhận an toàn) -->
-        <button @click="confirmLogout($event)" class="p-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl transition active:scale-95" title="Đăng xuất">
+        <button @click="confirmLogout($event)"
+                aria-label="Đăng xuất tài khoản"
+                class="p-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl transition active:scale-95" title="Đăng xuất">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
         </button>
       </div>
@@ -316,7 +387,7 @@ export function renderHTML(): string {
       </div>
       <div class="flex items-center gap-2 flex-shrink-0">
         <button @click="filterStatus='pending'; fetchTodos()"
-                class="px-2.5 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-bold transition">
+                class="px-2.5 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-bold transition active:scale-95">
           Xem ngay
         </button>
       </div>
@@ -327,52 +398,90 @@ export function renderHTML(): string {
   <main class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-5">
 
     <!-- ─── Sleek Status & Progress Overview (Giao diện tối giản, tinh tế) ─── -->
-    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 px-4 py-3 mb-3 shadow-xs">
+    <div class="bg-white dark:bg-slate-900/90 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-slate-800 px-4 py-3 sm:px-5 sm:py-3.5 mb-3.5 shadow-xs transition-all">
       <div class="flex items-center justify-between text-xs font-semibold gap-3 flex-wrap">
-        <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
-          <span class="inline-flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
+        <div class="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+          <button type="button" @click="filterStatus='pending'; fetchTodos()"
+                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95"
+                  :class="filterStatus==='pending' && 'ring-1 ring-amber-500/50 bg-amber-50/50 dark:bg-amber-950/30'"
+                  title="Bấm để lọc việc cần làm">
             <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-            <strong class="text-sm font-black text-slate-900 dark:text-white" x-text="stats.pending"></strong> cần làm
-          </span>
-          <span class="text-slate-300 dark:text-slate-700">•</span>
-          <span x-show="stats.overdue > 0" class="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400">
-            <strong class="text-sm font-black" x-text="stats.overdue"></strong> quá hạn
-          </span>
-          <span x-show="stats.overdue > 0" class="text-slate-300 dark:text-slate-700">•</span>
-          <span class="text-slate-500 dark:text-slate-400">
-            <strong class="text-emerald-600 dark:text-emerald-400 font-bold" x-text="stats.completed"></strong>/<span x-text="stats.total"></span> đã xong
-          </span>
+            <strong class="text-sm font-black text-slate-900 dark:text-white" x-text="stats.pending"></strong>
+            <span class="text-slate-600 dark:text-slate-400">cần làm</span>
+          </button>
+          
+          <span class="text-slate-200 dark:text-slate-700">•</span>
+          
+          <button type="button" x-show="stats.overdue > 0" @click="filterStatus='overdue'; fetchTodos()"
+                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition active:scale-95"
+                  :class="filterStatus==='overdue' && 'ring-1 ring-rose-500/50 bg-rose-50/70 dark:bg-rose-950/40'"
+                  title="Bấm để lọc việc quá hạn">
+            <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+            <strong class="text-sm font-black" x-text="stats.overdue"></strong>
+            <span>quá hạn</span>
+          </button>
+          
+          <span x-show="stats.overdue > 0" class="text-slate-200 dark:text-slate-700">•</span>
+          
+          <button type="button" @click="filterStatus='completed'; fetchTodos()"
+                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95"
+                  :class="filterStatus==='completed' && 'ring-1 ring-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/30'"
+                  title="Bấm để lọc việc đã xong">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span><strong class="text-emerald-600 dark:text-emerald-400 font-black text-sm" x-text="stats.completed"></strong>/<span x-text="stats.total"></span> đã xong</span>
+          </button>
         </div>
-        <div class="flex items-center gap-2 flex-shrink-0">
-          <div class="w-20 sm:w-28 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5">
-            <div class="h-full bg-gradient-to-r from-brand-500 to-emerald-500 rounded-full transition-all duration-300" :style="'width: ' + stats.percent + '%'"></div>
+        
+        <div class="flex items-center gap-2 flex-shrink-0 ml-auto">
+          <div class="w-20 sm:w-28 h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5"
+               role="progressbar" :aria-valuenow="stats.percent" aria-valuemin="0" aria-valuemax="100" :aria-label="'Tiến độ hoàn thành: ' + stats.percent + '%'">
+            <div class="h-full bg-gradient-to-r from-brand-500 via-indigo-500 to-emerald-500 rounded-full transition-all duration-500 ease-out" :style="'width: ' + stats.percent + '%'"></div>
           </div>
-          <span class="text-[11px] font-bold text-slate-400" x-text="stats.percent + '%'"></span>
+          <span class="text-[11px] font-black text-slate-500 dark:text-slate-400" x-text="stats.percent + '%'"></span>
         </div>
+      </div>
+      
+      <!-- Lời chúc mừng khi hoàn thành 100% -->
+      <div x-show="stats.total > 0 && stats.percent === 100" x-cloak
+           class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 animate-bounce-once">
+        <span>🎉</span>
+        <span>Tuyệt vời! Bạn đã hoàn thành 100% tất cả công việc! Chúc bạn một ngày năng suất!</span>
       </div>
     </div>
 
     <!-- ─── Search & Quick Filter Row ─── -->
-    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-3 mb-4 space-y-2.5 shadow-xs">
-      <!-- Search Input -->
+    <div class="bg-white dark:bg-slate-900/90 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-slate-800 p-3 sm:p-3.5 mb-4 space-y-2.5 shadow-xs">
+      <!-- Search Input with clear button and keyboard shortcut hint -->
       <div class="relative">
         <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </span>
-        <input x-model="searchQuery" @input.debounce.300ms="fetchTodos()" type="text" placeholder="Tìm kiếm công việc nhanh..."
-               class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/50 focus:ring-2 focus:ring-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-xs sm:text-sm font-medium" />
+        <input x-model="searchQuery" @input.debounce.300ms="fetchTodos()" type="text" placeholder="Tìm kiếm công việc nhanh (phím / để tìm)..."
+               aria-label="Tìm kiếm công việc"
+               class="w-full pl-9 pr-14 py-2 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/50 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-xs sm:text-sm font-medium" />
+        <div class="absolute inset-y-0 right-0 pr-2.5 flex items-center gap-1">
+          <button x-show="searchQuery" @click="searchQuery=''; fetchTodos()" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition" aria-label="Xóa nội dung tìm kiếm">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+          <kbd class="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">/</kbd>
+        </div>
       </div>
 
-      <!-- Quick Filter Chips -->
-      <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 -mx-0.5 px-0.5">
+      <!-- Quick Filter Chips với số lượng đếm trực tiếp -->
+      <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 -mx-0.5 px-0.5" role="group" aria-label="Bộ lọc trạng thái công việc">
         <template x-for="s in statusFilters" :key="s.value">
           <button @click="filterStatus = s.value; fetchTodos()"
-                  class="flex-shrink-0 px-3 py-1.5 text-xs font-bold rounded-xl border transition flex items-center gap-1.5"
+                  role="button"
+                  :aria-pressed="filterStatus === s.value"
+                  class="flex-shrink-0 px-3 py-1.5 text-xs font-bold rounded-xl border transition-all duration-150 flex items-center gap-1.5 active:scale-95 cursor-pointer"
                   :class="filterStatus === s.value
                     ? 'bg-brand-600 text-white border-brand-600 shadow-xs'
-                    : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-slate-700/80 hover:border-brand-400'">
+                    : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-slate-700/80 hover:border-brand-400 dark:hover:border-brand-500'">
             <span x-html="s.icon"></span>
             <span x-text="s.label"></span>
+            <span class="ml-0.5 text-[10px] font-black px-1.5 py-0.2 rounded-full"
+                  :class="filterStatus === s.value ? 'bg-white/20 text-white' : 'bg-slate-200/70 dark:bg-slate-700/70 text-slate-600 dark:text-slate-300'"
+                  x-text="getFilterCount(s.value)"></span>
           </button>
         </template>
       </div>
@@ -380,7 +489,8 @@ export function renderHTML(): string {
       <!-- Secondary Filters (Danh mục, Ưu tiên, Sắp xếp) & Dọn dẹp -->
       <div class="flex items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800 overflow-x-auto no-scrollbar text-xs">
         <select x-model="filterCategory" @change="fetchTodos()"
-                class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs">
+                aria-label="Lọc theo danh mục"
+                class="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
           <option value="all">📁 Danh mục (Tất cả)</option>
           <template x-for="cat in categories" :key="cat">
             <option :value="cat" x-text="cat"></option>
@@ -388,7 +498,8 @@ export function renderHTML(): string {
         </select>
 
         <select x-model="filterPriority" @change="fetchTodos()"
-                class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs">
+                aria-label="Lọc theo mức độ ưu tiên"
+                class="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
           <option value="all">⚡ Ưu tiên (Tất cả)</option>
           <option value="High">🔴 Khẩn cấp (High)</option>
           <option value="Medium">🟡 Bình thường (Medium)</option>
@@ -396,14 +507,16 @@ export function renderHTML(): string {
         </select>
 
         <select x-model="sortBy" @change="fetchTodos()"
-                class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs">
+                aria-label="Sắp xếp danh sách công việc"
+                class="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
           <option value="due_date-asc">📅 Hạn: Gần → Xa</option>
           <option value="due_date-desc">📅 Hạn: Xa → Gần</option>
           <option value="created_at-desc">🕐 Mới tạo trước</option>
         </select>
 
         <button x-show="stats.completed > 0" @click="confirmClearCompleted()"
-                class="ml-auto text-rose-500 hover:text-rose-600 font-bold inline-flex items-center gap-1 transition px-2 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/50 flex-shrink-0 text-xs"
+                aria-label="Dọn dẹp công việc đã hoàn thành"
+                class="ml-auto text-rose-500 hover:text-rose-600 font-bold inline-flex items-center gap-1 transition px-2.5 py-1.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/50 flex-shrink-0 text-xs active:scale-95"
                 title="Dọn dẹp việc đã xong">
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           <span class="hidden sm:inline">Dọn dẹp đã xong</span>
@@ -411,33 +524,53 @@ export function renderHTML(): string {
       </div>
     </div>
 
-    <!-- ─── Nút thêm việc mới ─── -->
+    <!-- ─── Nút thêm việc mới (Desktop & Tablet) ─── -->
     <button @click="openCreateModal()"
-            class="hidden sm:flex w-full mb-5 py-3.5 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-brand-500 dark:hover:border-brand-400 rounded-3xl text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition items-center justify-center gap-2 text-sm font-bold shadow-sm group">
-      <div class="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 group-hover:bg-brand-50 dark:group-hover:bg-brand-950 transition">
-        <svg class="w-4 h-4 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            class="hidden sm:flex w-full mb-5 py-3 border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-brand-500 dark:hover:border-brand-400 bg-white/60 dark:bg-slate-900/60 hover:bg-brand-50/20 dark:hover:bg-brand-950/20 rounded-2xl sm:rounded-3xl text-slate-600 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-all items-center justify-center gap-2 text-sm font-bold shadow-xs group active:scale-[0.99]">
+      <div class="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 group-hover:bg-brand-100 dark:group-hover:bg-brand-900 transition text-brand-600">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </div>
-      Thêm công việc mới
+      <span>Thêm công việc mới</span>
+      <kbd class="ml-2 text-[10px] font-semibold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">N</kbd>
     </button>
 
-    <!-- ─── Loading Spinner ─── -->
-    <div x-show="todosLoading" class="flex justify-center py-12">
-      <svg class="spinner w-8 h-8 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4 31.4" stroke-linecap="round"/></svg>
+    <!-- ─── Skeleton Loading State (Tránh giật giật màn hình khi tải) ─── -->
+    <div x-show="todosLoading" class="space-y-3" role="status" aria-busy="true" aria-label="Đang tải danh sách công việc...">
+      <template x-for="i in [1, 2, 3]" :key="i">
+        <div class="bg-white dark:bg-slate-900/80 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-5 animate-pulse shadow-xs">
+          <div class="flex items-start gap-3 sm:gap-4">
+            <div class="w-7 h-7 rounded-xl bg-slate-200 dark:bg-slate-800 flex-shrink-0"></div>
+            <div class="flex-1 space-y-2.5">
+              <div class="h-4 bg-slate-200 dark:bg-slate-800 rounded-md w-3/4"></div>
+              <div class="h-3 bg-slate-100 dark:bg-slate-800/60 rounded-md w-1/2"></div>
+              <div class="flex gap-2 pt-1">
+                <div class="h-5 bg-slate-200 dark:bg-slate-800 rounded-lg w-16"></div>
+                <div class="h-5 bg-slate-200 dark:bg-slate-800 rounded-lg w-20"></div>
+                <div class="h-5 bg-slate-200 dark:bg-slate-800 rounded-lg w-24"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
     </div>
 
     <!-- ─── Empty State ─── -->
-    <div x-show="!todosLoading && todos.length === 0" class="text-center py-16 px-4 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+    <div x-show="!todosLoading && todos.length === 0" class="text-center py-16 px-4 bg-white dark:bg-slate-900/80 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
       <div class="w-16 h-16 mx-auto mb-4 rounded-3xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
         <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
       </div>
       <h3 class="text-base font-bold text-slate-800 dark:text-slate-200">Không có công việc nào</h3>
       <p class="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Bạn chưa có tác vụ nào hoặc không khớp với bộ lọc hiện tại.</p>
+      <button @click="openCreateModal()" class="mt-4 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/25 transition active:scale-95 inline-flex items-center gap-1.5">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Tạo công việc đầu tiên
+      </button>
     </div>
 
     <!-- ─── Todo List Item Cards (Tự động sắp xếp: Việc cần làm lên đầu, Quá hạn & Đã xong rớt xuống dưới) ─── -->
     <div class="space-y-3" x-show="!todosLoading && todos.length > 0">
       <template x-for="todo in sortedTodos" :key="todo.id">
-        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-5 hover:shadow-md transition-all group relative"
+        <div class="todo-card bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-5 hover:shadow-md group relative"
              :class="{
                'opacity-50 bg-slate-50/50 dark:bg-slate-900/50': todo.is_completed,
                'opacity-75 bg-rose-50/20 dark:bg-rose-950/20': !todo.is_completed && isOverdue(todo),
@@ -446,11 +579,15 @@ export function renderHTML(): string {
           <div class="flex items-start gap-3 sm:gap-4">
             
             <!-- Checkbox: Hết hạn tự hiện dấu ✕ (hủy), bấm vào sẽ tick thành xong việc ✓ -->
-            <button @click="toggleTodo(todo, $event)" class="mt-0.5 flex-shrink-0 w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95"
+            <button @click="toggleTodo(todo, $event)"
+                    role="checkbox"
+                    :aria-checked="Boolean(todo.is_completed)"
+                    :aria-label="todo.is_completed ? ('Đánh dấu chưa hoàn thành: ' + todo.title) : (isOverdue(todo) ? ('Xác nhận đã xong việc quá hạn: ' + todo.title) : ('Đánh dấu hoàn thành: ' + todo.title))"
+                    class="mt-0.5 flex-shrink-0 w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all duration-150 cursor-pointer shadow-xs active:scale-90"
                     :class="{
-                      'bg-emerald-500 border-emerald-500 text-white': todo.is_completed,
+                      'bg-emerald-500 border-emerald-500 text-white shadow-emerald-500/20': todo.is_completed,
                       'bg-rose-50 dark:bg-rose-950/80 border-rose-500 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900': !todo.is_completed && isOverdue(todo),
-                      'border-slate-300 dark:border-slate-600 hover:border-brand-500 bg-white dark:bg-slate-800 text-transparent': !todo.is_completed && !isOverdue(todo)
+                      'border-slate-300 dark:border-slate-600 hover:border-brand-500 hover:bg-brand-50/40 dark:hover:bg-brand-950/40 bg-white dark:bg-slate-800 text-transparent': !todo.is_completed && !isOverdue(todo)
                     }"
                     :title="todo.is_completed ? 'Đã hoàn thành (Bấm để mở lại)' : (isOverdue(todo) ? 'Quá hạn (Tự hủy) - Bấm để xác nhận xong việc' : 'Đánh dấu hoàn thành')">
               <!-- Đã xong: checkmark xanh lá -->
@@ -474,23 +611,31 @@ export function renderHTML(): string {
 
                 <div class="flex-shrink-0 flex items-center gap-0.5 sm:gap-1">
                   <!-- Ghim (Pushpin Solid) -->
-                  <button @click="togglePin(todo, $event)" class="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95"
+                  <button @click="togglePin(todo, $event)"
+                          :aria-label="todo.is_pinned ? ('Bỏ ghim: ' + todo.title) : ('Ghim lên đầu: ' + todo.title)"
+                          class="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-90"
                           :class="todo.is_pinned ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'" :title="todo.is_pinned ? 'Bỏ ghim' : 'Ghim lên đầu'">
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
                   </button>
 
                   <!-- Nhân bản (Copy Layer) -->
-                  <button @click="duplicateTodo(todo, $event)" class="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-blue-500 transition active:scale-95" title="Nhân bản">
+                  <button @click="duplicateTodo(todo, $event)"
+                          :aria-label="'Nhân bản công việc: ' + todo.title"
+                          class="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-blue-500 transition active:scale-90" title="Nhân bản">
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                   </button>
 
                   <!-- Chỉnh sửa (Pen Icon) -->
-                  <button @click="openEditModal(todo, $event)" class="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-brand-600 transition active:scale-95" title="Sửa">
+                  <button @click="openEditModal(todo, $event)"
+                          :aria-label="'Chỉnh sửa công việc: ' + todo.title"
+                          class="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-brand-600 transition active:scale-90" title="Sửa">
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                   </button>
 
                   <!-- Xoá (Trash Icon) -->
-                  <button @click="confirmDelete(todo, $event)" class="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-500 transition active:scale-95" title="Xóa">
+                  <button @click="confirmDelete(todo, $event)"
+                          :aria-label="'Xóa công việc: ' + todo.title"
+                          class="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-500 transition active:scale-90" title="Xóa">
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                   </button>
                 </div>
@@ -556,7 +701,8 @@ export function renderHTML(): string {
   <div class="fixed sm:hidden z-40"
        style="bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px)); right: calc(1.25rem + env(safe-area-inset-right, 0px));">
     <button @click="openCreateModal()"
-            class="w-14 h-14 rounded-full bg-gradient-to-tr from-brand-600 to-blue-500 text-white shadow-2xl shadow-brand-600/40 flex items-center justify-center active:scale-95 transition-all ring-4 ring-white dark:ring-slate-900"
+            aria-label="Thêm công việc mới"
+            class="w-14 h-14 rounded-full bg-gradient-to-tr from-brand-600 to-blue-500 text-white shadow-2xl shadow-brand-600/40 flex items-center justify-center active:scale-95 transition-all ring-4 ring-white dark:ring-slate-900 focus-visible:ring-4 focus-visible:ring-brand-400"
             title="Thêm việc mới">
       <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -569,9 +715,15 @@ export function renderHTML(): string {
 
 
 <!-- ═══════ MODAL THÔNG TIN PHIÊN BẢN & TÁC GIẢ (DESIGNED BY CHUNG) ═══════ -->
-<div x-show="showAboutModal" x-cloak class="fixed inset-0 z-[160] flex items-center justify-center p-4">
-  <div class="fixed inset-0 bg-slate-950/70 backdrop-blur-md" @click="showAboutModal=false"></div>
-  <div class="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 p-6 text-center animate-bounce-once" @click.stop>
+<div x-show="showAboutModal" x-cloak class="fixed inset-0 z-[160] flex items-center justify-center p-4"
+     role="dialog" aria-modal="true" aria-labelledby="about-modal-title">
+  <div class="fixed inset-0 bg-slate-950/70 backdrop-blur-md" @click="showAboutModal=false"
+       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+  <div class="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 p-6 text-center"
+       x-transition:enter="transition ease-out duration-250" x-transition:enter-start="opacity-0 scale-95 translate-y-2" x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100 translate-y-0" x-transition:leave-end="opacity-0 scale-95 translate-y-2"
+       @click.stop>
     
     <!-- Logo lớn có hiệu ứng viền -->
     <div class="relative inline-block mb-3">
@@ -581,7 +733,7 @@ export function renderHTML(): string {
       </span>
     </div>
 
-    <h3 class="text-xl font-black text-slate-900 dark:text-white tracking-tight">To-Do List</h3>
+    <h3 id="about-modal-title" class="text-xl font-black text-slate-900 dark:text-white tracking-tight">To-Do List</h3>
     <p class="text-xs font-semibold text-brand-600 dark:text-brand-400 mt-0.5 mb-2">Cloudflare Serverless Edition</p>
 
     <!-- Designed by Chung Badge -->
@@ -656,7 +808,8 @@ export function renderHTML(): string {
 
       <!-- Nút Đóng -->
       <button @click="showAboutModal = false"
-              class="w-full py-2 px-4 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold rounded-2xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+              aria-label="Đóng thông tin phiên bản"
+              class="w-full py-2 px-4 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold rounded-2xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95 transition">
         Đóng
       </button>
     </div>
@@ -665,21 +818,25 @@ export function renderHTML(): string {
 
 <!-- ═══════ MODAL TẢI ỨNG DỤNG (DOWNLOAD FOR PC / IOS) ═══════ -->
 <div x-show="showDownloadModal" x-cloak class="fixed inset-0 z-[115] flex items-end sm:items-center justify-center sm:p-4"
-     x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-8 sm:translate-y-0" x-transition:enter-end="opacity-100 translate-y-0"
-     x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-8 sm:translate-y-0">
+     role="dialog" aria-modal="true" aria-labelledby="download-modal-title">
   
-  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showDownloadModal=false"></div>
+  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showDownloadModal=false"
+       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
 
-  <div class="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-7 max-h-[92vh] overflow-y-auto ios-safe-bottom" @click.stop>
+  <div class="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-7 max-h-[92vh] overflow-y-auto ios-safe-bottom"
+       x-transition:enter="transition ease-out duration-250" x-transition:enter-start="opacity-0 translate-y-6 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-6 sm:translate-y-0 sm:scale-95"
+       @click.stop>
     
     <div class="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-4 sm:hidden"></div>
 
     <div class="flex items-center justify-between mb-5">
       <div class="flex items-center gap-2.5">
         <img src="/icon-192.png" alt="Logo" class="w-8 h-8 rounded-xl shadow-sm" />
-        <h2 class="text-lg sm:text-xl font-black text-slate-900 dark:text-white">Cài đặt ứng dụng To-Do List</h2>
+        <h2 id="download-modal-title" class="text-lg sm:text-xl font-black text-slate-900 dark:text-white">Cài đặt ứng dụng To-Do List</h2>
       </div>
-      <button @click="showDownloadModal=false" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95">
+      <button @click="showDownloadModal=false" aria-label="Đóng cửa sổ tải ứng dụng" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95">
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
@@ -769,19 +926,22 @@ export function renderHTML(): string {
 
 <!-- ═══════ CREATE / EDIT MODAL ═══════ -->
 <div x-show="showModal" x-cloak class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4"
-     x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-8 sm:translate-y-0" x-transition:enter-end="opacity-100 translate-y-0"
-     x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-8 sm:translate-y-0">
+     role="dialog" aria-modal="true" aria-labelledby="todo-modal-title">
   
-  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showModal=false"></div>
+  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showModal=false"
+       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
 
   <div class="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-7 max-h-[90vh] overflow-y-auto ios-safe-bottom"
+       x-transition:enter="transition ease-out duration-250" x-transition:enter-start="opacity-0 translate-y-6 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-6 sm:translate-y-0 sm:scale-95"
        @click.stop>
     
     <div class="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-4 sm:hidden"></div>
 
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-lg sm:text-xl font-black text-slate-900 dark:text-white" x-text="editingTodo ? 'Chỉnh sửa công việc' : 'Tạo công việc mới'"></h2>
-      <button @click="showModal=false" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95">
+      <h2 id="todo-modal-title" class="text-lg sm:text-xl font-black text-slate-900 dark:text-white" x-text="editingTodo ? 'Chỉnh sửa công việc' : 'Tạo công việc mới'"></h2>
+      <button @click="showModal=false" aria-label="Đóng cửa sổ" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95">
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
@@ -789,19 +949,19 @@ export function renderHTML(): string {
     <form @submit.prevent="saveTodo()" class="space-y-4">
       <!-- Bước 1: Tiêu đề công việc -->
       <div>
-        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
+        <label for="todo-title-input" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
           1. Tiêu đề công việc <span class="text-rose-500">*</span>
         </label>
-        <input x-model="todoForm.title" type="text" required placeholder="Ví dụ: Làm bài tập, Họp đối tác, Tập gym..."
+        <input id="todo-title-input" x-model="todoForm.title" type="text" required placeholder="Ví dụ: Làm bài tập, Họp đối tác, Tập gym..."
                class="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 focus:ring-2 focus:ring-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-sm font-semibold text-slate-900 dark:text-white" />
       </div>
 
       <!-- Bước 2: Ghi chú chi tiết -->
       <div>
-        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
+        <label for="todo-desc-input" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
           2. Ghi chú chi tiết
         </label>
-        <textarea x-model="todoForm.description" rows="2" placeholder="Ghi chú thêm nội dung hoặc link tài liệu..."
+        <textarea id="todo-desc-input" x-model="todoForm.description" rows="2" placeholder="Ghi chú thêm nội dung hoặc link tài liệu..."
                   class="w-full px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 focus:ring-2 focus:ring-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-sm resize-none text-slate-800 dark:text-slate-200"></textarea>
       </div>
 
@@ -816,7 +976,7 @@ export function renderHTML(): string {
             </button>
           </div>
           <div x-show="!customCategoryMode">
-            <select x-model="todoForm.category"
+            <select x-model="todoForm.category" aria-label="Chọn danh mục có sẵn"
                     class="w-full px-3 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold outline-none cursor-pointer">
               <template x-for="cat in categories" :key="cat">
                 <option :value="cat" x-text="cat"></option>
@@ -824,7 +984,7 @@ export function renderHTML(): string {
             </select>
           </div>
           <div x-show="customCategoryMode">
-            <input x-model="todoForm.category" type="text" placeholder="Nhập danh mục mới..."
+            <input x-model="todoForm.category" type="text" placeholder="Nhập danh mục mới..." aria-label="Nhập danh mục mới"
                    class="w-full px-3 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold outline-none" />
           </div>
         </div>
@@ -832,7 +992,7 @@ export function renderHTML(): string {
         <!-- Bước 4: Mức độ ưu tiên -->
         <div>
           <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">4. Mức độ ưu tiên</label>
-          <select x-model="todoForm.priority"
+          <select x-model="todoForm.priority" aria-label="Mức độ ưu tiên"
                   class="w-full px-3 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold outline-none cursor-pointer">
             <option value="Low">🟢 Low</option>
             <option value="Medium">🟡 Medium</option>
@@ -869,27 +1029,27 @@ export function renderHTML(): string {
 
         <!-- Khi CHỌN KHÔNG LẶP: Nhập đầy đủ Giờ, Ngày Tháng Năm -->
         <div x-show="todoForm.repeat_mode === 'none'" class="w-full space-y-2">
-          <input x-model="todoForm.due_datetime" type="datetime-local"
+          <input x-model="todoForm.due_datetime" type="datetime-local" aria-label="Thời hạn hoàn thành"
                  class="block w-full max-w-full box-border appearance-none px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm font-semibold text-left outline-none" />
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <button type="button" @click="setQuickDate('today-12')" class="py-2 px-1 text-center text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-300 transition">Hôm nay 12:00</button>
-            <button type="button" @click="setQuickDate('today-21')" class="py-2 px-1 text-center text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-300 transition">Tối nay 21:00</button>
-            <button type="button" @click="setQuickDate('tomorrow-06')" class="py-2 px-1 text-center text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-300 transition">Sáng mai 06:00</button>
-            <button type="button" @click="setQuickDate('weekend')" class="py-2 px-1 text-center text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-300 transition">Chủ nhật tuần này</button>
+            <button type="button" @click="setQuickDate('today-12')" class="py-2 px-1 text-center text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-300 transition active:scale-95">Hôm nay 12:00</button>
+            <button type="button" @click="setQuickDate('today-21')" class="py-2 px-1 text-center text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-300 transition active:scale-95">Tối nay 21:00</button>
+            <button type="button" @click="setQuickDate('tomorrow-06')" class="py-2 px-1 text-center text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-300 transition active:scale-95">Sáng mai 06:00</button>
+            <button type="button" @click="setQuickDate('weekend')" class="py-2 px-1 text-center text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-300 transition active:scale-95">Chủ nhật tuần này</button>
           </div>
         </div>
         <!-- Khi CHỌN LẶP HÀNG NGÀY: Chỉ cần chọn Giờ -->
         <div x-show="todoForm.repeat_mode === 'daily'" class="space-y-2">
           <div class="flex items-center gap-3">
             <span class="text-xs font-bold text-slate-600 dark:text-slate-400">Chọn giờ mỗi ngày:</span>
-            <input x-model="todoForm.daily_time" type="time"
+            <input x-model="todoForm.daily_time" type="time" aria-label="Chọn giờ mỗi ngày"
                    class="flex-1 px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm font-semibold outline-none" />
           </div>
           <div class="grid grid-cols-4 gap-2">
-            <button type="button" @click="todoForm.daily_time = '06:00'" class="py-2 text-center text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-300 transition" :class="todoForm.daily_time==='06:00' && 'ring-2 ring-brand-500 font-bold'">06:00 Sáng</button>
-            <button type="button" @click="todoForm.daily_time = '12:00'" class="py-2 text-center text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-300 transition" :class="todoForm.daily_time==='12:00' && 'ring-2 ring-brand-500 font-bold'">12:00 Trưa</button>
-            <button type="button" @click="todoForm.daily_time = '18:00'" class="py-2 text-center text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-300 transition" :class="todoForm.daily_time==='18:00' && 'ring-2 ring-brand-500 font-bold'">18:00 Tối</button>
-            <button type="button" @click="todoForm.daily_time = '22:00'" class="py-2 text-center text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-300 transition" :class="todoForm.daily_time==='22:00' && 'ring-2 ring-brand-500 font-bold'">22:00 Đêm</button>
+            <button type="button" @click="todoForm.daily_time = '06:00'" class="py-2 text-center text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-300 transition active:scale-95" :class="todoForm.daily_time==='06:00' && 'ring-2 ring-brand-500 font-bold'">06:00 Sáng</button>
+            <button type="button" @click="todoForm.daily_time = '12:00'" class="py-2 text-center text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-300 transition active:scale-95" :class="todoForm.daily_time==='12:00' && 'ring-2 ring-brand-500 font-bold'">12:00 Trưa</button>
+            <button type="button" @click="todoForm.daily_time = '18:00'" class="py-2 text-center text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-300 transition active:scale-95" :class="todoForm.daily_time==='18:00' && 'ring-2 ring-brand-500 font-bold'">18:00 Tối</button>
+            <button type="button" @click="todoForm.daily_time = '22:00'" class="py-2 text-center text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-300 transition active:scale-95" :class="todoForm.daily_time==='22:00' && 'ring-2 ring-brand-500 font-bold'">22:00 Đêm</button>
           </div>
         </div>
 
@@ -908,7 +1068,7 @@ export function renderHTML(): string {
                 { val: 0, label: 'CN' }
               ]" :key="day.val">
                 <button type="button" @click="todoForm.weekly_day = day.val"
-                        class="py-2 text-xs font-bold rounded-xl transition text-center"
+                        class="py-2 text-xs font-bold rounded-xl transition text-center active:scale-95"
                         :class="todoForm.weekly_day === day.val ? 'bg-brand-600 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'"
                         x-text="day.label"></button>
               </template>
@@ -916,7 +1076,7 @@ export function renderHTML(): string {
           </div>
           <div class="flex items-center gap-3">
             <span class="text-xs font-bold text-slate-600 dark:text-slate-400">Chọn giờ thực hiện:</span>
-            <input x-model="todoForm.weekly_time" type="time"
+            <input x-model="todoForm.weekly_time" type="time" aria-label="Chọn giờ thực hiện hàng tuần"
                    class="flex-1 px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm font-semibold outline-none" />
           </div>
         </div>
@@ -933,7 +1093,7 @@ export function renderHTML(): string {
 
       <div class="flex gap-2.5 pt-2">
         <button type="button" @click="showModal=false"
-                class="flex-1 py-3 px-4 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition text-sm">
+                class="flex-1 py-3 px-4 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition text-sm active:scale-95">
           Huỷ
         </button>
         <button type="submit" :disabled="todoSaving"
@@ -947,45 +1107,63 @@ export function renderHTML(): string {
 </div>
 
 <!-- ═══════ CONFIRM DELETE MODAL ═══════ -->
-<div x-show="showDeleteModal" x-cloak class="fixed inset-0 z-[110] flex items-center justify-center p-4">
-  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showDeleteModal=false"></div>
-  <div class="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 text-center" @click.stop>
+<div x-show="showDeleteModal" x-cloak class="fixed inset-0 z-[110] flex items-center justify-center p-4"
+     role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showDeleteModal=false"
+       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+  <div class="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 text-center"
+       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+       @click.stop>
     <div class="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-500 mx-auto flex items-center justify-center mb-3">
       <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
     </div>
-    <h3 class="text-base font-bold mb-1.5">Xác nhận xoá công việc?</h3>
+    <h3 id="delete-modal-title" class="text-base font-bold mb-1.5">Xác nhận xoá công việc?</h3>
     <p class="text-xs text-slate-500 dark:text-slate-400 mb-5">
       Bạn có chắc chắn muốn xoá "<strong x-text="deletingTodo?.title" class="text-slate-800 dark:text-slate-200"></strong>"? Hành động này không thể hoàn tác.
     </p>
     <div class="flex gap-2.5">
-      <button @click="showDeleteModal=false" class="flex-1 py-2.5 px-3 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs">Huỷ</button>
-      <button @click="deleteTodo()" :disabled="todoSaving" class="flex-1 py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs">Xoá vĩnh viễn</button>
+      <button @click="showDeleteModal=false" class="flex-1 py-2.5 px-3 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition active:scale-95">Huỷ</button>
+      <button @click="deleteTodo()" :disabled="todoSaving" class="flex-1 py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/25 transition active:scale-95">Xoá vĩnh viễn</button>
     </div>
   </div>
 </div>
 
 <!-- ═══════ CONFIRM CLEAR COMPLETED MODAL ═══════ -->
-<div x-show="showClearCompletedModal" x-cloak class="fixed inset-0 z-[110] flex items-center justify-center p-4">
-  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showClearCompletedModal=false"></div>
-  <div class="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 text-center" @click.stop>
+<div x-show="showClearCompletedModal" x-cloak class="fixed inset-0 z-[110] flex items-center justify-center p-4"
+     role="dialog" aria-modal="true" aria-labelledby="clear-modal-title">
+  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showClearCompletedModal=false"
+       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+  <div class="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 text-center"
+       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+       @click.stop>
     <div class="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-500 mx-auto flex items-center justify-center mb-3">
       <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
     </div>
-    <h3 class="text-base font-bold mb-1.5">Dọn dẹp công việc đã xong?</h3>
+    <h3 id="clear-modal-title" class="text-base font-bold mb-1.5">Dọn dẹp công việc đã xong?</h3>
     <p class="text-xs text-slate-500 dark:text-slate-400 mb-5">
       Tất cả <strong x-text="stats.completed" class="text-rose-500"></strong> việc đã hoàn tất sẽ bị dọn dẹp khỏi danh sách.
     </p>
     <div class="flex gap-2.5">
-      <button @click="showClearCompletedModal=false" class="flex-1 py-2.5 px-3 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs">Huỷ</button>
-      <button @click="clearCompleted()" :disabled="todoSaving" class="flex-1 py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs">Dọn dẹp ngay</button>
+      <button @click="showClearCompletedModal=false" class="flex-1 py-2.5 px-3 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition active:scale-95">Huỷ</button>
+      <button @click="clearCompleted()" :disabled="todoSaving" class="flex-1 py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/25 transition active:scale-95">Dọn dẹp ngay</button>
     </div>
   </div>
 </div>
 
 <!-- ═══════ CONFIRM LOGOUT MODAL ═══════ -->
-<div x-show="showLogoutModal" x-cloak class="fixed inset-0 z-[115] flex items-center justify-center p-4">
-  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showLogoutModal=false"></div>
-  <div class="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 text-center animate-bounce-once" @click.stop>
+<div x-show="showLogoutModal" x-cloak class="fixed inset-0 z-[115] flex items-center justify-center p-4"
+     role="dialog" aria-modal="true" aria-labelledby="logout-modal-title">
+  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showLogoutModal=false"
+       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+  <div class="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 text-center animate-bounce-once"
+       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+       @click.stop>
     <div class="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-500 mx-auto flex items-center justify-center mb-3">
       <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -993,13 +1171,13 @@ export function renderHTML(): string {
         <line x1="21" y1="12" x2="9" y2="12"></line>
       </svg>
     </div>
-    <h3 class="text-base font-bold mb-1.5">Xác nhận đăng xuất?</h3>
+    <h3 id="logout-modal-title" class="text-base font-bold mb-1.5">Xác nhận đăng xuất?</h3>
     <p class="text-xs text-slate-500 dark:text-slate-400 mb-5">
       Bạn có chắc chắn muốn đăng xuất khỏi tài khoản <strong x-text="currentUser?.username || 'này'" class="text-slate-800 dark:text-slate-200"></strong> không?
     </p>
     <div class="flex gap-2.5">
-      <button @click="showLogoutModal=false" class="flex-1 py-2.5 px-3 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition">Huỷ</button>
-      <button @click="confirmLogoutAction()" class="flex-1 py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/30 transition">Đăng xuất ngay</button>
+      <button @click="showLogoutModal=false" class="flex-1 py-2.5 px-3 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95">Huỷ</button>
+      <button @click="confirmLogoutAction()" class="flex-1 py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/30 transition active:scale-95">Đăng xuất ngay</button>
     </div>
   </div>
 </div>
@@ -1123,7 +1301,7 @@ function app() {
 
     // Modal About & Version
     showAboutModal: false,
-    appVersion: '1.8.2',
+    appVersion: '1.8.3',
     testingTelegram: false,
 
     // In-App Notifications, Priorities & Auto-Update
@@ -1140,8 +1318,18 @@ function app() {
       const completed = this.todos.filter(t => t.is_completed).length;
       const pending = this.todos.filter(t => !t.is_completed).length;
       const overdue = this.todos.filter(t => this.isOverdue(t)).length;
+      const recurring = this.todos.filter(t => t.repeat_mode && t.repeat_mode !== 'none' && !t.is_completed).length;
       const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
-      return { total, completed, pending, overdue, percent };
+      return { total, completed, pending, overdue, recurring, percent };
+    },
+
+    getFilterCount(value) {
+      if (value === 'all') return this.stats.total;
+      if (value === 'pending') return this.stats.pending;
+      if (value === 'recurring') return this.stats.recurring;
+      if (value === 'completed') return this.stats.completed;
+      if (value === 'overdue') return this.stats.overdue;
+      return 0;
     },
 
     get sortedTodos() {
@@ -1348,6 +1536,39 @@ function app() {
       };
       window.addEventListener('touchend', handleTouchEndBlur, { passive: true });
       window.addEventListener('mouseup', handleTouchEndBlur, { passive: true });
+
+      // 9. Lắng nghe phím tắt toàn cục (A11y & Power User: Esc -> Đóng modal, N -> Tạo việc mới, / -> Tìm kiếm)
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          this.closeAllModals();
+          return;
+        }
+        const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+        if (!isInput && this.authenticated) {
+          const anyModalOpen = this.showModal || this.showDeleteModal || this.showClearCompletedModal || this.showLogoutModal || this.showAboutModal || this.showDownloadModal;
+          if (!anyModalOpen) {
+            if (e.key === 'n' || e.key === 'N') {
+              e.preventDefault();
+              this.openCreateModal();
+            } else if (e.key === '/') {
+              e.preventDefault();
+              const searchInput = document.querySelector('input[x-model="searchQuery"]');
+              if (searchInput && typeof searchInput.focus === 'function') {
+                searchInput.focus();
+              }
+            }
+          }
+        }
+      });
+    },
+
+    closeAllModals() {
+      this.showModal = false;
+      this.showDeleteModal = false;
+      this.showClearCompletedModal = false;
+      this.showLogoutModal = false;
+      this.showAboutModal = false;
+      this.showDownloadModal = false;
     },
 
     async refreshDataManual(e) {

@@ -1091,7 +1091,7 @@ app.get('/api/setup-telegram-webhook', async (c) => {
 });
 
 // GET /api/version — Kiểm tra phiên bản mới nhất để App iOS / PWA tự cập nhật ngầm
-export const APP_VERSION = '1.8.2';
+export const APP_VERSION = '1.8.3';
 app.get('/api/version', (c) => {
   return c.json({
     version: APP_VERSION,

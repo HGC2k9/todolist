@@ -4,7 +4,7 @@
 
 export function renderServiceWorker(): string {
   return /*javascript*/ `
-const CACHE_NAME = 'todolist-v18';
+const CACHE_NAME = 'todolist-v19';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
