@@ -4,8 +4,11 @@
 
 export interface Env {
   DB: D1Database;
+  AI?: any;
   JWT_SECRET: string;
   COOKIE_NAME: string;
+  TELEGRAM_BOT_TOKEN?: string;
+  TELEGRAM_CHAT_ID?: string;
 }
 
 export interface User {
@@ -15,6 +18,12 @@ export interface User {
   password_hash: string;
   salt: string;
   created_at: string;
+}
+
+export interface Subtask {
+  id: string;
+  title: string;
+  is_completed: number;
 }
 
 export interface Todo {
@@ -28,8 +37,24 @@ export interface Todo {
   is_completed: number;
   is_pinned?: number;
   repeat_mode?: 'none' | 'daily' | 'weekly';
+  telegram_message_id?: number | null;
+  subtasks?: Subtask[] | string;
+  tags?: string[] | string;
+  reminder_offset?: number;
+  status?: 'todo' | 'in_progress' | 'completed';
+  position?: number;
+  deleted_at?: string | null;
+  estimated_minutes?: number;
+  actual_minutes?: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface TodoImage {
+  id: string;
+  todo_id: string;
+  image_data: string;
+  created_at: string;
 }
 
 export interface JWTPayload {

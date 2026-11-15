@@ -66,5 +66,15 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Ứng dụng cần quyền Camera để chụp ảnh đính kèm vào công việc</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Ứng dụng cần quyền truy cập Thư viện ảnh để chọn ảnh minh họa cho công việc</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Ứng dụng cần quyền lưu ảnh vào Thư viện của bạn</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Ứng dụng cần vị trí của bạn để gắn thẻ địa điểm thực hiện công việc</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Ứng dụng cần quyền Micro để nhận diện giọng nói tiếng Việt tạo công việc nhanh</string>
 </dict>
 </plist>

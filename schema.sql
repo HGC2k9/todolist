@@ -23,6 +23,16 @@ CREATE TABLE IF NOT EXISTS todos (
   due_date     TEXT,
   is_completed INTEGER DEFAULT 0,
   is_pinned    INTEGER DEFAULT 0,
+  repeat_mode  TEXT DEFAULT 'none',
+  telegram_message_id INTEGER DEFAULT NULL,
+  subtasks     TEXT DEFAULT '[]',
+  reminder_offset INTEGER DEFAULT 0,
+  tags         TEXT DEFAULT '[]',
+  status       TEXT DEFAULT 'todo',
+  position     INTEGER DEFAULT 0,
+  deleted_at   TEXT DEFAULT NULL,
+  estimated_minutes INTEGER DEFAULT 0,
+  actual_minutes INTEGER DEFAULT 0,
   created_at   TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -35,6 +45,7 @@ CREATE INDEX IF NOT EXISTS idx_todos_category ON todos(category);
 CREATE INDEX IF NOT EXISTS idx_todos_priority ON todos(priority);
 CREATE INDEX IF NOT EXISTS idx_todos_completed ON todos(is_completed);
 CREATE INDEX IF NOT EXISTS idx_todos_pinned ON todos(is_pinned);
+CREATE INDEX IF NOT EXISTS idx_todos_deleted_at ON todos(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
 
@@ -61,3 +72,22 @@ CREATE TABLE IF NOT EXISTS reminder_logs (
   FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_rem_todo ON reminder_logs(todo_id);
+
+-- Bảng đính kèm hình ảnh (Lưu Base64 trong D1, không cần R2)
+CREATE TABLE IF NOT EXISTS todo_images (
+  id TEXT PRIMARY KEY,
+  todo_id TEXT NOT NULL,
+  image_data TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_todo_images_todo_id ON todo_images(todo_id);
+
+-- Bảng ghi nhận bản tin sáng & tối đã gửi (tránh gửi lặp lại nhiều lần trong cùng 1 ngày)
+CREATE TABLE IF NOT EXISTS briefing_logs (
+  id TEXT PRIMARY KEY,
+  type TEXT NOT NULL, -- 'morning' hoặc 'evening'
+  date_str TEXT NOT NULL, -- YYYY-MM-DD theo giờ VN
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(type, date_str)
+);

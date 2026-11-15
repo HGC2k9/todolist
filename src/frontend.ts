@@ -55,6 +55,18 @@ export function renderHTML(): string {
   </script>
   <style>
     [x-cloak] { display: none !important; }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      max-width: 100%;
+      overflow-x: hidden;
+      position: relative;
+      width: 100%;
+    }
     
     html {
       scroll-behavior: smooth;
@@ -165,7 +177,7 @@ export function renderHTML(): string {
     }
   </style>
 </head>
-<body class="bg-slate-50 dark:bg-[#0b0f19] text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-200 ios-safe-bottom pb-24 sm:pb-8 selection:bg-brand-500 selection:text-white">
+<body class="bg-slate-50 dark:bg-[#0b0f19] text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-200 ios-safe-bottom pb-24 sm:pb-8 selection:bg-brand-500 selection:text-white max-w-full overflow-x-hidden">
 
 <!-- ═══════ TOAST NOTIFICATIONS (Vuốt lên/sang để tắt, xếp chồng, 3s tự tắt) ═══════ -->
 <div class="fixed right-4 left-4 sm:left-auto z-[120] space-y-2 pointer-events-none"
@@ -190,7 +202,14 @@ export function renderHTML(): string {
         <span x-text="toast.message" class="break-words"></span>
         <span x-show="toast.count > 1" class="ml-1 px-1.5 py-0.5 rounded-full bg-white/25 text-[11px] font-black" x-text="'x' + toast.count"></span>
       </div>
-      <button @click="removeToast(toast.id)" class="opacity-70 hover:opacity-100 p-1 text-white flex-shrink-0" title="Đóng">✕</button>
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <template x-if="toast.action">
+          <button @click="toast.action.onClick(); removeToast(toast.id)"
+                  class="px-2.5 py-1 rounded-xl bg-white text-slate-900 font-bold text-xs shadow-md hover:bg-slate-100 active:scale-95 transition flex-shrink-0"
+                  x-text="toast.action.label || 'Hoàn tác'"></button>
+        </template>
+        <button @click="removeToast(toast.id)" class="opacity-70 hover:opacity-100 p-1 text-white flex-shrink-0" title="Đóng">✕</button>
+      </div>
     </div>
   </template>
 </div>
@@ -208,11 +227,11 @@ export function renderHTML(): string {
 
     <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 backdrop-blur-xl">
       <div class="flex bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 mb-6" role="tablist" aria-label="Phương thức xác thực">
-        <button @click="authMode='login'" role="tab" :aria-selected="authMode==='login'" class="flex-1 py-2.5 text-sm font-bold rounded-xl transition-all"
+        <button @click="authMode='login'" role="tab" :aria-selected="authMode==='login'" class="flex-1 h-10 text-sm font-bold rounded-xl transition-all inline-flex items-center justify-center"
                 :class="authMode==='login' ? 'bg-white dark:bg-slate-700 shadow-sm text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'">
           Đăng nhập
         </button>
-        <button @click="authMode='register'" role="tab" :aria-selected="authMode==='register'" class="flex-1 py-2.5 text-sm font-bold rounded-xl transition-all"
+        <button @click="authMode='register'" role="tab" :aria-selected="authMode==='register'" class="flex-1 h-10 text-sm font-bold rounded-xl transition-all inline-flex items-center justify-center"
                 :class="authMode==='register' ? 'bg-white dark:bg-slate-700 shadow-sm text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'">
           Đăng ký
         </button>
@@ -225,7 +244,7 @@ export function renderHTML(): string {
             <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </span>
-            <input id="auth-username" x-model="authForm.username" type="text" placeholder="Họ và tên..."
+            <input id="auth-username" name="username" autocomplete="name" x-model="authForm.username" type="text" placeholder="Họ và tên..."
                    class="w-full pl-11 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 focus:ring-2 focus:ring-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-sm font-medium" />
           </div>
         </div>
@@ -236,7 +255,7 @@ export function renderHTML(): string {
             <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
             </span>
-            <input id="auth-email" x-model="authForm.email" type="email" placeholder="you@example.com" required
+            <input id="auth-email" name="email" autocomplete="email" x-model="authForm.email" type="email" placeholder="you@example.com" required
                    class="w-full pl-11 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 focus:ring-2 focus:ring-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-sm font-medium" />
           </div>
         </div>
@@ -247,13 +266,13 @@ export function renderHTML(): string {
             <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </span>
-            <input id="auth-password" x-model="authForm.password" type="password" placeholder="••••••••" required minlength="6"
+            <input id="auth-password" name="password" autocomplete="current-password" x-model="authForm.password" type="password" placeholder="••••••••" required minlength="6"
                    class="w-full pl-11 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 focus:ring-2 focus:ring-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-sm font-medium" />
           </div>
         </div>
 
         <button type="submit" :disabled="authLoading"
-                class="w-full py-3.5 px-4 bg-brand-600 hover:bg-brand-700 active:scale-[0.99] text-white font-bold rounded-2xl shadow-lg shadow-brand-500/25 transition disabled:opacity-60 flex items-center justify-center gap-2 mt-2">
+                class="w-full h-12 px-4 bg-brand-600 hover:bg-brand-700 active:scale-[0.99] text-white font-bold rounded-2xl shadow-lg shadow-brand-500/25 transition disabled:opacity-60 inline-flex items-center justify-center gap-2 mt-2 text-sm">
           <svg x-show="authLoading" class="spinner w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4 31.4" stroke-linecap="round"/></svg>
           <span x-text="authMode==='login' ? 'Đăng nhập ngay' : 'Tạo tài khoản mới'"></span>
         </button>
@@ -317,55 +336,69 @@ export function renderHTML(): string {
         <span x-text="isSyncing ? 'Đang đồng bộ...' : (isOffline ? 'Ngoại tuyến (' + offlineQueue.length + ' chờ gửi)' : 'Chờ đồng bộ (' + offlineQueue.length + ')')"></span>
       </div>
 
-      <!-- Action Toolbar -->
-      <div class="flex items-center gap-1 sm:gap-2">
+      <!-- Action Toolbar (Căn chỉnh đối xứng 100% - Chuẩn hóa chiều cao h-8) -->
+      <div class="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
         
         <!-- Nút Download App -->
         <button @click="showDownloadModal = true"
                 aria-label="Tải ứng dụng To-Do List cho PC hoặc iOS"
-                class="px-2 sm:px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 bg-brand-50 hover:bg-brand-100 dark:bg-brand-950/70 dark:hover:bg-brand-900 text-brand-600 dark:text-brand-400 border border-brand-200 dark:border-brand-800 transition shadow-sm active:scale-95"
+                class="h-8 px-2 sm:px-2.5 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 bg-brand-50 hover:bg-brand-100 dark:bg-brand-950/70 dark:hover:bg-brand-900 text-brand-600 dark:text-brand-400 border border-brand-200 dark:border-brand-800 transition shadow-xs active:scale-95"
                 title="Tải ứng dụng cho PC hoặc iOS">
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
             <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
-          <span>Download</span>
+          <span class="hidden md:inline">Download</span>
         </button>
 
         <!-- Nút Mở thẳng Bot Telegram @hgc_todolist_bot -->
         <a href="https://t.me/hgc_todolist_bot" target="_blank" rel="noopener noreferrer"
            @click="openTelegramBot($event)"
            aria-label="Mở Bot Telegram To-Do List @hgc_todolist_bot"
-           class="px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/70 dark:hover:bg-sky-900 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800 transition shadow-sm active:scale-95"
+           class="h-8 px-2 sm:px-2.5 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/70 dark:hover:bg-sky-900 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800 transition shadow-xs active:scale-95"
            title="Mở Bot Telegram @hgc_todolist_bot">
           <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
             <path d="m20.665 3.717-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l-.313 4.693c.46 0 .663-.211.921-.46l2.211-2.15 4.599 3.397c.848.467 1.457.227 1.668-.785l3.019-14.228c.309-1.239-.473-1.8-1.282-1.434z"/>
           </svg>
-          <span class="hidden sm:inline">@hgc_todolist_bot</span>
-          <span class="sm:hidden">Bot</span>
+          <span class="hidden md:inline">@hgc_todolist_bot</span>
+          <span class="hidden sm:inline md:hidden">Bot</span>
         </a>
+
+        <!-- Nút Sao lưu & Xuất lịch -->
+        <button @click="showBackupModal = true"
+                aria-label="Sao lưu dữ liệu và xuất lịch"
+                class="h-8 px-2 sm:px-2.5 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/70 dark:hover:bg-violet-900 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-800 transition shadow-xs active:scale-95"
+                title="Sao lưu JSON & Xuất lịch (.ics)">
+          <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span class="hidden md:inline">Sao lưu & Lịch</span>
+          <span class="hidden sm:inline md:hidden">Lịch</span>
+        </button>
 
         <!-- Làm mới thủ công -->
         <button @click="refreshDataManual($event)"
                 aria-label="Làm mới dữ liệu danh sách công việc"
-                class="p-2 rounded-xl text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95" :class="{ 'spinner text-brand-600': isRefreshing }" title="Làm mới dữ liệu">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path><polyline points="21 3 21 9 15 9"></polyline></svg>
+                class="w-8 h-8 rounded-xl inline-flex items-center justify-center text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 border border-transparent hover:border-slate-200 dark:hover:border-slate-700" :class="{ 'spinner text-brand-600': isRefreshing }" title="Làm mới dữ liệu">
+          <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path><polyline points="21 3 21 9 15 9"></polyline></svg>
         </button>
 
         <!-- Đổi Theme -->
         <button @click="toggleDarkMode($event)"
                 aria-label="Chuyển đổi giao diện Sáng / Tối"
-                class="p-2 rounded-xl text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95" title="Đổi giao diện">
-          <svg x-show="!darkMode" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-          <svg x-show="darkMode" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                class="w-8 h-8 rounded-xl inline-flex items-center justify-center text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 border border-transparent hover:border-slate-200 dark:hover:border-slate-700" title="Đổi giao diện">
+          <svg x-show="!darkMode" class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg x-show="darkMode" class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
         </button>
 
         <!-- Đăng xuất (Có xác nhận an toàn) -->
         <button @click="confirmLogout($event)"
                 aria-label="Đăng xuất tài khoản"
-                class="p-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl transition active:scale-95" title="Đăng xuất">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                class="w-8 h-8 rounded-xl inline-flex items-center justify-center text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition active:scale-95 border border-transparent hover:border-rose-200 dark:hover:border-rose-900" title="Đăng xuất">
+          <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
         </button>
       </div>
     </div>
@@ -382,7 +415,7 @@ export function renderHTML(): string {
         </svg>
         <span class="truncate">
           <strong>Việc sắp đến hạn:</strong>
-          <span x-text="imminentTodos.map(t => '\"' + t.title + '\" (' + (t.priority || 'Medium') + ' - ' + getMinutesRemaining(t) + 'p)').join(', ')"></span>
+          <span x-text="imminentSummary"></span>
         </span>
       </div>
       <div class="flex items-center gap-2 flex-shrink-0">
@@ -402,7 +435,7 @@ export function renderHTML(): string {
       <div class="flex items-center justify-between text-xs font-semibold gap-3 flex-wrap">
         <div class="flex items-center gap-2 sm:gap-2.5 flex-wrap">
           <button type="button" @click="filterStatus='pending'; fetchTodos()"
-                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95"
+                  class="h-7.5 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95"
                   :class="filterStatus==='pending' && 'ring-1 ring-amber-500/50 bg-amber-50/50 dark:bg-amber-950/30'"
                   title="Bấm để lọc việc cần làm">
             <span class="w-2 h-2 rounded-full bg-amber-500"></span>
@@ -413,7 +446,7 @@ export function renderHTML(): string {
           <span class="text-slate-200 dark:text-slate-700">•</span>
           
           <button type="button" x-show="stats.overdue > 0" @click="filterStatus='overdue'; fetchTodos()"
-                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition active:scale-95"
+                  class="h-7.5 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition active:scale-95"
                   :class="filterStatus==='overdue' && 'ring-1 ring-rose-500/50 bg-rose-50/70 dark:bg-rose-950/40'"
                   title="Bấm để lọc việc quá hạn">
             <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
@@ -424,7 +457,7 @@ export function renderHTML(): string {
           <span x-show="stats.overdue > 0" class="text-slate-200 dark:text-slate-700">•</span>
           
           <button type="button" @click="filterStatus='completed'; fetchTodos()"
-                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95"
+                  class="h-7.5 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95"
                   :class="filterStatus==='completed' && 'ring-1 ring-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/30'"
                   title="Bấm để lọc việc đã xong">
             <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
@@ -432,8 +465,16 @@ export function renderHTML(): string {
           </button>
         </div>
         
-        <div class="flex items-center gap-2 flex-shrink-0 ml-auto">
-          <div class="w-20 sm:w-28 h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5"
+        <div class="flex items-center gap-2.5 flex-shrink-0 ml-auto">
+          <!-- Chuỗi ngày năng suất (Streak Counter) -->
+          <div class="h-7.5 inline-flex items-center justify-center gap-1 px-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 font-bold text-xs select-none shadow-xs"
+               :title="'Chuỗi ngày năng suất: ' + streak + ' ngày liên tục'">
+            <span class="text-sm">🔥</span>
+            <span class="font-black text-xs sm:text-sm" x-text="streak"></span>
+            <span class="hidden sm:inline text-[11px] font-semibold text-orange-700/80 dark:text-orange-300">streak</span>
+          </div>
+
+          <div class="w-16 sm:w-24 h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5"
                role="progressbar" :aria-valuenow="stats.percent" aria-valuemin="0" aria-valuemax="100" :aria-label="'Tiến độ hoàn thành: ' + stats.percent + '%'">
             <div class="h-full bg-gradient-to-r from-brand-500 via-indigo-500 to-emerald-500 rounded-full transition-all duration-500 ease-out" :style="'width: ' + stats.percent + '%'"></div>
           </div>
@@ -467,17 +508,17 @@ export function renderHTML(): string {
         </div>
       </div>
 
-      <!-- Quick Filter Chips với số lượng đếm trực tiếp -->
+      <!-- Quick Filter Chips với số lượng đếm trực tiếp (Căn chỉnh đối xứng h-8) -->
       <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 -mx-0.5 px-0.5" role="group" aria-label="Bộ lọc trạng thái công việc">
         <template x-for="s in statusFilters" :key="s.value">
           <button @click="filterStatus = s.value; fetchTodos()"
                   role="button"
                   :aria-pressed="filterStatus === s.value"
-                  class="flex-shrink-0 px-3 py-1.5 text-xs font-bold rounded-xl border transition-all duration-150 flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                  class="flex-shrink-0 h-8 px-3 text-xs font-bold rounded-xl border transition-all duration-150 inline-flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
                   :class="filterStatus === s.value
                     ? 'bg-brand-600 text-white border-brand-600 shadow-xs'
                     : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-slate-700/80 hover:border-brand-400 dark:hover:border-brand-500'">
-            <span x-html="s.icon"></span>
+            <span x-html="s.icon" class="flex-shrink-0"></span>
             <span x-text="s.label"></span>
             <span class="ml-0.5 text-[10px] font-black px-1.5 py-0.2 rounded-full"
                   :class="filterStatus === s.value ? 'bg-white/20 text-white' : 'bg-slate-200/70 dark:bg-slate-700/70 text-slate-600 dark:text-slate-300'"
@@ -486,11 +527,52 @@ export function renderHTML(): string {
         </template>
       </div>
 
+      <!-- Chế độ xem Đa năng: Danh sách / Kanban / Lịch -->
+      <div class="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800 gap-2 flex-wrap">
+        <div class="inline-flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-bold border border-slate-200/80 dark:border-slate-700/80 h-8">
+          <button type="button" @click="setViewMode('list')"
+                  class="h-7 px-2.5 rounded-lg transition inline-flex items-center justify-center gap-1.5 active:scale-95"
+                  :class="viewMode === 'list' ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'">
+            <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            <span>Danh sách</span>
+          </button>
+          <button type="button" @click="setViewMode('kanban')"
+                  class="h-7 px-2.5 rounded-lg transition inline-flex items-center justify-center gap-1.5 active:scale-95"
+                  :class="viewMode === 'kanban' ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'">
+            <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="15" rx="1"/></svg>
+            <span>Kanban</span>
+          </button>
+          <button type="button" @click="setViewMode('calendar')"
+                  class="h-7 px-2.5 rounded-lg transition inline-flex items-center justify-center gap-1.5 active:scale-95"
+                  :class="viewMode === 'calendar' ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'">
+            <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>Lịch</span>
+          </button>
+        </div>
+
+        <!-- Lọc theo #tag -->
+        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 text-xs max-w-full" x-show="allTags.length > 0">
+          <span class="text-slate-400 text-[11px] font-bold flex-shrink-0">Thẻ:</span>
+          <button type="button" @click="filterTag = 'all'"
+                  class="h-7 px-2.5 rounded-lg text-[11px] font-bold border transition inline-flex items-center justify-center active:scale-95 flex-shrink-0"
+                  :class="filterTag === 'all' ? 'bg-brand-600 text-white border-brand-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'">
+            #tất cả
+          </button>
+          <template x-for="tg in allTags" :key="tg">
+            <button type="button" @click="filterTag = (filterTag === tg ? 'all' : tg)"
+                    class="h-7 px-2.5 rounded-lg text-[11px] font-bold border transition inline-flex items-center justify-center active:scale-95 flex-shrink-0"
+                    :class="filterTag === tg ? 'bg-brand-600 text-white border-brand-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'">
+              #<span x-text="tg"></span>
+            </button>
+          </template>
+        </div>
+      </div>
+
       <!-- Secondary Filters (Danh mục, Ưu tiên, Sắp xếp) & Dọn dẹp -->
       <div class="flex items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800 overflow-x-auto no-scrollbar text-xs">
         <select x-model="filterCategory" @change="fetchTodos()"
                 aria-label="Lọc theo danh mục"
-                class="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
+                class="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
           <option value="all">📁 Danh mục (Tất cả)</option>
           <template x-for="cat in categories" :key="cat">
             <option :value="cat" x-text="cat"></option>
@@ -499,7 +581,7 @@ export function renderHTML(): string {
 
         <select x-model="filterPriority" @change="fetchTodos()"
                 aria-label="Lọc theo mức độ ưu tiên"
-                class="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
+                class="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
           <option value="all">⚡ Ưu tiên (Tất cả)</option>
           <option value="High">🔴 Khẩn cấp (High)</option>
           <option value="Medium">🟡 Bình thường (Medium)</option>
@@ -508,31 +590,67 @@ export function renderHTML(): string {
 
         <select x-model="sortBy" @change="fetchTodos()"
                 aria-label="Sắp xếp danh sách công việc"
-                class="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
+                class="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
           <option value="due_date-asc">📅 Hạn: Gần → Xa</option>
           <option value="due_date-desc">📅 Hạn: Xa → Gần</option>
           <option value="created_at-desc">🕐 Mới tạo trước</option>
         </select>
 
+        <!-- Nút Năng suất (Productivity Analytics) -->
+        <button type="button" @click="openAnalytics()"
+                aria-label="Báo cáo năng suất sâu"
+                class="h-8 px-2.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/70 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-bold flex-shrink-0 text-xs inline-flex items-center gap-1.5 transition active:scale-95"
+                title="Báo cáo thống kê năng suất sâu">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span class="hidden sm:inline">Năng suất</span>
+        </button>
+
+        <!-- Nút Pomodoro Focus Mode -->
+        <button type="button" @click="openPomodoro()"
+                aria-label="Chế độ tập trung Pomodoro"
+                class="h-8 px-2.5 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/70 dark:hover:bg-rose-900 text-rose-700 dark:text-rose-300 font-bold flex-shrink-0 text-xs inline-flex items-center gap-1.5 transition active:scale-95"
+                title="Tập trung Pomodoro 25 phút kèm âm thanh tiếng mưa/tiếng ồn trắng">
+          <span>🍅</span>
+          <span class="hidden sm:inline">Focus</span>
+        </button>
+
+        <!-- Nút Thùng rác (Trash) -->
+        <button type="button" @click="openTrashModal()"
+                aria-label="Mở thùng rác"
+                class="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold flex-shrink-0 text-xs inline-flex items-center gap-1.5 transition active:scale-95"
+                title="Xem và khôi phục các công việc đã xóa trong Thùng rác">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <span class="hidden sm:inline">Thùng rác</span>
+        </button>
+
         <button x-show="stats.completed > 0" @click="confirmClearCompleted()"
                 aria-label="Dọn dẹp công việc đã hoàn thành"
-                class="ml-auto text-rose-500 hover:text-rose-600 font-bold inline-flex items-center gap-1 transition px-2.5 py-1.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/50 flex-shrink-0 text-xs active:scale-95"
+                class="h-8 ml-auto text-rose-500 hover:text-rose-600 font-bold inline-flex items-center justify-center gap-1 transition px-2.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/50 flex-shrink-0 text-xs active:scale-95"
                 title="Dọn dẹp việc đã xong">
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           <span class="hidden sm:inline">Dọn dẹp đã xong</span>
         </button>
       </div>
     </div>
 
-    <!-- ─── Nút thêm việc mới (Desktop & Tablet) ─── -->
-    <button @click="openCreateModal()"
-            class="hidden sm:flex w-full mb-5 py-3 border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-brand-500 dark:hover:border-brand-400 bg-white/60 dark:bg-slate-900/60 hover:bg-brand-50/20 dark:hover:bg-brand-950/20 rounded-2xl sm:rounded-3xl text-slate-600 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-all items-center justify-center gap-2 text-sm font-bold shadow-xs group active:scale-[0.99]">
-      <div class="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 group-hover:bg-brand-100 dark:group-hover:bg-brand-900 transition text-brand-600">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      </div>
-      <span>Thêm công việc mới</span>
-      <kbd class="ml-2 text-[10px] font-semibold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">N</kbd>
-    </button>
+    <!-- ─── Nút thêm việc mới & Nói để tạo việc (Desktop & Tablet) ─── -->
+    <div class="hidden sm:flex items-center gap-2 mb-5">
+      <button @click="openCreateModal()"
+              class="flex-1 py-3 border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-brand-500 dark:hover:border-brand-400 bg-white/60 dark:bg-slate-900/60 hover:bg-brand-50/20 dark:hover:bg-brand-950/20 rounded-2xl text-slate-600 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-all flex items-center justify-center gap-2 text-sm font-bold shadow-xs group active:scale-[0.99]">
+        <div class="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 group-hover:bg-brand-100 dark:group-hover:bg-brand-900 transition text-brand-600">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </div>
+        <span>Thêm công việc mới</span>
+        <kbd class="ml-2 text-[10px] font-semibold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">N</kbd>
+      </button>
+
+      <button type="button" @click="openCreateModal(); setTimeout(() => startVoiceInput(), 200)"
+              class="h-[50px] px-4 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-bold text-xs inline-flex items-center justify-center gap-2 shadow-md shadow-rose-500/20 active:scale-95 transition"
+              title="Nói tiếng Việt để tự động tạo công việc bằng Whisper AI">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        <span>Nói để tạo việc</span>
+      </button>
+    </div>
 
     <!-- ─── Skeleton Loading State (Tránh giật giật màn hình khi tải) ─── -->
     <div x-show="todosLoading" class="space-y-3" role="status" aria-busy="true" aria-label="Đang tải danh sách công việc...">
@@ -568,8 +686,8 @@ export function renderHTML(): string {
     </div>
 
     <!-- ─── Todo List Item Cards (Tự động sắp xếp: Việc cần làm lên đầu, Quá hạn & Đã xong rớt xuống dưới) ─── -->
-    <div class="space-y-3" x-show="!todosLoading && todos.length > 0">
-      <template x-for="todo in sortedTodos" :key="todo.id">
+    <div class="space-y-3" x-show="viewMode === 'list' && !todosLoading && filteredSortedTodos.length > 0">
+      <template x-for="todo in filteredSortedTodos" :key="todo.id">
         <div class="todo-card bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-5 hover:shadow-md group relative"
              :class="{
                'opacity-50 bg-slate-50/50 dark:bg-slate-900/50': todo.is_completed,
@@ -613,30 +731,30 @@ export function renderHTML(): string {
                   <!-- Ghim (Pushpin Solid) -->
                   <button @click="togglePin(todo, $event)"
                           :aria-label="todo.is_pinned ? ('Bỏ ghim: ' + todo.title) : ('Ghim lên đầu: ' + todo.title)"
-                          class="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-90"
+                          class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl inline-flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-90"
                           :class="todo.is_pinned ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'" :title="todo.is_pinned ? 'Bỏ ghim' : 'Ghim lên đầu'">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                    <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
                   </button>
 
                   <!-- Nhân bản (Copy Layer) -->
                   <button @click="duplicateTodo(todo, $event)"
                           :aria-label="'Nhân bản công việc: ' + todo.title"
-                          class="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-blue-500 transition active:scale-90" title="Nhân bản">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                          class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl inline-flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-blue-500 transition active:scale-90" title="Nhân bản">
+                    <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                   </button>
 
                   <!-- Chỉnh sửa (Pen Icon) -->
                   <button @click="openEditModal(todo, $event)"
                           :aria-label="'Chỉnh sửa công việc: ' + todo.title"
-                          class="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-brand-600 transition active:scale-90" title="Sửa">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                          class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl inline-flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-brand-600 transition active:scale-90" title="Sửa">
+                    <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                   </button>
 
                   <!-- Xoá (Trash Icon) -->
                   <button @click="confirmDelete(todo, $event)"
                           :aria-label="'Xóa công việc: ' + todo.title"
-                          class="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-500 transition active:scale-90" title="Xóa">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                          class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl inline-flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-500 transition active:scale-90" title="Xóa">
+                    <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                   </button>
                 </div>
               </div>
@@ -673,7 +791,7 @@ export function renderHTML(): string {
                   <span x-text="todo.repeat_mode === 'daily' ? 'Hàng ngày' : 'Hàng tuần'"></span>
                 </span>
 
-                <!-- Thời hạn: Hiển thị đúng theo chu kỳ (Không lặp: Giờ Thứ Ngày Tháng Năm; Hàng ngày: Giờ; Hàng tuần: Giờ Thứ) -->
+                <!-- Thời hạn: Hiển thị đúng theo chu kỳ -->
                 <span x-show="todo.due_date" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold"
                       :class="isOverdue(todo)
                         ? 'bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-400 border border-rose-300 dark:border-rose-800'
@@ -689,11 +807,253 @@ export function renderHTML(): string {
                 <span x-show="isImminent(todo)" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-orange-600 text-white animate-pulse">
                   ⏰ Sắp hết hạn (&lt; <span x-text="getPriorityWarningMinutes(todo.priority)"></span>P)
                 </span>
+
+                <!-- Thẻ #tags -->
+                <template x-for="tg in getTags(todo)" :key="tg">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                    #<span x-text="tg"></span>
+                  </span>
+                </template>
+
+                <!-- Thời gian & Nút Pomodoro Focus -->
+                <div class="inline-flex items-center gap-1.5">
+                  <span x-show="todo.estimated_minutes > 0 || todo.actual_minutes > 0"
+                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                    <svg class="w-3 h-3 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <span x-text="(todo.actual_minutes || 0) + '/' + (todo.estimated_minutes || 0) + 'm'"></span>
+                  </span>
+                  <button type="button" @click="openPomodoro(todo)"
+                          class="h-6 px-1.5 rounded-lg text-[10px] font-bold bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 inline-flex items-center gap-1 transition active:scale-95"
+                          title="Tập trung Pomodoro cho việc này">
+                    <span>🍅</span>
+                    <span>Focus</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Ảnh đính kèm (Thumbnails Strip) -->
+              <div x-show="getTodoImages(todo.id).length > 0" class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 overflow-x-auto no-scrollbar">
+                <template x-for="img in getTodoImages(todo.id)" :key="img.id">
+                  <img :src="img.image_data" @click="openLightbox(img.image_data)" alt="Ảnh đính kèm"
+                       class="w-12 h-12 object-cover rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:opacity-80 transition hover:scale-105 flex-shrink-0" />
+                </template>
+              </div>
+
+              <!-- Việc con / Checklist -->
+              <div x-show="getSubtasks(todo).length > 0" class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                <div class="flex items-center justify-between text-[11px] font-bold text-slate-500 mb-1.5 cursor-pointer select-none"
+                     @click="todo._expandedSubtasks = !todo._expandedSubtasks">
+                  <span class="flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 text-brand-500 transition-transform" :class="todo._expandedSubtasks && 'rotate-90'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                    <span>Việc con: <strong class="text-slate-700 dark:text-slate-200" x-text="getSubtasks(todo).filter(s => s.is_completed).length + '/' + getSubtasks(todo).length"></strong></span>
+                  </span>
+                  <span class="text-[10px] text-slate-400" x-text="todo._expandedSubtasks ? 'Thu gọn' : 'Xem chi tiết'"></span>
+                </div>
+                <!-- Mini progress bar -->
+                <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mb-2">
+                  <div class="h-full bg-brand-500 rounded-full transition-all duration-300"
+                       :style="'width: ' + (getSubtasks(todo).length > 0 ? (getSubtasks(todo).filter(s => s.is_completed).length / getSubtasks(todo).length * 100) : 0) + '%'"></div>
+                </div>
+                <!-- Subtasks List (Direct Tick) -->
+                <div x-show="todo._expandedSubtasks" class="space-y-1.5 pl-2">
+                  <template x-for="st in getSubtasks(todo)" :key="st.id">
+                    <label class="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none py-0.5">
+                      <input type="checkbox" :checked="Boolean(st.is_completed)" @change="toggleSubtask(todo, st.id)"
+                             class="rounded text-brand-600 focus:ring-brand-500 w-3.5 h-3.5 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 cursor-pointer" />
+                      <span :class="st.is_completed && 'line-through text-slate-400 dark:text-slate-500'" x-text="st.title"></span>
+                    </label>
+                  </template>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </template>
+    </div>
+
+    <!-- ═══════ KANBAN BOARD VIEW ═══════ -->
+    <div x-show="viewMode === 'kanban' && !todosLoading" x-cloak class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <!-- Cột 1: Cần làm (To-Do) -->
+      <div class="bg-slate-50/80 dark:bg-slate-900/60 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 flex flex-col min-h-[400px]">
+        <div class="flex items-center justify-between mb-3 px-1">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+            <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100">Cần làm</h3>
+          </div>
+          <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300"
+                x-text="kanbanTodos.todo.length"></span>
+        </div>
+        <div class="space-y-2.5 flex-1"
+             @dragover.prevent
+             @drop="handleKanbanDrop('todo')">
+          <template x-for="todo in kanbanTodos.todo" :key="todo.id">
+            <div class="p-3.5 bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-xs hover:shadow-md transition group cursor-grab active:cursor-grabbing"
+                 draggable="true"
+                 @dragstart="draggedTodoId = todo.id">
+              <div class="flex items-start justify-between gap-1 mb-1.5">
+                <h4 class="font-bold text-xs sm:text-sm text-slate-900 dark:text-white line-clamp-2" x-text="todo.title"></h4>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                      :class="todo.priority==='High' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' : (todo.priority==='Low' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300')"
+                      x-text="todo.priority"></span>
+              </div>
+              <p x-show="todo.description" class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mb-2" x-text="todo.description"></p>
+              <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700/60 text-[10px] text-slate-400">
+                <span x-text="todo.due_date ? formatTodoDueDate(todo) : 'Không hạn'"></span>
+                <button type="button" @click="moveKanbanTask(todo, 'in_progress')"
+                        class="h-6 px-2 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-bold transition active:scale-95 inline-flex items-center justify-center">
+                  Bắt đầu →
+                </button>
+              </div>
+            </div>
+          </template>
+          <div x-show="kanbanTodos.todo.length === 0" class="text-center py-8 text-xs text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+            Kéo việc vào đây
+          </div>
+        </div>
+      </div>
+
+      <!-- Cột 2: Đang làm (In Progress) -->
+      <div class="bg-amber-50/40 dark:bg-amber-950/20 rounded-3xl p-4 border border-amber-200/60 dark:border-amber-900/40 flex flex-col min-h-[400px]">
+        <div class="flex items-center justify-between mb-3 px-1">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+            <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100">Đang làm</h3>
+          </div>
+          <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300"
+                x-text="kanbanTodos.in_progress.length"></span>
+        </div>
+        <div class="space-y-2.5 flex-1"
+             @dragover.prevent
+             @drop="handleKanbanDrop('in_progress')">
+          <template x-for="todo in kanbanTodos.in_progress" :key="todo.id">
+            <div class="p-3.5 bg-white dark:bg-slate-800/90 rounded-2xl border border-amber-200/80 dark:border-amber-800/60 shadow-xs hover:shadow-md transition group cursor-grab active:cursor-grabbing"
+                 draggable="true"
+                 @dragstart="draggedTodoId = todo.id">
+              <div class="flex items-start justify-between gap-1 mb-1.5">
+                <h4 class="font-bold text-xs sm:text-sm text-slate-900 dark:text-white line-clamp-2" x-text="todo.title"></h4>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                      :class="todo.priority==='High' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' : (todo.priority==='Low' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300')"
+                      x-text="todo.priority"></span>
+              </div>
+              <p x-show="todo.description" class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mb-2" x-text="todo.description"></p>
+              <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700/60 text-[10px] text-slate-400">
+                <button type="button" @click="moveKanbanTask(todo, 'todo')" class="h-6 px-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-semibold inline-flex items-center justify-center transition active:scale-95">
+                  ← Cần làm
+                </button>
+                <button type="button" @click="moveKanbanTask(todo, 'completed')"
+                        class="h-6 px-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold transition active:scale-95 inline-flex items-center justify-center">
+                  Xong ✓
+                </button>
+              </div>
+            </div>
+          </template>
+          <div x-show="kanbanTodos.in_progress.length === 0" class="text-center py-8 text-xs text-slate-400 border border-dashed border-amber-200 dark:border-amber-900/60 rounded-2xl">
+            Kéo việc vào đây
+          </div>
+        </div>
+      </div>
+
+      <!-- Cột 3: Đã xong (Done) -->
+      <div class="bg-emerald-50/40 dark:bg-emerald-950/20 rounded-3xl p-4 border border-emerald-200/60 dark:border-emerald-900/40 flex flex-col min-h-[400px]">
+        <div class="flex items-center justify-between mb-3 px-1">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100">Đã xong</h3>
+          </div>
+          <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300"
+                x-text="kanbanTodos.completed.length"></span>
+        </div>
+        <div class="space-y-2.5 flex-1"
+             @dragover.prevent
+             @drop="handleKanbanDrop('completed')">
+          <template x-for="todo in kanbanTodos.completed" :key="todo.id">
+            <div class="p-3.5 bg-white dark:bg-slate-800/90 rounded-2xl border border-emerald-200/60 dark:border-emerald-800/40 opacity-75 shadow-xs transition group cursor-grab active:cursor-grabbing"
+                 draggable="true"
+                 @dragstart="draggedTodoId = todo.id">
+              <div class="flex items-start justify-between gap-1 mb-1.5">
+                <h4 class="font-bold text-xs sm:text-sm text-slate-600 dark:text-slate-300 line-through line-clamp-2" x-text="todo.title"></h4>
+                <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700/60 text-[10px]">
+                <button type="button" @click="moveKanbanTask(todo, 'todo')"
+                        class="h-6 px-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-semibold inline-flex items-center justify-center transition active:scale-95">
+                  ↩️ Mở lại việc
+                </button>
+              </div>
+            </div>
+          </template>
+          <div x-show="kanbanTodos.completed.length === 0" class="text-center py-8 text-xs text-slate-400 border border-dashed border-emerald-200 dark:border-emerald-900/60 rounded-2xl">
+            Chưa có việc hoàn thành
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════ CALENDAR VIEW ═══════ -->
+    <div x-show="viewMode === 'calendar' && !todosLoading" x-cloak class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-6 mb-8 shadow-xs">
+      <!-- Calendar Month Navigation -->
+      <div class="flex items-center justify-between mb-4">
+        <button type="button" @click="prevCalendarMonth()" class="w-8 h-8 rounded-xl inline-flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h3 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white" x-text="calendarTitle"></h3>
+        <button type="button" @click="nextCalendarMonth()" class="w-8 h-8 rounded-xl inline-flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+
+      <!-- Days of Week Header -->
+      <div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-400 mb-2">
+        <span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span>
+      </div>
+
+      <!-- Calendar Month Days Grid -->
+      <div class="grid grid-cols-7 gap-1 sm:gap-1.5">
+        <template x-for="day in calendarDays" :key="day.dateStr">
+          <button type="button" @click="selectCalendarDay(day.dateStr)"
+                  class="h-14 sm:h-16 p-1.5 rounded-2xl border text-left flex flex-col justify-between transition-all active:scale-95"
+                  :class="{
+                    'bg-brand-50/50 dark:bg-brand-950/30 border-brand-500 ring-2 ring-brand-500/30': selectedCalendarDate === day.dateStr,
+                    'bg-slate-50/50 dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700/80': day.isCurrentMonth && selectedCalendarDate !== day.dateStr,
+                    'opacity-30 border-transparent': !day.isCurrentMonth,
+                    'font-black text-brand-600': day.isToday
+                  }">
+            <span class="text-xs" x-text="day.dayNum"></span>
+            <div class="flex items-center gap-0.5 flex-wrap">
+              <template x-for="i in Math.min(day.tasksCount, 3)" :key="i">
+                <span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span>
+              </template>
+              <span x-show="day.tasksCount > 3" class="text-[9px] font-bold text-slate-400">+<span x-text="day.tasksCount - 3"></span></span>
+            </div>
+          </button>
+        </template>
+      </div>
+
+      <!-- Selected Day Tasks List -->
+      <div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800" x-show="selectedCalendarDate">
+        <div class="flex items-center justify-between mb-3">
+          <h4 class="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-200">
+            Công việc ngày <span x-text="formatSelectedCalendarDate()"></span> (<span x-text="selectedDateTodos.length"></span> việc)
+          </h4>
+        </div>
+        <div class="space-y-2">
+          <template x-for="todo in selectedDateTodos" :key="todo.id">
+            <div class="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700 flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <button @click="toggleTodo(todo, $event)" class="w-5 h-5 rounded-lg border flex items-center justify-center cursor-pointer"
+                        :class="todo.is_completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 dark:border-slate-600'">
+                  <svg x-show="todo.is_completed" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                </button>
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-100" :class="todo.is_completed && 'line-through opacity-60'" x-text="todo.title"></span>
+              </div>
+              <span class="text-[10px] font-bold text-slate-400" x-text="formatTodoDueDate(todo).split(',')[0]"></span>
+            </div>
+          </template>
+          <div x-show="selectedDateTodos.length === 0" class="text-xs text-slate-400 text-center py-4">
+            Không có công việc nào đến hạn vào ngày này.
+          </div>
+        </div>
+      </div>
     </div>
   </main>
 
@@ -842,12 +1202,12 @@ export function renderHTML(): string {
     </div>
 
     <div class="flex bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 mb-5">
-      <button @click="downloadTab='pc'" class="flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+      <button @click="downloadTab='pc'" class="flex-1 h-10 text-xs sm:text-sm font-bold rounded-xl transition-all inline-flex items-center justify-center gap-2"
               :class="downloadTab==='pc' ? 'bg-white dark:bg-slate-700 shadow-sm text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'">
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
         Download for PC
       </button>
-      <button @click="downloadTab='ios'" class="flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+      <button @click="downloadTab='ios'" class="flex-1 h-10 text-xs sm:text-sm font-bold rounded-xl transition-all inline-flex items-center justify-center gap-2"
               :class="downloadTab==='ios' ? 'bg-white dark:bg-slate-700 shadow-sm text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'">
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
         Download for iOS
@@ -947,11 +1307,20 @@ export function renderHTML(): string {
     </div>
 
     <form @submit.prevent="saveTodo()" class="space-y-4">
-      <!-- Bước 1: Tiêu đề công việc -->
+      <!-- Bước 1: Tiêu đề công việc kèm Nhập liệu bằng giọng nói (Voice Input) -->
       <div>
-        <label for="todo-title-input" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
-          1. Tiêu đề công việc <span class="text-rose-500">*</span>
-        </label>
+        <div class="flex items-center justify-between mb-1">
+          <label for="todo-title-input" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+            1. Tiêu đề công việc <span class="text-rose-500">*</span>
+          </label>
+          <button type="button" @click="startVoiceInput()"
+                  class="text-xs font-bold px-2.5 py-1 rounded-xl flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-xs"
+                  :class="isListeningVoice ? 'bg-rose-500 text-white animate-pulse' : 'bg-brand-50 hover:bg-brand-100 dark:bg-brand-950/60 dark:hover:bg-brand-900 text-brand-600 dark:text-brand-400 border border-brand-200 dark:border-brand-800'"
+                  title="Nhấn để nói tiếng Việt điền tiêu đề tự động">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            <span x-text="isListeningVoice ? 'Đang nghe...' : 'Nói tiếng Việt'"></span>
+          </button>
+        </div>
         <input id="todo-title-input" x-model="todoForm.title" type="text" required placeholder="Ví dụ: Làm bài tập, Họp đối tác, Tập gym..."
                class="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 focus:ring-2 focus:ring-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-sm font-semibold text-slate-900 dark:text-white" />
       </div>
@@ -965,9 +1334,37 @@ export function renderHTML(): string {
                   class="w-full px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 focus:ring-2 focus:ring-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-sm resize-none text-slate-800 dark:text-slate-200"></textarea>
       </div>
 
-      <!-- Bước 3 & 4: Danh mục & Mức độ ưu tiên (2 cột cân đối) -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <!-- Bước 3: Danh mục -->
+      <!-- Việc con / Danh sách kiểm tra (Subtasks / Checklist) -->
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
+          Danh sách việc con (Checklist)
+        </label>
+        <div class="space-y-1.5 mb-2" x-show="todoForm.subtasks && todoForm.subtasks.length > 0">
+          <template x-for="(st, idx) in todoForm.subtasks" :key="st.id || idx">
+            <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
+              <input type="checkbox" :checked="Boolean(st.is_completed)" @change="st.is_completed = st.is_completed ? 0 : 1"
+                     class="rounded text-brand-600 focus:ring-brand-500 w-4 h-4 cursor-pointer" />
+              <input type="text" x-model="st.title" placeholder="Tên việc con..."
+                     class="flex-1 bg-transparent text-xs font-semibold outline-none text-slate-800 dark:text-slate-200" />
+              <button type="button" @click="removeSubtask(idx)" class="p-1 text-slate-400 hover:text-rose-500 rounded-lg">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          </template>
+        </div>
+        <div class="flex gap-2">
+          <input type="text" x-model="newSubtaskInput" @keydown.enter.prevent="addSubtask()" placeholder="+ Thêm việc con (nhấn Enter)..."
+                 class="flex-1 h-10 px-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-1 focus:ring-brand-500" />
+          <button type="button" @click="addSubtask()"
+                  class="h-10 px-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-xs active:scale-95 transition inline-flex items-center justify-center">
+            + Thêm
+          </button>
+        </div>
+      </div>
+
+      <!-- Bước 3, 4, 5: Danh mục, Ưu tiên & Mốc nhắc trước -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <!-- Danh mục -->
         <div>
           <div class="flex items-center justify-between mb-1">
             <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">3. Danh mục</label>
@@ -989,15 +1386,51 @@ export function renderHTML(): string {
           </div>
         </div>
 
-        <!-- Bước 4: Mức độ ưu tiên -->
+        <!-- Mức độ ưu tiên -->
         <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">4. Mức độ ưu tiên</label>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">4. Ưu tiên</label>
           <select x-model="todoForm.priority" aria-label="Mức độ ưu tiên"
                   class="w-full px-3 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold outline-none cursor-pointer">
             <option value="Low">🟢 Low</option>
             <option value="Medium">🟡 Medium</option>
             <option value="High">🔴 High</option>
           </select>
+        </div>
+
+        <!-- Tùy chỉnh mốc nhắc nhở (Reminder Offset) -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">5. Nhắc trước</label>
+          <select x-model.number="todoForm.reminder_offset" aria-label="Nhắc trước hạn"
+                  class="w-full px-3 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold outline-none cursor-pointer">
+            <option :value="0">Đúng giờ</option>
+            <option :value="15">Trước 15 phút</option>
+            <option :value="30">Trước 30 phút</option>
+            <option :value="60">Trước 1 giờ</option>
+            <option :value="1440">Trước 1 ngày</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Gắn Thẻ phân loại linh hoạt (#tags) -->
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
+          Gắn Thẻ (#tags)
+        </label>
+        <div class="flex flex-wrap gap-1.5 mb-2" x-show="todoForm.tags && todoForm.tags.length > 0">
+          <template x-for="(tg, idx) in todoForm.tags" :key="tg">
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
+              #<span x-text="tg"></span>
+              <button type="button" @click="removeTag(idx)" class="text-brand-400 hover:text-rose-500 font-black ml-0.5">✕</button>
+            </span>
+          </template>
+        </div>
+        <div class="flex gap-2">
+          <input type="text" x-model="newTagInput" @keydown.enter.prevent="addTag()" placeholder="Nhập tag (ví dụ: gap, canhan, congty) rồi bấm + Thẻ..."
+                 class="flex-1 h-10 px-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-1 focus:ring-brand-500" />
+          <button type="button" @click="addTag()"
+                  class="h-10 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold rounded-xl text-xs active:scale-95 transition inline-flex items-center justify-center">
+            + Thẻ
+          </button>
         </div>
       </div>
 
@@ -1082,6 +1515,49 @@ export function renderHTML(): string {
         </div>
       </div>
 
+      <!-- Ước lượng thời gian & Thời gian thực tế -->
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
+          Thời gian ước lượng (phút)
+        </label>
+        <div class="flex items-center gap-2">
+          <input type="number" min="0" max="1440" x-model.number="todoForm.estimated_minutes" placeholder="0"
+                 class="w-24 h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold outline-none text-center" />
+          <span class="text-xs text-slate-500 font-semibold">phút</span>
+          <div class="flex items-center gap-1 ml-auto">
+            <button type="button" @click="todoForm.estimated_minutes = 15" class="px-2 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-lg text-[11px] font-bold cursor-pointer">+15p</button>
+            <button type="button" @click="todoForm.estimated_minutes = 25" class="px-2 py-1 bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900 rounded-lg text-[11px] font-bold cursor-pointer">25p (🍅)</button>
+            <button type="button" @click="todoForm.estimated_minutes = 45" class="px-2 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-lg text-[11px] font-bold cursor-pointer">+45p</button>
+            <button type="button" @click="todoForm.estimated_minutes = 60" class="px-2 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-lg text-[11px] font-bold cursor-pointer">+1h</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ảnh đính kèm (D1 todo_images, Canvas compress <= 40KB & Native Camera/Album) -->
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
+          Ảnh đính kèm
+        </label>
+        <div class="flex flex-wrap gap-2 mb-2" x-show="editingTodoImages.length > 0">
+          <template x-for="img in editingTodoImages" :key="img.id">
+            <div class="relative group">
+              <img :src="img.image_data" @click="openLightbox(img.image_data)" alt="Ảnh"
+                   class="w-16 h-16 object-cover rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:opacity-80 transition" />
+              <button type="button" @click="deleteImage(editingTodo?.id, img.id)"
+                      class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px] font-black shadow-md hover:bg-rose-600 cursor-pointer">✕</button>
+            </div>
+          </template>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" @click="chooseOrCapturePhoto(editingTodo?.id)"
+                  class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer transition active:scale-95 shadow-xs">
+            <svg class="w-4 h-4 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <span x-text="imageUploading ? 'Đang nén & tải ảnh...' : '📷 Chụp ảnh / Album'"></span>
+          </button>
+          <input id="todo-image-input" type="file" accept="image/*" class="hidden" @change="handleImageUpload($event, editingTodo?.id)" :disabled="imageUploading" />
+        </div>
+      </div>
+
       <!-- Ghim công việc -->
       <div class="flex items-center gap-2 pt-1">
         <input type="checkbox" id="pinCheck" x-model="todoForm.is_pinned" class="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer" />
@@ -1093,11 +1569,11 @@ export function renderHTML(): string {
 
       <div class="flex gap-2.5 pt-2">
         <button type="button" @click="showModal=false"
-                class="flex-1 py-3 px-4 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition text-sm active:scale-95">
+                class="flex-1 h-11 px-4 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition text-sm active:scale-95 inline-flex items-center justify-center">
           Huỷ
         </button>
         <button type="submit" :disabled="todoSaving"
-                class="flex-1 py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-2xl shadow-lg shadow-brand-500/25 transition disabled:opacity-60 flex items-center justify-center gap-2 text-sm active:scale-95">
+                class="flex-1 h-11 px-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-2xl shadow-lg shadow-brand-500/25 transition disabled:opacity-60 inline-flex items-center justify-center gap-2 text-sm active:scale-95">
           <svg x-show="todoSaving" class="spinner w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4 31.4" stroke-linecap="round"/></svg>
           <span x-text="editingTodo ? 'Cập nhật' : 'Tạo việc mới'"></span>
         </button>
@@ -1121,11 +1597,11 @@ export function renderHTML(): string {
     </div>
     <h3 id="delete-modal-title" class="text-base font-bold mb-1.5">Xác nhận xoá công việc?</h3>
     <p class="text-xs text-slate-500 dark:text-slate-400 mb-5">
-      Bạn có chắc chắn muốn xoá "<strong x-text="deletingTodo?.title" class="text-slate-800 dark:text-slate-200"></strong>"? Hành động này không thể hoàn tác.
+      Công việc "<strong x-text="deletingTodo?.title" class="text-slate-800 dark:text-slate-200"></strong>" sẽ được chuyển vào Thùng rác. Bạn có thể bấm [Hoàn tác] ngay hoặc khôi phục lại bất kỳ lúc nào.
     </p>
     <div class="flex gap-2.5">
-      <button @click="showDeleteModal=false" class="flex-1 py-2.5 px-3 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition active:scale-95">Huỷ</button>
-      <button @click="deleteTodo()" :disabled="todoSaving" class="flex-1 py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/25 transition active:scale-95">Xoá vĩnh viễn</button>
+      <button @click="showDeleteModal=false" class="flex-1 h-10 px-3 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition active:scale-95 inline-flex items-center justify-center">Huỷ</button>
+      <button @click="deleteTodo()" :disabled="todoSaving" class="flex-1 h-10 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/25 transition active:scale-95 inline-flex items-center justify-center">Xoá vào thùng rác</button>
     </div>
   </div>
 </div>
@@ -1148,8 +1624,8 @@ export function renderHTML(): string {
       Tất cả <strong x-text="stats.completed" class="text-rose-500"></strong> việc đã hoàn tất sẽ bị dọn dẹp khỏi danh sách.
     </p>
     <div class="flex gap-2.5">
-      <button @click="showClearCompletedModal=false" class="flex-1 py-2.5 px-3 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition active:scale-95">Huỷ</button>
-      <button @click="clearCompleted()" :disabled="todoSaving" class="flex-1 py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/25 transition active:scale-95">Dọn dẹp ngay</button>
+      <button @click="showClearCompletedModal=false" class="flex-1 h-10 px-3 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition active:scale-95 inline-flex items-center justify-center">Huỷ</button>
+      <button @click="clearCompleted()" :disabled="todoSaving" class="flex-1 h-10 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/25 transition active:scale-95 inline-flex items-center justify-center">Dọn dẹp ngay</button>
     </div>
   </div>
 </div>
@@ -1176,16 +1652,391 @@ export function renderHTML(): string {
       Bạn có chắc chắn muốn đăng xuất khỏi tài khoản <strong x-text="currentUser?.username || 'này'" class="text-slate-800 dark:text-slate-200"></strong> không?
     </p>
     <div class="flex gap-2.5">
-      <button @click="showLogoutModal=false" class="flex-1 py-2.5 px-3 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95">Huỷ</button>
-      <button @click="confirmLogoutAction()" class="flex-1 py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/30 transition active:scale-95">Đăng xuất ngay</button>
+      <button @click="showLogoutModal=false" class="flex-1 h-10 px-3 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 inline-flex items-center justify-center">Huỷ</button>
+      <button @click="confirmLogoutAction()" class="flex-1 h-10 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/30 transition active:scale-95 inline-flex items-center justify-center">Đăng xuất ngay</button>
     </div>
   </div>
 </div>
 
+<!-- ═══════ BACKUP & CALENDAR EXPORT MODAL ═══════ -->
+<div x-show="showBackupModal" x-cloak class="fixed inset-0 z-[120] flex items-center justify-center p-4"
+     role="dialog" aria-modal="true" aria-labelledby="backup-modal-title">
+  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showBackupModal=false"
+       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+  <div class="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 text-left"
+       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+       @click.stop>
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2.5">
+        <div class="w-10 h-10 rounded-2xl bg-violet-100 dark:bg-violet-950/80 text-violet-600 dark:text-violet-400 flex items-center justify-center text-lg font-black">
+          📅
+        </div>
+        <div>
+          <h3 id="backup-modal-title" class="text-base font-bold text-slate-900 dark:text-white">Sao lưu & Đồng bộ Lịch</h3>
+          <p class="text-xs text-slate-400">Xuất file iCal và sao lưu dữ liệu To-Do List</p>
+        </div>
+      </div>
+      <button @click="showBackupModal=false" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl">✕</button>
+    </div>
+
+    <div class="space-y-3 pt-2">
+      <!-- 1. Xuất lịch iCal (.ics) -->
+      <a href="/api/export/ics" download="todolist.ics"
+         class="w-full p-3.5 rounded-2xl border border-violet-200 dark:border-violet-900/60 bg-violet-50/50 dark:bg-violet-950/30 hover:bg-violet-100/50 dark:hover:bg-violet-900/40 transition flex items-center gap-3 text-xs sm:text-sm font-bold text-violet-900 dark:text-violet-200 group">
+        <span class="text-2xl">📅</span>
+        <div class="flex-1">
+          <div class="flex items-center justify-between">
+            <span>Xuất file iCalendar (.ics)</span>
+            <span class="text-[10px] bg-violet-200 dark:bg-violet-800 text-violet-800 dark:text-violet-200 px-2 py-0.5 rounded-full font-bold">Chuẩn RFC 5545</span>
+          </div>
+          <p class="text-[11px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">Đồng bộ tự động sang Google Calendar, Apple Calendar, Outlook</p>
+        </div>
+      </a>
+
+      <!-- 2. Xuất sao lưu JSON -->
+      <a href="/api/export/json" download
+         class="w-full p-3.5 rounded-2xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30 hover:bg-blue-100/50 dark:hover:bg-blue-900/40 transition flex items-center gap-3 text-xs sm:text-sm font-bold text-blue-900 dark:text-blue-200 group">
+        <span class="text-2xl">💾</span>
+        <div class="flex-1">
+          <div class="flex items-center justify-between">
+            <span>Sao lưu dữ liệu JSON</span>
+            <span class="text-[10px] bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full font-bold">Toàn bộ 100%</span>
+          </div>
+          <p class="text-[11px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">Tải toàn bộ công việc, danh mục và lịch sử về máy</p>
+        </div>
+      </a>
+
+      <!-- 3. Nhập phục hồi file JSON -->
+      <label class="w-full p-3.5 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-slate-100/50 dark:hover:bg-slate-800/80 transition flex items-center gap-3 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
+        <span class="text-2xl">📥</span>
+        <div class="flex-1">
+          <span>Khôi phục từ file JSON</span>
+          <p class="text-[11px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">Nhập lại danh sách công việc từ file sao lưu</p>
+        </div>
+        <input type="file" accept=".json" class="hidden" @change="handleImportJsonFile($event)" />
+      </label>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ TRASH MODAL (THÙNG RÁC) ═══════ -->
+<div x-show="showTrashModal" x-cloak class="fixed inset-0 z-[130] flex items-center justify-center p-4"
+     role="dialog" aria-modal="true" aria-labelledby="trash-modal-title">
+  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showTrashModal=false"
+       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+  <div class="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 text-left max-h-[85vh] flex flex-col"
+       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+       @click.stop>
+    <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-500 flex items-center justify-center font-bold">
+          🗑️
+        </div>
+        <div>
+          <h3 id="trash-modal-title" class="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+            Thùng rác (<span x-text="trashTodos.length"></span>)
+          </h3>
+          <p class="text-[11px] text-slate-400">Tự động xóa vĩnh viễn các mục sau 30 ngày</p>
+        </div>
+      </div>
+      <button @click="showTrashModal=false" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">✕</button>
+    </div>
+
+    <!-- Actions bar in Trash -->
+    <div x-show="trashTodos.length > 0" class="flex items-center justify-between gap-2 py-3 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+      <button type="button" @click="restoreAllTrash()" class="h-8 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900 text-emerald-700 dark:text-emerald-300 font-bold text-xs inline-flex items-center gap-1.5 transition active:scale-95">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        <span>Khôi phục tất cả</span>
+      </button>
+      <button type="button" @click="emptyTrash()" class="h-8 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 text-rose-700 dark:text-rose-300 font-bold text-xs inline-flex items-center gap-1.5 transition active:scale-95">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        <span>Dọn sạch thùng rác</span>
+      </button>
+    </div>
+
+    <!-- Trash List -->
+    <div class="flex-1 overflow-y-auto space-y-2 py-3 pr-1">
+      <div x-show="trashLoading" class="text-center py-8 text-xs text-slate-400 font-bold animate-pulse">
+        Đang tải danh sách thùng rác...
+      </div>
+      <div x-show="!trashLoading && trashTodos.length === 0" class="text-center py-10 text-slate-400">
+        <span class="text-3xl block mb-2">🎉</span>
+        <p class="text-xs font-bold">Thùng rác hiện đang trống sạch sẽ!</p>
+      </div>
+      <template x-for="todo in trashTodos" :key="todo.id">
+        <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between gap-3">
+          <div class="min-w-0 flex-1">
+            <h4 class="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 truncate" x-text="todo.title"></h4>
+            <div class="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
+              <span x-text="todo.category"></span>
+              <span>•</span>
+              <span>Đã xóa: <span x-text="formatDateShort(todo.deleted_at)"></span></span>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5 flex-shrink-0">
+            <button type="button" @click="restoreTodo(todo)" class="h-7 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs inline-flex items-center gap-1 active:scale-95 transition" title="Khôi phục việc này">
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+              <span>Khôi phục</span>
+            </button>
+            <button type="button" @click="deletePermanently(todo)" class="h-7 w-7 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 inline-flex items-center justify-center transition active:scale-95" title="Xóa vĩnh viễn">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <div class="pt-2 text-center border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400 flex-shrink-0">
+      Bấm "Khôi phục" để đưa công việc trở lại màn hình chính bất cứ lúc nào.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ POMODORO FOCUS MODE & AMBIENT SOUND MODAL ═══════ -->
+<div x-show="showPomodoroModal" x-cloak class="fixed inset-0 z-[130] flex items-center justify-center p-4"
+     role="dialog" aria-modal="true" aria-labelledby="pomodoro-modal-title">
+  <div class="fixed inset-0 bg-slate-950/70 backdrop-blur-md" @click="showPomodoroModal=false"
+       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+  <div class="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 text-center"
+       x-transition:enter="transition ease-out duration-250" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+       @click.stop>
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2">
+        <span class="text-2xl">🍅</span>
+        <h3 id="pomodoro-modal-title" class="text-lg font-black text-slate-900 dark:text-white">Chế độ Tập trung</h3>
+      </div>
+      <button @click="showPomodoroModal=false" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">✕</button>
+    </div>
+
+    <!-- Target Task (nếu mở từ thẻ công việc) -->
+    <div x-show="pomodoroActiveTodo" class="mb-4 p-2.5 rounded-2xl bg-brand-50 dark:bg-brand-950/60 border border-brand-200 dark:border-brand-800 text-xs font-semibold text-brand-700 dark:text-brand-300 truncate">
+      🎯 Đang làm: <strong x-text="pomodoroActiveTodo?.title"></strong>
+    </div>
+
+    <!-- Mode Selector -->
+    <div class="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-6 text-xs font-bold">
+      <button type="button" @click="setPomodoroMode('focus')"
+              class="py-2 rounded-xl transition cursor-pointer"
+              :class="pomodoroMode === 'focus' ? 'bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
+        Tập trung (25p)
+      </button>
+      <button type="button" @click="setPomodoroMode('shortBreak')"
+              class="py-2 rounded-xl transition cursor-pointer"
+              :class="pomodoroMode === 'shortBreak' ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
+        Nghỉ ngắn (5p)
+      </button>
+      <button type="button" @click="setPomodoroMode('longBreak')"
+              class="py-2 rounded-xl transition cursor-pointer"
+              :class="pomodoroMode === 'longBreak' ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
+        Nghỉ dài (15p)
+      </button>
+    </div>
+
+    <!-- Timer Display -->
+    <div class="my-6">
+      <div class="text-6xl sm:text-7xl font-black font-mono tracking-tighter text-slate-900 dark:text-white select-none"
+           x-text="formatTimer(pomodoroTimeLeft)"></div>
+      <div class="text-xs font-bold text-slate-400 mt-2 uppercase tracking-widest"
+           x-text="pomodoroRunning ? 'Đang đếm ngược...' : 'Tạm dừng'"></div>
+    </div>
+
+    <!-- Timer Controls -->
+    <div class="flex items-center justify-center gap-3 mb-6">
+      <button type="button" @click="pomodoroRunning ? pausePomodoro() : startPomodoro()"
+              class="h-12 px-6 rounded-2xl font-bold text-sm text-white shadow-lg transition active:scale-95 inline-flex items-center gap-2 cursor-pointer"
+              :class="pomodoroRunning ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/30' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/30'">
+        <span x-text="pomodoroRunning ? '⏸️ Tạm dừng' : '▶️ Bắt đầu tập trung'"></span>
+      </button>
+      <button type="button" @click="resetPomodoro()"
+              class="h-12 w-12 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold inline-flex items-center justify-center transition active:scale-95 cursor-pointer"
+              title="Đặt lại đồng hồ">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+      </button>
+    </div>
+
+    <!-- Ambient Sound Generator (Web Audio API - 0KB) -->
+    <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 text-left">
+      <div class="flex items-center justify-between mb-2.5">
+        <span class="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+          <span>🎧</span>
+          <span>Âm thanh nền (Web Audio API - 0KB)</span>
+        </span>
+        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-brand-100 dark:bg-brand-950 text-brand-700 dark:text-brand-300">Tổng hợp trực tiếp</span>
+      </div>
+
+      <div class="grid grid-cols-3 gap-1.5 mb-3 text-xs font-bold">
+        <button type="button" @click="playAmbientSound('none')"
+                class="py-2 px-1 rounded-xl text-center border transition cursor-pointer"
+                :class="ambientSound === 'none' ? 'bg-white dark:bg-slate-900 border-brand-500 text-brand-600 shadow-xs' : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900'">
+          🔇 Tắt tiếng
+        </button>
+        <button type="button" @click="playAmbientSound('rain')"
+                class="py-2 px-1 rounded-xl text-center border transition cursor-pointer"
+                :class="ambientSound === 'rain' ? 'bg-sky-50 dark:bg-sky-950/80 border-sky-500 text-sky-700 dark:text-sky-300 shadow-xs' : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900'">
+          🌧️ Mưa rào
+        </button>
+        <button type="button" @click="playAmbientSound('white')"
+                class="py-2 px-1 rounded-xl text-center border transition cursor-pointer"
+                :class="ambientSound === 'white' ? 'bg-indigo-50 dark:bg-indigo-950/80 border-indigo-500 text-indigo-700 dark:text-indigo-300 shadow-xs' : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900'">
+          💨 Ồn trắng
+        </button>
+      </div>
+
+      <div x-show="ambientSound !== 'none'" class="flex items-center gap-3 pt-1">
+        <span class="text-[11px] font-bold text-slate-400">Âm lượng:</span>
+        <input type="range" min="0" max="1" step="0.05" x-model="ambientVolume" @input="setAmbientVolume($event.target.value)"
+               class="flex-1 accent-brand-600 cursor-pointer h-1.5 rounded-lg bg-slate-200 dark:bg-slate-700" />
+        <span class="text-[11px] font-mono text-slate-400 w-8 text-right" x-text="Math.round(ambientVolume * 100) + '%'"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ PRODUCTIVITY ANALYTICS MODAL ═══════ -->
+<div x-show="showAnalyticsModal" x-cloak class="fixed inset-0 z-[130] flex items-center justify-center p-4"
+     role="dialog" aria-modal="true" aria-labelledby="analytics-modal-title">
+  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showAnalyticsModal=false"
+       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+  <div class="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 text-left max-h-[85vh] flex flex-col"
+       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+       @click.stop>
+    <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-500 flex items-center justify-center font-bold">
+          📊
+        </div>
+        <div>
+          <h3 id="analytics-modal-title" class="text-base sm:text-lg font-black text-slate-900 dark:text-white">Báo cáo Năng suất Sâu</h3>
+          <p class="text-[11px] text-slate-400">Đo lường tiến độ, chu kỳ & phân bố thời gian</p>
+        </div>
+      </div>
+      <button @click="showAnalyticsModal=false" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">✕</button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto space-y-4 py-4 pr-1">
+      <div x-show="analyticsLoading" class="text-center py-10 text-xs text-slate-400 font-bold animate-pulse">
+        Đang phân tích dữ liệu công việc...
+      </div>
+
+      <div x-show="!analyticsLoading && analyticsData" class="space-y-4">
+        <!-- 4 KPI Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 text-center">
+            <span class="text-[11px] font-bold text-slate-400 block mb-0.5">Tỷ lệ xong</span>
+            <span class="text-xl font-black text-emerald-600 dark:text-emerald-400" x-text="(analyticsData?.completion_rate || 0) + '%'"></span>
+          </div>
+          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 text-center">
+            <span class="text-[11px] font-bold text-slate-400 block mb-0.5">Đúng hạn</span>
+            <span class="text-xl font-black text-blue-600 dark:text-blue-400" x-text="analyticsData?.on_time || 0"></span>
+          </div>
+          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 text-center">
+            <span class="text-[11px] font-bold text-slate-400 block mb-0.5">Thời gian thực</span>
+            <span class="text-xl font-black text-amber-600 dark:text-amber-400" x-text="(analyticsData?.total_actual_minutes || 0) + 'm'"></span>
+          </div>
+          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 text-center">
+            <span class="text-[11px] font-bold text-slate-400 block mb-0.5">Còn chờ</span>
+            <span class="text-xl font-black text-rose-600 dark:text-rose-400" x-text="analyticsData?.pending || 0"></span>
+          </div>
+        </div>
+
+        <!-- Weekly Chart (T2 -> CN) -->
+        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Việc hoàn thành trong tuần (T2 - CN)</h4>
+            <span class="text-[11px] font-bold text-brand-600 dark:text-brand-400">Tuần hiện tại</span>
+          </div>
+          <div class="flex items-end justify-between gap-2 h-28 pt-4 pb-2 px-1">
+            <template x-for="item in (analyticsData?.week_stats || [])" :key="item.day">
+              <div class="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
+                <span class="text-[10px] font-bold text-slate-500" x-text="item.count"></span>
+                <div class="w-full max-w-[28px] bg-brand-500 rounded-t-lg transition-all duration-500"
+                     :style="'height: ' + Math.max(8, Math.min(80, item.count * 15)) + 'px; opacity: ' + (item.count > 0 ? '1' : '0.2')"></div>
+                <span class="text-[11px] font-bold text-slate-400" x-text="item.day"></span>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Category Distribution -->
+        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-3">Phân bố theo danh mục</h4>
+          <div class="space-y-2">
+            <template x-for="c in (analyticsData?.category_distribution || [])" :key="c.category">
+              <div>
+                <div class="flex items-center justify-between text-xs font-bold mb-1">
+                  <span class="text-slate-700 dark:text-slate-300" x-text="c.category"></span>
+                  <span class="text-slate-400" x-text="c.count + ' việc'"></span>
+                </div>
+                <div class="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                  <div class="h-full bg-gradient-to-r from-brand-500 to-indigo-500 rounded-full transition-all duration-500"
+                       :style="'width: ' + ((c.count / (analyticsData?.total || 1)) * 100) + '%'"></div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ LIGHTBOX IMAGE MODAL ═══════ -->
+<div x-show="lightboxImage" x-cloak class="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md"
+     @click="lightboxImage=null">
+  <div class="relative max-w-3xl max-h-[90vh] flex flex-col items-center" @click.stop>
+    <img :src="lightboxImage" alt="Phóng to ảnh" class="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl border border-white/20" />
+    <div class="flex items-center gap-3 mt-4">
+      <a :href="lightboxImage" download="todo-image.jpg" class="h-9 px-4 rounded-xl bg-white text-slate-900 font-bold text-xs inline-flex items-center gap-1.5 shadow-lg hover:bg-slate-100 transition active:scale-95">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span>Tải ảnh về máy</span>
+      </a>
+      <button type="button" @click="lightboxImage=null" class="h-9 px-4 rounded-xl bg-slate-800 text-white font-bold text-xs inline-flex items-center gap-1.5 hover:bg-slate-700 transition active:scale-95 cursor-pointer">
+        Đóng
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MÀN HÌNH BẢO TRÌ HỆ THỐNG CHO NATIVE APP ═══════ -->
+<div x-show="isUnderMaintenance" x-cloak
+     class="fixed inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl text-white flex flex-col items-center justify-center p-6 text-center">
+  <div class="w-20 h-20 rounded-3xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-4xl mb-6 shadow-2xl shadow-amber-500/20 ring-1 ring-amber-500/30 animate-pulse">
+    🚧
+  </div>
+  <h2 class="text-2xl font-black mb-3">Hệ thống đang bảo trì</h2>
+  <p class="text-slate-400 text-sm max-w-sm mb-6 leading-relaxed" x-text="maintenanceMessage || 'Máy chủ đang được nâng cấp định kỳ để tăng cường hiệu năng & bảo mật. Vui lòng thử lại sau ít phút!'"></p>
+  <button type="button" @click="checkMaintenanceStatus()"
+          class="px-6 py-3 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/25 active:scale-95 transition cursor-pointer flex items-center gap-2">
+    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+    <span>Thử kết nối lại</span>
+  </button>
+</div>
+
 <!-- ═══════ JAVASCRIPT CONTROLLER ═══════ -->
 <script>
+const DEFAULT_API_BASE_URL = 'https://app.todolists.workers.dev';
+const IS_CAPACITOR_NATIVE = (
+  typeof window !== 'undefined' && (
+    window.location.protocol === 'capacitor:' ||
+    window.location.protocol === 'ionic:' ||
+    (window.location.origin && window.location.origin.includes('localhost') && Boolean(window.Capacitor))
+  )
+);
+const API_BASE = (
+  (typeof window !== 'undefined' && (window.VITE_API_BASE_URL || window.ENV_API_BASE_URL)) ||
+  (IS_CAPACITOR_NATIVE ? DEFAULT_API_BASE_URL : '')
+);
+
 function app() {
   return {
+    authToken: localStorage.getItem('todo_auth_token') || '',
+    isUnderMaintenance: false,
+    maintenanceMessage: '',
     darkMode: localStorage.getItem('darkMode') === 'true',
     authenticated: Boolean(localStorage.getItem('cached_user')),
     currentUser: (() => {
@@ -1263,6 +2114,17 @@ function app() {
       }
     ],
 
+    // Multi-view mode & Filters
+    viewMode: localStorage.getItem('viewMode') || 'list',
+    filterTag: 'all',
+    showBackupModal: false,
+    isListeningVoice: false,
+    newSubtaskInput: '',
+    newTagInput: '',
+    draggedTodoId: null,
+    calendarDate: new Date(),
+    selectedCalendarDate: null,
+
     // Modals
     showModal: false,
     editingTodo: null,
@@ -1277,10 +2139,54 @@ function app() {
       daily_time: String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0'),
       weekly_day: new Date().getDay(),
       weekly_time: String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0'),
-      is_pinned: false
+      is_pinned: false,
+      subtasks: [],
+      tags: [],
+      reminder_offset: 0,
+      estimated_minutes: 0,
+      actual_minutes: 0
     },
     todoSaving: false,
     bgAudio: null,
+
+    // V3: Thùng rác (Trash)
+    showTrashModal: false,
+    trashTodos: [],
+    trashLoading: false,
+    lastDeletedTodo: null,
+
+    // V3: Pomodoro & Web Audio API
+    showPomodoroModal: false,
+    pomodoroRunning: false,
+    pomodoroMode: 'focus',
+    pomodoroTimeLeft: 25 * 60,
+    pomodoroTotalTime: 25 * 60,
+    pomodoroActiveTodo: null,
+    pomodoroInterval: null,
+    ambientSound: 'none',
+    ambientVolume: 50,
+    ambientNodes: null,
+
+    // V3: Productivity Analytics
+    showAnalyticsModal: false,
+    analyticsData: null,
+    analyticsLoading: false,
+
+    // V3: Images & Lightbox
+    todoImagesMap: {},
+    editingTodoImages: [],
+    allImagesMap: {},
+    imageUploading: false,
+    lightboxImage: null,
+
+    // V3: Real-Time Sync & Voice MediaRecorder Fallback
+    lastSyncVersion: localStorage.getItem('last_sync_version') || '0',
+    liveSyncInterval: null,
+    isRecordingVoiceMedia: false,
+    mediaRecorder: null,
+    audioChunks: [],
+    voiceRecordingSeconds: 0,
+    voiceTimerInterval: null,
 
     showDeleteModal: false,
     deletingTodo: null,
@@ -1301,7 +2207,7 @@ function app() {
 
     // Modal About & Version
     showAboutModal: false,
-    appVersion: '1.8.3',
+    appVersion: '2.0.0',
     testingTelegram: false,
 
     // In-App Notifications, Priorities & Auto-Update
@@ -1408,6 +2314,139 @@ function app() {
       return this.todos.filter(t => this.isWithin30Minutes(t));
     },
 
+    get imminentSummary() {
+      return this.imminentTodos.map(t => '«' + t.title + '» (' + (t.priority || 'Medium') + ' - ' + this.getMinutesRemaining(t) + 'p)').join(', ');
+    },
+
+    get allTags() {
+      const set = new Set();
+      for (const t of this.todos) {
+        const tags = this.getTags(t);
+        tags.forEach(tg => set.add(tg));
+      }
+      return Array.from(set).sort();
+    },
+
+    get filteredSortedTodos() {
+      const list = this.sortedTodos;
+      if (this.filterTag === 'all') return list;
+      return list.filter(t => {
+        const tags = this.getTags(t);
+        return tags.includes(this.filterTag);
+      });
+    },
+
+    get kanbanTodos() {
+      const list = this.filteredSortedTodos;
+      return {
+        todo: list.filter(t => !t.is_completed && t.status !== 'in_progress'),
+        in_progress: list.filter(t => !t.is_completed && t.status === 'in_progress'),
+        completed: list.filter(t => t.is_completed || t.status === 'completed'),
+      };
+    },
+
+    get streak() {
+      const completed = this.todos.filter(t => t.is_completed);
+      if (!completed.length) return 0;
+      const dateSet = new Set();
+      completed.forEach(t => {
+        const time = new Date(t.updated_at || t.created_at).getTime();
+        if (!isNaN(time)) {
+          const vn = new Date(time + 7 * 3600 * 1000);
+          dateSet.add(vn.getUTCFullYear() + '-' + String(vn.getUTCMonth()+1).padStart(2,'0') + '-' + String(vn.getUTCDate()).padStart(2,'0'));
+        }
+      });
+      const nowVn = new Date(Date.now() + 7 * 3600 * 1000);
+      const pad = n => String(n).padStart(2, '0');
+      const todayStr = nowVn.getUTCFullYear() + '-' + pad(nowVn.getUTCMonth()+1) + '-' + pad(nowVn.getUTCDate());
+      const yestVn = new Date(Date.now() + 7 * 3600 * 1000 - 86400000);
+      const yestStr = yestVn.getUTCFullYear() + '-' + pad(yestVn.getUTCMonth()+1) + '-' + pad(yestVn.getUTCDate());
+      let check = dateSet.has(todayStr) ? new Date(nowVn.getTime()) : (dateSet.has(yestStr) ? new Date(yestVn.getTime()) : null);
+      if (!check) return 0;
+      let count = 0;
+      while (true) {
+        const str = check.getUTCFullYear() + '-' + pad(check.getUTCMonth()+1) + '-' + pad(check.getUTCDate());
+        if (dateSet.has(str)) {
+          count++;
+          check = new Date(check.getTime() - 86400000);
+        } else {
+          break;
+        }
+      }
+      return count;
+    },
+
+    get calendarTitle() {
+      const d = this.calendarDate;
+      return 'Tháng ' + (d.getMonth() + 1) + ' / ' + d.getFullYear();
+    },
+
+    get calendarDays() {
+      const year = this.calendarDate.getFullYear();
+      const month = this.calendarDate.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      let startDayOfWeek = firstDay.getDay();
+      startDayOfWeek = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+
+      const days = [];
+      const pad = n => String(n).padStart(2, '0');
+
+      const prevMonthLastDay = new Date(year, month, 0).getDate();
+      for (let i = startDayOfWeek - 1; i >= 0; i--) {
+        const dNum = prevMonthLastDay - i;
+        const prevM = month === 0 ? 12 : month;
+        const prevY = month === 0 ? year - 1 : year;
+        const dateStr = prevY + '-' + pad(prevM) + '-' + pad(dNum);
+        days.push({ dayNum: dNum, dateStr, isCurrentMonth: false, isToday: false, tasksCount: 0 });
+      }
+
+      const todayVn = new Date(Date.now() + 7 * 3600 * 1000);
+      const todayStr = todayVn.getUTCFullYear() + '-' + pad(todayVn.getUTCMonth()+1) + '-' + pad(todayVn.getUTCDate());
+
+      for (let d = 1; d <= lastDay.getDate(); d++) {
+        const dateStr = year + '-' + pad(month + 1) + '-' + pad(d);
+        const tasksOnDay = this.todos.filter(t => {
+          if (!t.due_date) return false;
+          const taskD = new Date(t.due_date);
+          if (isNaN(taskD.getTime())) return false;
+          const taskVn = new Date(taskD.getTime() + 7 * 3600 * 1000);
+          const taskDateStr = taskVn.getUTCFullYear() + '-' + pad(taskVn.getUTCMonth()+1) + '-' + pad(taskVn.getUTCDate());
+          return taskDateStr === dateStr;
+        });
+        days.push({
+          dayNum: d,
+          dateStr,
+          isCurrentMonth: true,
+          isToday: dateStr === todayStr,
+          tasksCount: tasksOnDay.length
+        });
+      }
+
+      const remaining = (7 - (days.length % 7)) % 7;
+      for (let d = 1; d <= remaining; d++) {
+        const nextM = month === 11 ? 1 : month + 2;
+        const nextY = month === 11 ? year + 1 : year;
+        const dateStr = nextY + '-' + pad(nextM) + '-' + pad(d);
+        days.push({ dayNum: d, dateStr, isCurrentMonth: false, isToday: false, tasksCount: 0 });
+      }
+
+      return days;
+    },
+
+    get selectedDateTodos() {
+      if (!this.selectedCalendarDate) return [];
+      const pad = n => String(n).padStart(2, '0');
+      return this.todos.filter(t => {
+        if (!t.due_date) return false;
+        const taskD = new Date(t.due_date);
+        if (isNaN(taskD.getTime())) return false;
+        const taskVn = new Date(taskD.getTime() + 7 * 3600 * 1000);
+        const taskDateStr = taskVn.getUTCFullYear() + '-' + pad(taskVn.getUTCMonth()+1) + '-' + pad(taskVn.getUTCDate());
+        return taskDateStr === this.selectedCalendarDate;
+      });
+    },
+
     async init() {
       // 1. Mở khóa AudioContext và Background Audio Loop giữ app luôn thức khi ở đa nhiệm
       const unlockAudio = () => {
@@ -1424,6 +2463,24 @@ function app() {
       };
       window.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
       window.addEventListener('click', unlockAudio, { once: true, passive: true });
+
+      // 1b. Khởi tạo Native Capacitor Settings (StatusBar, Preferences, Maintenance & OTA)
+      if (window.Capacitor?.Plugins?.Preferences) {
+        try {
+          const prefToken = await window.Capacitor.Plugins.Preferences.get({ key: 'todo_auth_token' });
+          if (prefToken?.value) {
+            this.authToken = prefToken.value;
+          }
+        } catch {}
+      }
+      this.checkMaintenanceStatus();
+      this.checkNativeOtaUpdate();
+      if (window.Capacitor?.Plugins?.StatusBar) {
+        try {
+          const { StatusBar, Style } = window.Capacitor.Plugins;
+          await StatusBar.setStyle({ style: this.darkMode ? Style.Dark : Style.Light });
+        } catch {}
+      }
 
       // 2. Đăng ký Service Worker & Tự động cập nhật phiên bản mới nhất ngay trên iOS/PWA
       if ('serviceWorker' in navigator) {
@@ -1521,6 +2578,42 @@ function app() {
         }
       }, 30000);
 
+      // 7b. Live Sync Polling (Version check siêu nhẹ mỗi 12 giây)
+      this.lastKnownVersion = null;
+      this.liveSyncInterval = setInterval(async () => {
+        if (!this.authenticated || !navigator.onLine || this.isSyncing) return;
+        try {
+          const syncUrl = (API_BASE ? API_BASE.replace(/\/$/, '') : '') + '/api/sync/version';
+          const res = await fetch(syncUrl, {
+            credentials: 'include',
+            headers: this.authToken ? { 'Authorization': 'Bearer ' + this.authToken } : {}
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const currentVersion = String(data.latest_updated_at) + '_' + String(data.count);
+            if (this.lastKnownVersion && this.lastKnownVersion !== currentVersion && !this.showModal) {
+              await this.fetchTodos(true);
+            }
+            this.lastKnownVersion = currentVersion;
+          }
+        } catch {}
+      }, 12000);
+
+      // 7c. Đọc URL Parameters (PWA Shortcuts deep linking: ?action=new, ?action=voice, ?filter=today)
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('action') === 'new') {
+          setTimeout(() => this.openCreateModal(), 300);
+        } else if (urlParams.get('action') === 'voice') {
+          setTimeout(() => {
+            this.openCreateModal();
+            setTimeout(() => this.startVoiceInput(), 200);
+          }, 300);
+        } else if (urlParams.get('filter')) {
+          this.currentFilter = urlParams.get('filter');
+        }
+      } catch {}
+
       // 8. Tự động nhả focus (.blur()) sau khi chạm/click để loại bỏ triệt để lỗi nút bị kẹt lõm trên iOS/Safari
       const handleTouchEndBlur = (e) => {
         const btn = e.target?.closest ? e.target.closest('button, a, [role="button"]') : null;
@@ -1545,7 +2638,7 @@ function app() {
         }
         const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
         if (!isInput && this.authenticated) {
-          const anyModalOpen = this.showModal || this.showDeleteModal || this.showClearCompletedModal || this.showLogoutModal || this.showAboutModal || this.showDownloadModal;
+          const anyModalOpen = this.showModal || this.showDeleteModal || this.showClearCompletedModal || this.showLogoutModal || this.showAboutModal || this.showDownloadModal || this.showTrashModal || this.showPomodoroModal || this.showAnalyticsModal || this.showLightbox;
           if (!anyModalOpen) {
             if (e.key === 'n' || e.key === 'N') {
               e.preventDefault();
@@ -1569,6 +2662,10 @@ function app() {
       this.showLogoutModal = false;
       this.showAboutModal = false;
       this.showDownloadModal = false;
+      this.showTrashModal = false;
+      this.showPomodoroModal = false;
+      this.showAnalyticsModal = false;
+      this.showLightbox = false;
     },
 
     async refreshDataManual(e) {
@@ -1607,40 +2704,45 @@ function app() {
       localStorage.setItem('darkMode', this.darkMode);
     },
 
-    showToast(message, type = 'success') {
-      const existing = this.toasts.find(t => t.type === type);
-      if (existing) {
-        // Cùng loại thông báo: Xếp chồng (stacking) với badge đếm số lượng
-        existing.count = (existing.count || 1) + 1;
-        existing.message = message;
-        if (existing.timer) clearTimeout(existing.timer);
-        existing.timer = setTimeout(() => {
-          this.removeToast(existing.id);
-        }, 3000);
-      } else {
-        // Khác loại: Đẩy thông báo cũ đi (giữ tối đa 2 thông báo trên màn hình)
-        if (this.toasts.length >= 2) {
-          const oldest = this.toasts.shift();
-          if (oldest && oldest.timer) clearTimeout(oldest.timer);
+    showToast(message, type = 'success', action = null) {
+      const duration = action ? 5000 : 3000;
+      if (!action) {
+        const existing = this.toasts.find(t => t.type === type && !t.action);
+        if (existing) {
+          // Cùng loại thông báo: Xếp chồng (stacking) với badge đếm số lượng
+          existing.count = (existing.count || 1) + 1;
+          existing.message = message;
+          if (existing.timer) clearTimeout(existing.timer);
+          existing.timer = setTimeout(() => {
+            this.removeToast(existing.id);
+          }, duration);
+          return;
         }
-        const id = ++this.toastId;
-        const newToast = {
-          id,
-          message,
-          type,
-          count: 1,
-          offset: false,
-          offsetX: 0,
-          offsetY: 0,
-          touchStartX: 0,
-          touchStartY: 0,
-          timer: null
-        };
-        newToast.timer = setTimeout(() => {
-          this.removeToast(id);
-        }, 3000);
-        this.toasts.push(newToast);
       }
+
+      // Đẩy bớt nếu nhiều hơn 2 thông báo
+      if (this.toasts.length >= 2) {
+        const oldest = this.toasts.shift();
+        if (oldest && oldest.timer) clearTimeout(oldest.timer);
+      }
+      const id = ++this.toastId;
+      const newToast = {
+        id,
+        message,
+        type,
+        action,
+        count: 1,
+        offset: false,
+        offsetX: 0,
+        offsetY: 0,
+        touchStartX: 0,
+        touchStartY: 0,
+        timer: null
+      };
+      newToast.timer = setTimeout(() => {
+        this.removeToast(id);
+      }, duration);
+      this.toasts.push(newToast);
     },
 
     removeToast(id) {
@@ -1751,8 +2853,7 @@ function app() {
       this.settingUpWebhook = true;
       this.showToast('Đang kích hoạt Webhook 2 chiều trên Telegram...', 'info');
       try {
-        const res = await fetch('/api/setup-telegram-webhook');
-        const data = await res.json();
+        const data = await this.api('/api/setup-telegram-webhook');
         if (data && data.success) {
           this.playChime();
           this.showToast('Kích hoạt Webhook Telegram thành công! 🎉', 'success');
@@ -1900,9 +3001,10 @@ function app() {
       return Math.ceil((d.getTime() - Date.now()) / (60 * 1000));
     },
 
-    async checkAppVersion() {
+    async checkAppVersion(manual = false) {
       try {
-        const res = await fetch('/api/version', { cache: 'no-store' });
+        const versionUrl = (API_BASE ? API_BASE.replace(/\/$/, '') : '') + '/api/version';
+        const res = await fetch(versionUrl, { cache: 'no-store' });
         if (!res.ok) return;
         const data = await res.json();
         if (data.version && data.version !== this.appVersion) {
@@ -1915,6 +3017,8 @@ function app() {
           setTimeout(() => {
             window.location.reload();
           }, 1200);
+        } else if (manual) {
+          this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + this.appVersion + ')! 🎉', 'success');
         }
       } catch {}
     },
@@ -1973,10 +3077,18 @@ function app() {
     },
 
     async api(url, options = {}) {
-      const res = await fetch(url, {
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', ...options.headers },
+      const fullUrl = url.startsWith('http') ? url : (API_BASE ? (API_BASE.replace(/\/$/, '') + url) : url);
+      const token = this.authToken || localStorage.getItem('todo_auth_token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
+        ...options.headers
+      };
+
+      const res = await fetch(fullUrl, {
+        credentials: 'include',
         ...options,
+        headers,
       });
       const data = await res.json();
       if (!res.ok) {
@@ -2122,6 +3234,15 @@ function app() {
         const data = await this.api(url, { method: 'POST', body: JSON.stringify(body) });
         this.authenticated = true;
         this.currentUser = data.user;
+        if (data.token) {
+          this.authToken = data.token;
+          try {
+            localStorage.setItem('todo_auth_token', data.token);
+            if (window.Capacitor?.Plugins?.Preferences) {
+              window.Capacitor.Plugins.Preferences.set({ key: 'todo_auth_token', value: data.token }).catch(() => {});
+            }
+          } catch {}
+        }
         try {
           localStorage.setItem('cached_user', JSON.stringify(data.user));
         } catch {}
@@ -2143,7 +3264,12 @@ function app() {
       this.authenticated = false;
       this.currentUser = null;
       this.todos = [];
+      this.authToken = '';
       try {
+        localStorage.removeItem('todo_auth_token');
+        if (window.Capacitor?.Plugins?.Preferences) {
+          window.Capacitor.Plugins.Preferences.remove({ key: 'todo_auth_token' }).catch(() => {});
+        }
         localStorage.removeItem('cached_user');
         localStorage.removeItem('cached_todos');
         localStorage.removeItem('cached_categories');
@@ -2192,9 +3318,398 @@ function app() {
       } catch {}
     },
 
+    setViewMode(mode) {
+      this.viewMode = mode;
+      try {
+        localStorage.setItem('viewMode', mode);
+      } catch {}
+    },
+
+    getSubtasks(todo) {
+      if (!todo) return [];
+      if (Array.isArray(todo.subtasks)) return todo.subtasks;
+      if (typeof todo.subtasks === 'string') {
+        try {
+          return JSON.parse(todo.subtasks || '[]');
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    },
+
+    getTags(todo) {
+      if (!todo) return [];
+      if (Array.isArray(todo.tags)) return todo.tags;
+      if (typeof todo.tags === 'string') {
+        try {
+          return JSON.parse(todo.tags || '[]');
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    },
+
+    async toggleSubtask(todo, subtaskId) {
+      const subtasks = this.getSubtasks(todo);
+      const st = subtasks.find(s => String(s.id) === String(subtaskId));
+      if (!st) return;
+      st.is_completed = st.is_completed ? 0 : 1;
+      todo.subtasks = subtasks;
+      this.saveCachedTodos();
+
+      if (!navigator.onLine) {
+        this.showToast('Đang ngoại tuyến - đã lưu tạm checklist', 'info');
+        return;
+      }
+
+      try {
+        await this.api('/api/todos/' + todo.id + '/subtasks/' + subtaskId + '/toggle', { method: 'PATCH' });
+      } catch (err) {
+        console.warn('Subtask toggle error:', err);
+      }
+    },
+
+    addSubtask() {
+      const val = (this.newSubtaskInput || '').trim();
+      if (!val) return;
+      if (!Array.isArray(this.todoForm.subtasks)) {
+        this.todoForm.subtasks = [];
+      }
+      this.todoForm.subtasks.push({
+        id: 'st_' + Date.now(),
+        title: val,
+        is_completed: 0
+      });
+      this.newSubtaskInput = '';
+    },
+
+    removeSubtask(idx) {
+      if (Array.isArray(this.todoForm.subtasks)) {
+        this.todoForm.subtasks.splice(idx, 1);
+      }
+    },
+
+    addTag() {
+      const val = (this.newTagInput || '').replace(/^#/, '').trim().toLowerCase();
+      if (!val) return;
+      if (!Array.isArray(this.todoForm.tags)) {
+        this.todoForm.tags = [];
+      }
+      if (!this.todoForm.tags.includes(val)) {
+        this.todoForm.tags.push(val);
+      }
+      this.newTagInput = '';
+    },
+
+    removeTag(idx) {
+      if (Array.isArray(this.todoForm.tags)) {
+        this.todoForm.tags.splice(idx, 1);
+      }
+    },
+
+    async startVoiceInput() {
+      // Nếu đang ghi âm thì nhấn lần nữa để dừng và hoàn tất
+      if (this.isListeningVoice || this.isRecordingVoiceMedia) {
+        this.stopVoiceRecording();
+        return;
+      }
+
+      // Ưu tiên Native: Capacitor VoiceRecorder (hoạt động tuyệt hảo trong WKWebView iOS)
+      if (window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('VoiceRecorder')) {
+        try {
+          const { VoiceRecorder } = window.Capacitor.Plugins;
+          const perm = await VoiceRecorder.requestAudioRecordingPermission();
+          if (!perm.value) {
+            this.showToast('Vui lòng cấp quyền Micro trong Cài đặt iPhone để nhận diện giọng nói', 'error');
+            return;
+          }
+          await VoiceRecorder.startRecording();
+          this.isRecordingVoiceMedia = true;
+          this.isListeningVoice = true;
+          this.showToast('🔴 Đang ghi âm giọng nói... Bấm lại Micro để dừng và tạo việc', 'info');
+          return;
+        } catch (e) {
+          console.warn('Native VoiceRecorder start error, fallback to Web:', e);
+        }
+      }
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      // Ưu tiên 1: Web Speech API trực tiếp
+      if (SpeechRecognition) {
+        try {
+          const recognition = new SpeechRecognition();
+          recognition.lang = 'vi-VN';
+          recognition.continuous = false;
+          recognition.interimResults = false;
+
+          this.isListeningVoice = true;
+          this.showToast('🎤 Đang lắng nghe... Hãy nói tiêu đề công việc', 'info');
+
+          recognition.onresult = (event) => {
+            const transcript = event.results[0]?.[0]?.transcript;
+            if (transcript) {
+              this.todoForm.title = this.todoForm.title ? (this.todoForm.title + ' ' + transcript) : transcript;
+              this.showToast('Đã nhận diện: "' + transcript + '"', 'success');
+            }
+          };
+
+          recognition.onerror = (err) => {
+            console.warn('[SpeechRecognition] error:', err);
+            this.isListeningVoice = false;
+            if (err.error === 'no-speech') {
+              this.showToast('Chưa nhận được giọng nói, bạn hãy thử nói lại gần micro hơn nhé', 'info');
+              return;
+            }
+            if (err.error === 'not-allowed' || err.error === 'service-not-allowed' || err.error === 'permission-denied') {
+              this.showToast('Vui lòng nhấn vào biểu tượng ổ khóa trên thanh địa chỉ để CHO PHÉP quyền Micro!', 'error');
+              return;
+            }
+            if (err.error === 'aborted') {
+              return;
+            }
+            this.startMediaRecorderVoice();
+          };
+
+          recognition.onend = () => {
+            this.isListeningVoice = false;
+          };
+
+          recognition.start();
+          return;
+        } catch (err) {
+          console.warn('[SpeechRecognition] Start error, fallback to MediaRecorder:', err);
+          this.isListeningVoice = false;
+        }
+      }
+
+      // Ưu tiên 2 / Fallback: MediaRecorder + Cloudflare Workers AI Whisper
+      await this.startMediaRecorderVoice();
+    },
+
+    async startMediaRecorderVoice() {
+      const getUserMedia = (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+        ? (c) => navigator.mediaDevices.getUserMedia(c)
+        : (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia)
+          ? (c) => new Promise((res, rej) => (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia).call(navigator, c, res, rej))
+          : null;
+
+      if (!getUserMedia) {
+        this.showToast('Micro yêu cầu kết nối bảo mật HTTPS hoặc cấp quyền trong Cài đặt ứng dụng', 'error');
+        return;
+      }
+
+      try {
+        const stream = await getUserMedia({ audio: true });
+        this.audioChunks = [];
+        const mimeType = (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm')) 
+          ? 'audio/webm' 
+          : ((typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/mp4')) ? 'audio/mp4' : '');
+        this.mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+
+        this.mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            this.audioChunks.push(e.data);
+          }
+        };
+
+        this.mediaRecorder.onstop = async () => {
+          stream.getTracks().forEach(t => t.stop());
+          this.isRecordingVoiceMedia = false;
+          this.isListeningVoice = false;
+          clearInterval(this.voiceTimerInterval);
+
+          if (this.audioChunks.length === 0) return;
+          const audioBlob = new Blob(this.audioChunks, { type: this.mediaRecorder.mimeType || 'audio/webm' });
+          this.showToast('🔄 Đang nhận diện qua Whisper AI...', 'info');
+
+          try {
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'voice.webm');
+            const transcribeUrl = (API_BASE ? API_BASE.replace(/\/$/, '') : '') + '/api/ai/transcribe';
+            const res = await fetch(transcribeUrl, {
+              method: 'POST',
+              body: formData,
+              credentials: 'include',
+              headers: this.authToken ? { 'Authorization': 'Bearer ' + this.authToken } : {}
+            });
+            const data = await res.json();
+            if (data.success && data.text) {
+              const text = data.text.trim();
+              this.todoForm.title = this.todoForm.title ? (this.todoForm.title + ' ' + text) : text;
+              this.showToast('🎙️ Whisper AI: "' + text + '"', 'success');
+            } else {
+              this.showToast('Không nhận diện được nội dung: ' + (data.error || 'Thử lại'), 'error');
+            }
+          } catch (err) {
+            this.showToast('Lỗi nhận diện giọng nói: ' + err.message, 'error');
+          }
+        };
+
+        this.mediaRecorder.start(250);
+        this.isRecordingVoiceMedia = true;
+        this.isListeningVoice = true;
+        this.voiceRecordingSeconds = 0;
+        this.showToast('🔴 Đang ghi âm (Whisper AI)... Nhấn nút Micro để dừng', 'info');
+
+        this.voiceTimerInterval = setInterval(() => {
+          this.voiceRecordingSeconds++;
+          if (this.voiceRecordingSeconds >= 15) {
+            this.stopVoiceRecording();
+          }
+        }, 1000);
+      } catch (err) {
+        this.isListeningVoice = false;
+        this.isRecordingVoiceMedia = false;
+        this.showToast('Lỗi micro: ' + err.message, 'error');
+      }
+    },
+
+    async stopVoiceRecording() {
+      // Native VoiceRecorder stop & transcribe
+      if (window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('VoiceRecorder') && this.isRecordingVoiceMedia) {
+        try {
+          const { VoiceRecorder } = window.Capacitor.Plugins;
+          const recording = await VoiceRecorder.stopRecording();
+          this.isListeningVoice = false;
+          this.isRecordingVoiceMedia = false;
+          if (recording?.value?.recordDataBase64) {
+            this.showToast('🔄 Đang nhận diện qua Whisper AI...', 'info');
+            const byteChars = atob(recording.value.recordDataBase64);
+            const byteNums = new Array(byteChars.length);
+            for (let i = 0; i < byteChars.length; i++) {
+              byteNums[i] = byteChars.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNums);
+            const blob = new Blob([byteArray], { type: recording.value.mimeType || 'audio/aac' });
+
+            const formData = new FormData();
+            formData.append('file', blob, 'voice.aac');
+            const transcribeUrl = (API_BASE ? API_BASE.replace(/\/$/, '') : '') + '/api/ai/transcribe';
+            const res = await fetch(transcribeUrl, {
+              method: 'POST',
+              body: formData,
+              headers: this.authToken ? { 'Authorization': 'Bearer ' + this.authToken } : {}
+            });
+            const data = await res.json();
+            if (data.success && data.text) {
+              const text = data.text.trim();
+              this.todoForm.title = this.todoForm.title ? (this.todoForm.title + ' ' + text) : text;
+              this.showToast('🎙️ Whisper AI: "' + text + '"', 'success');
+            } else {
+              this.showToast('Không nhận diện được giọng nói: ' + (data.error || 'Thử lại'), 'error');
+            }
+          }
+          return;
+        } catch (err) {
+          console.warn('Native VoiceRecorder stop error:', err);
+        }
+      }
+
+      if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+        this.mediaRecorder.stop();
+      }
+      this.isListeningVoice = false;
+      this.isRecordingVoiceMedia = false;
+      clearInterval(this.voiceTimerInterval);
+    },
+
+    async moveKanbanTask(todo, newStatus) {
+      const prevStatus = todo.status || (todo.is_completed ? 'completed' : 'todo');
+      todo.status = newStatus;
+      todo.is_completed = (newStatus === 'completed' ? 1 : 0);
+      this.saveCachedTodos();
+
+      if (!navigator.onLine) {
+        this.showToast('Đang ngoại tuyến - đã lưu tạm Kanban', 'info');
+        return;
+      }
+
+      try {
+        await this.api('/api/todos/' + todo.id, {
+          method: 'PUT',
+          body: JSON.stringify({
+            status: newStatus,
+            is_completed: todo.is_completed
+          })
+        });
+        this.showToast('Đã chuyển sang "' + (newStatus === 'todo' ? 'Cần làm' : (newStatus === 'in_progress' ? 'Đang làm' : 'Đã xong')) + '"');
+      } catch (err) {
+        todo.status = prevStatus;
+        todo.is_completed = (prevStatus === 'completed' ? 1 : 0);
+        this.saveCachedTodos();
+        this.showToast('Lỗi cập nhật Kanban: ' + err.message, 'error');
+      }
+    },
+
+    handleKanbanDrop(targetStatus) {
+      if (!this.draggedTodoId) return;
+      const todo = this.todos.find(t => t.id === this.draggedTodoId);
+      if (todo) {
+        this.moveKanbanTask(todo, targetStatus);
+      }
+      this.draggedTodoId = null;
+    },
+
+    prevCalendarMonth() {
+      const d = new Date(this.calendarDate);
+      d.setMonth(d.getMonth() - 1);
+      this.calendarDate = d;
+    },
+
+    nextCalendarMonth() {
+      const d = new Date(this.calendarDate);
+      d.setMonth(d.getMonth() + 1);
+      this.calendarDate = d;
+    },
+
+    selectCalendarDay(dateStr) {
+      this.selectedCalendarDate = (this.selectedCalendarDate === dateStr ? null : dateStr);
+    },
+
+    formatSelectedCalendarDate() {
+      if (!this.selectedCalendarDate) return '';
+      const parts = this.selectedCalendarDate.split('-');
+      if (parts.length === 3) {
+        return parts[2] + '/' + parts[1] + '/' + parts[0];
+      }
+      return this.selectedCalendarDate;
+    },
+
+    async handleImportJsonFile(event) {
+      const file = event?.target?.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const text = String(e.target?.result || '');
+          const data = await this.api('/api/import/json', {
+            method: 'POST',
+            body: text
+          });
+          if (data && data.success) {
+            this.showToast('Khôi phục thành công ' + data.count + ' công việc! 🎉', 'success');
+            this.showBackupModal = false;
+            await this.fetchTodos();
+            await this.fetchCategories();
+          } else {
+            this.showToast(data?.error || 'Lỗi khôi phục dữ liệu', 'error');
+          }
+        } catch (err) {
+          this.showToast('Lỗi đọc file sao lưu: ' + err.message, 'error');
+        }
+      };
+      reader.readAsText(file);
+    },
+
     openCreateModal() {
       this.editingTodo = null;
       this.customCategoryMode = false;
+      this.newSubtaskInput = '';
+      this.newTagInput = '';
       const now = new Date();
       const pad = (n) => String(n).padStart(2, '0');
       const localNow = this.getCurrentLocalDatetime();
@@ -2209,8 +3724,14 @@ function app() {
         daily_time: currentTime,
         weekly_day: now.getDay(),
         weekly_time: currentTime,
-        is_pinned: false
+        is_pinned: false,
+        subtasks: [],
+        tags: [],
+        reminder_offset: 0,
+        estimated_minutes: 0,
+        actual_minutes: 0
       };
+      this.editingTodoImages = [];
       this.showModal = true;
     },
 
@@ -2221,6 +3742,8 @@ function app() {
       }
       this.editingTodo = todo;
       this.customCategoryMode = false;
+      this.newSubtaskInput = '';
+      this.newTagInput = '';
       const d = this.parseDateSafe(todo.due_date);
       const pad = (n) => String(n).padStart(2, '0');
       const timeStr = d ? pad(d.getHours()) + ':' + pad(d.getMinutes()) : '18:00';
@@ -2236,8 +3759,17 @@ function app() {
         daily_time: timeStr,
         weekly_day: dayVal,
         weekly_time: timeStr,
-        is_pinned: Boolean(todo.is_pinned)
+        is_pinned: Boolean(todo.is_pinned),
+        subtasks: this.getSubtasks(todo).map(st => ({ ...st })),
+        tags: [...this.getTags(todo)],
+        reminder_offset: todo.reminder_offset || 0,
+        estimated_minutes: todo.estimated_minutes || 0,
+        actual_minutes: todo.actual_minutes || 0
       };
+      this.editingTodoImages = [];
+      if (todo.id && !todo.id.startsWith('temp_')) {
+        this.fetchTodoImages(todo.id);
+      }
       this.showModal = true;
     },
 
@@ -2283,7 +3815,12 @@ function app() {
           priority: this.todoForm.priority,
           repeat_mode: mode,
           due_date: dueDateISO,
-          is_pinned: this.todoForm.is_pinned ? 1 : 0
+          is_pinned: this.todoForm.is_pinned ? 1 : 0,
+          subtasks: this.todoForm.subtasks || [],
+          tags: this.todoForm.tags || [],
+          reminder_offset: this.todoForm.reminder_offset || 0,
+          estimated_minutes: Number(this.todoForm.estimated_minutes) || 0,
+          actual_minutes: Number(this.todoForm.actual_minutes) || 0
         };
 
         if (this.editingTodo) {
@@ -2319,6 +3856,12 @@ function app() {
             repeat_mode: body.repeat_mode,
             due_date: body.due_date,
             is_pinned: body.is_pinned,
+            subtasks: body.subtasks,
+            tags: body.tags,
+            reminder_offset: body.reminder_offset,
+            estimated_minutes: body.estimated_minutes,
+            actual_minutes: body.actual_minutes,
+            status: 'todo',
             is_completed: 0,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
@@ -2336,6 +3879,21 @@ function app() {
                 const idx = this.todos.findIndex(t => t.id === tempId);
                 if (idx !== -1) this.todos[idx] = res.todo;
                 this.saveCachedTodos();
+
+                if (this.editingTodoImages && this.editingTodoImages.length > 0) {
+                  for (const img of this.editingTodoImages) {
+                    if (img.image_data) {
+                      await this.api('/api/todos/' + res.todo.id + '/images', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                          image_data: img.image_data,
+                          file_name: img.file_name || 'image.jpg'
+                        })
+                      }).catch(() => {});
+                    }
+                  }
+                  await this.fetchTodoImages(res.todo.id);
+                }
               }
               this.showToast('Đã tạo công việc mới!');
               await this.fetchCategories();
@@ -2387,7 +3945,10 @@ function app() {
           Object.assign(todo, res.todo);
           this.saveCachedTodos();
         }
-        this.showToast(todo.is_completed ? 'Hoàn thành xuất sắc! 🎉' : 'Đã chuyển sang đang chờ.', 'info');
+        this.showToast(todo.is_completed ? 'Hoàn thành xuất sắc! 🎉' : 'Đã chuyển sang đang chờ.', 'info', {
+          label: 'Hoàn tác',
+          onClick: () => this.toggleTodo(todo)
+        });
       } catch (err) {
         this.addToOfflineQueue({ type: 'TOGGLE', todoId: todo.id });
         this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
@@ -2480,9 +4041,14 @@ function app() {
 
     async deleteTodo() {
       this.todoSaving = true;
-      const targetId = this.deletingTodo?.id;
-      if (!targetId) return;
+      const targetTodo = this.deletingTodo;
+      const targetId = targetTodo?.id;
+      if (!targetId) {
+        this.todoSaving = false;
+        return;
+      }
 
+      this.lastDeletedTodo = { ...targetTodo };
       this.todos = this.todos.filter(t => t.id !== targetId);
       this.saveCachedTodos();
       this.showDeleteModal = false;
@@ -2490,14 +4056,20 @@ function app() {
 
       if (!navigator.onLine) {
         this.addToOfflineQueue({ type: 'DELETE', todoId: targetId });
-        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
+        this.showToast('Đã chuyển vào thùng rác (ngoại tuyến)', 'info', {
+          label: 'Hoàn tác',
+          onClick: () => this.restoreTodo(this.lastDeletedTodo)
+        });
         this.todoSaving = false;
         return;
       }
 
       try {
         await this.api('/api/todos/' + targetId, { method: 'DELETE' });
-        this.showToast('Đã xoá công việc!');
+        this.showToast('Đã chuyển công việc vào thùng rác!', 'info', {
+          label: 'Hoàn tác',
+          onClick: () => this.restoreTodo(this.lastDeletedTodo)
+        });
       } catch (err) {
         this.addToOfflineQueue({ type: 'DELETE', todoId: targetId });
         this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
@@ -2533,6 +4105,555 @@ function app() {
       } finally {
         this.todoSaving = false;
       }
+    },
+
+    // ─── THÙNG RÁC & HOÀN TÁC (TRASH & UNDO) ───
+    async openTrashModal() {
+      this.showTrashModal = true;
+      await this.fetchTrashTodos();
+    },
+
+    async fetchTrashTodos() {
+      this.trashLoading = true;
+      try {
+        const res = await this.api('/api/trash');
+        this.trashTodos = res.todos || [];
+      } catch (err) {
+        this.showToast('Lỗi tải thùng rác: ' + err.message, 'error');
+      } finally {
+        this.trashLoading = false;
+      }
+    },
+
+    async restoreTodo(todo) {
+      if (!todo || !todo.id) return;
+      try {
+        await this.api('/api/todos/' + todo.id + '/restore', { method: 'POST' });
+        this.trashTodos = this.trashTodos.filter(t => t.id !== todo.id);
+        this.showToast('Đã khôi phục công việc: "' + todo.title + '" 🎉', 'success');
+        await this.fetchTodos(true);
+      } catch (err) {
+        this.showToast('Lỗi khôi phục: ' + err.message, 'error');
+      }
+    },
+
+    async deletePermanently(todo) {
+      if (!todo || !todo.id) return;
+      if (!confirm('Bạn có chắc chắn muốn xóa vĩnh viễn công việc này? Không thể khôi phục!')) return;
+      try {
+        await this.api('/api/todos/' + todo.id + '?permanent=true', { method: 'DELETE' });
+        this.trashTodos = this.trashTodos.filter(t => t.id !== todo.id);
+        this.showToast('Đã xóa vĩnh viễn công việc', 'info');
+      } catch (err) {
+        this.showToast('Lỗi xóa vĩnh viễn: ' + err.message, 'error');
+      }
+    },
+
+    async emptyTrash() {
+      if (this.trashTodos.length === 0) return;
+      if (!confirm('Bạn có chắc chắn muốn dọn sạch toàn bộ thùng rác? Toàn bộ công việc sẽ bị xóa vĩnh viễn!')) return;
+      try {
+        await this.api('/api/trash/empty', { method: 'DELETE' });
+        this.trashTodos = [];
+        this.showToast('Đã dọn sạch thùng rác!', 'info');
+      } catch (err) {
+        this.showToast('Lỗi dọn thùng rác: ' + err.message, 'error');
+      }
+    },
+
+    async restoreAllTrash() {
+      if (this.trashTodos.length === 0) return;
+      try {
+        await this.api('/api/trash/restore-all', { method: 'POST' });
+        this.trashTodos = [];
+        this.showToast('Đã khôi phục tất cả công việc từ thùng rác! 🎉', 'success');
+        await this.fetchTodos(true);
+      } catch (err) {
+        this.showToast('Lỗi khôi phục: ' + err.message, 'error');
+      }
+    },
+
+    // ─── WEB AUDIO & AMBIENT SOUNDS (FOCUS MODE) ───
+    initAudioContext() {
+      if (!this.audioCtx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          this.audioCtx = new AudioCtx();
+        }
+      }
+      if (this.audioCtx && this.audioCtx.state === 'suspended') {
+        this.audioCtx.resume().catch(() => {});
+      }
+      return this.audioCtx;
+    },
+
+    playChime() {
+      try {
+        const ctx = this.initAudioContext();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        const tones = [659.25, 880];
+        tones.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.18);
+          gain.gain.setValueAtTime(0, now + idx * 0.18);
+          gain.gain.linearRampToValueAtTime(0.3, now + idx * 0.18 + 0.04);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.18 + 0.8);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.18);
+          osc.stop(now + idx * 0.18 + 0.85);
+        });
+      } catch (e) {
+        console.warn('playChime error:', e);
+      }
+    },
+
+    stopAmbientSound() {
+      if (this.ambientNodes) {
+        try {
+          this.ambientNodes.source?.stop?.();
+          this.ambientNodes.gain?.disconnect?.();
+        } catch {}
+        this.ambientNodes = null;
+      }
+      this.ambientSound = 'none';
+    },
+
+    playAmbientSound(type) {
+      if (this.ambientSound === type && type !== 'none') {
+        this.stopAmbientSound();
+        return;
+      }
+      this.stopAmbientSound();
+      if (type === 'none') return;
+
+      const ctx = this.initAudioContext();
+      if (!ctx) return;
+
+      try {
+        const bufferSize = 2 * ctx.sampleRate;
+        const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+
+        if (type === 'white') {
+          for (let i = 0; i < bufferSize; i++) {
+            output[i] = Math.random() * 2 - 1;
+          }
+        } else if (type === 'rain') {
+          let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+          for (let i = 0; i < bufferSize; i++) {
+            const white = Math.random() * 2 - 1;
+            b0 = 0.99886 * b0 + white * 0.0555179;
+            b1 = 0.99332 * b1 + white * 0.0750759;
+            b2 = 0.96900 * b2 + white * 0.1538520;
+            b3 = 0.86650 * b3 + white * 0.3104856;
+            b4 = 0.55000 * b4 + white * 0.5329522;
+            b5 = -0.7616 * b5 - white * 0.0168980;
+            output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+            b6 = white * 0.115926;
+          }
+        }
+
+        const whiteNoiseSource = ctx.createBufferSource();
+        whiteNoiseSource.buffer = noiseBuffer;
+        whiteNoiseSource.loop = true;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = type === 'rain' ? 'lowpass' : 'bandpass';
+        filter.frequency.value = type === 'rain' ? 850 : 1200;
+        filter.Q.value = 1.0;
+
+        const gainNode = ctx.createGain();
+        gainNode.gain.setValueAtTime((this.ambientVolume || 50) / 100 * 0.15, ctx.currentTime);
+
+        whiteNoiseSource.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        whiteNoiseSource.start();
+        this.ambientNodes = { source: whiteNoiseSource, gain: gainNode, filter };
+        this.ambientSound = type;
+      } catch (err) {
+        console.warn('Error starting ambient sound:', err);
+      }
+    },
+
+    setAmbientVolume(val) {
+      this.ambientVolume = Number(val);
+      if (this.ambientNodes && this.ambientNodes.gain && this.audioCtx) {
+        this.ambientNodes.gain.gain.setValueAtTime((this.ambientVolume / 100) * 0.15, this.audioCtx.currentTime);
+      }
+    },
+
+    // ─── POMODORO FOCUS TIMER ───
+    openPomodoro(todo) {
+      this.pomodoroActiveTodo = todo || null;
+      this.setPomodoroMode('focus');
+      this.showPomodoroModal = true;
+    },
+
+    setPomodoroMode(mode) {
+      this.pomodoroMode = mode;
+      clearInterval(this.pomodoroInterval);
+      this.pomodoroRunning = false;
+      if (mode === 'focus') {
+        this.pomodoroTimeLeft = 25 * 60;
+        this.pomodoroTotalTime = 25 * 60;
+      } else if (mode === 'shortBreak') {
+        this.pomodoroTimeLeft = 5 * 60;
+        this.pomodoroTotalTime = 5 * 60;
+      } else if (mode === 'longBreak') {
+        this.pomodoroTimeLeft = 15 * 60;
+        this.pomodoroTotalTime = 15 * 60;
+      }
+    },
+
+    togglePomodoro() {
+      if (this.pomodoroRunning) {
+        this.pausePomodoro();
+      } else {
+        this.startPomodoro();
+      }
+    },
+
+    startPomodoro() {
+      this.initAudioContext();
+      this.pomodoroRunning = true;
+      clearInterval(this.pomodoroInterval);
+      this.pomodoroInterval = setInterval(() => {
+        if (this.pomodoroTimeLeft > 0) {
+          this.pomodoroTimeLeft--;
+        } else {
+          this.onPomodoroComplete();
+        }
+      }, 1000);
+    },
+
+    pausePomodoro() {
+      this.pomodoroRunning = false;
+      clearInterval(this.pomodoroInterval);
+    },
+
+    resetPomodoro() {
+      this.pausePomodoro();
+      this.setPomodoroMode(this.pomodoroMode);
+    },
+
+    async onPomodoroComplete() {
+      this.pausePomodoro();
+      this.playChime();
+
+      if (this.pomodoroMode === 'focus') {
+        if (this.pomodoroActiveTodo) {
+          await this.trackTimeForTodo(this.pomodoroActiveTodo, 25);
+        }
+        this.showToast('🎉 Hoàn thành phiên Pomodoro 25 phút! Hãy nghỉ ngơi nào.', 'success');
+        this.setPomodoroMode('shortBreak');
+      } else {
+        this.showToast('⏰ Hết giờ nghỉ ngơi! Sẵn sàng cho phiên tập trung tiếp theo.', 'info');
+        this.setPomodoroMode('focus');
+      }
+    },
+
+    async trackTimeForTodo(todo, addedMinutes) {
+      if (!todo || !todo.id) return;
+      const currentActual = Number(todo.actual_minutes) || 0;
+      const newActual = currentActual + addedMinutes;
+      todo.actual_minutes = newActual;
+      this.saveCachedTodos();
+
+      try {
+        await this.api('/api/todos/' + todo.id, {
+          method: 'PUT',
+          body: JSON.stringify({ actual_minutes: newActual })
+        });
+        this.showToast('Đã ghi nhận +' + addedMinutes + ' phút tập trung cho: ' + todo.title, 'success');
+      } catch (err) {
+        console.warn('Failed to update actual_minutes:', err);
+      }
+    },
+
+    formatTimer(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    },
+
+    // ─── NĂNG SUẤT & THỐNG KÊ (ANALYTICS) ───
+    async openAnalytics() {
+      this.showAnalyticsModal = true;
+      this.analyticsLoading = true;
+      try {
+        const data = await this.api('/api/analytics');
+        this.analyticsData = data;
+      } catch (err) {
+        this.showToast('Lỗi tải dữ liệu phân tích: ' + err.message, 'error');
+      } finally {
+        this.analyticsLoading = false;
+      }
+    },
+
+    // ─── ĐÍNH KÈM HÌNH ẢNH QUA D1 (CANVAS COMPRESSION & LIGHTBOX) ───
+    async handleImageUpload(event, todoId) {
+      const files = event?.target?.files;
+      if (!files || files.length === 0) return;
+      const targetId = todoId || this.editingTodo?.id;
+      this.todoImagesMap = this.todoImagesMap || {};
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file.type.startsWith('image/')) continue;
+
+        this.showToast('📷 Đang xử lý & nén ảnh...', 'info');
+        try {
+          const base64Data = await this.compressImageCanvas(file, 640, 0.55);
+
+          if (targetId && !targetId.startsWith('temp_')) {
+            const res = await this.api('/api/todos/' + targetId + '/images', {
+              method: 'POST',
+              body: JSON.stringify({
+                image_data: base64Data,
+                file_name: file.name
+              })
+            });
+            if (res && res.image) {
+              if (!this.todoImagesMap[targetId]) this.todoImagesMap[targetId] = [];
+              this.todoImagesMap[targetId].push(res.image);
+              this.editingTodoImages = this.editingTodoImages || [];
+              this.editingTodoImages.push(res.image);
+              this.showToast('Đã tải ảnh lên thành công!', 'success');
+            }
+          } else {
+            const tempImg = {
+              id: 'temp_img_' + Date.now() + '_' + i,
+              image_data: base64Data,
+              file_name: file.name
+            };
+            this.editingTodoImages = this.editingTodoImages || [];
+            this.editingTodoImages.push(tempImg);
+          }
+        } catch (err) {
+          this.showToast('Lỗi xử lý ảnh: ' + err.message, 'error');
+        }
+      }
+      if (event.target) event.target.value = '';
+    },
+
+    compressImageCanvas(file, maxWidth = 640, quality = 0.55) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            let width = img.width;
+            let height = img.height;
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', quality);
+            resolve(dataUrl);
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    },
+
+    async fetchTodoImages(todoId) {
+      if (!todoId || todoId.startsWith('temp_')) return;
+      this.todoImagesMap = this.todoImagesMap || {};
+      try {
+        const res = await this.api('/api/todos/' + todoId + '/images');
+        if (res && res.images) {
+          this.todoImagesMap[todoId] = res.images;
+          this.editingTodoImages = [...res.images];
+        }
+      } catch (err) {
+        console.warn('Error fetching todo images:', err);
+      }
+    },
+
+    getTodoImages(todoId) {
+      this.todoImagesMap = this.todoImagesMap || {};
+      return this.todoImagesMap[todoId] || [];
+    },
+
+    async deleteImage(todoId, imageId) {
+      this.todoImagesMap = this.todoImagesMap || {};
+      this.editingTodoImages = this.editingTodoImages || [];
+      if (imageId && imageId.startsWith('temp_img_')) {
+        this.editingTodoImages = this.editingTodoImages.filter(img => img.id !== imageId);
+        return;
+      }
+      try {
+        await this.api('/api/todos/' + todoId + '/images/' + imageId, { method: 'DELETE' });
+        if (this.todoImagesMap[todoId]) {
+          this.todoImagesMap[todoId] = this.todoImagesMap[todoId].filter(img => img.id !== imageId);
+        }
+        this.editingTodoImages = this.editingTodoImages.filter(img => img.id !== imageId);
+        this.showToast('Đã xóa ảnh đính kèm', 'info');
+      } catch (err) {
+        this.showToast('Lỗi xóa ảnh: ' + err.message, 'error');
+      }
+    },
+
+    openLightbox(imageData) {
+      this.lightboxImage = imageData;
+      this.showLightbox = true;
+    },
+
+    formatDateShort(dateStr) {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '';
+      const pad = (n) => String(n).padStart(2, '0');
+      return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    },
+
+    // ===== BỔ SUNG NATIVE CAPACITOR & OTA UPDATE METHODS =====
+    async chooseOrCapturePhoto(todoId) {
+      if (window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('Camera')) {
+        try {
+          const { Camera, CameraResultType, CameraSource } = window.Capacitor.Plugins;
+          const photo = await Camera.getPhoto({
+            quality: 70,
+            allowEditing: false,
+            resultType: CameraResultType.Base64,
+            source: CameraSource.Prompt
+          });
+          if (photo && photo.base64String) {
+            const format = photo.format || 'jpeg';
+            const base64Data = 'data:image/' + format + ';base64,' + photo.base64String;
+            await this.attachBase64Image(base64Data, todoId, 'camera_photo_' + Date.now() + '.' + format);
+          }
+        } catch (err) {
+          if (err && err.message && (err.message.includes('cancelled') || err.message.includes('User cancelled'))) {
+            return;
+          }
+          console.warn('Capacitor Camera fallback:', err);
+          document.getElementById('todo-image-input')?.click();
+        }
+      } else {
+        document.getElementById('todo-image-input')?.click();
+      }
+    },
+
+    async attachBase64Image(base64Data, todoId, fileName) {
+      const targetId = todoId || this.editingTodo?.id;
+      this.todoImagesMap = this.todoImagesMap || {};
+      this.editingTodoImages = this.editingTodoImages || [];
+      const name = fileName || ('photo_' + Date.now() + '.jpg');
+
+      if (targetId && !targetId.startsWith('temp_')) {
+        try {
+          this.imageUploading = true;
+          this.showToast('📷 Đang lưu ảnh vào công việc...', 'info');
+          const res = await this.api('/api/todos/' + targetId + '/images', {
+            method: 'POST',
+            body: JSON.stringify({
+              image_data: base64Data,
+              file_name: name
+            })
+          });
+          if (res && res.image) {
+            if (!this.todoImagesMap[targetId]) this.todoImagesMap[targetId] = [];
+            this.todoImagesMap[targetId].push(res.image);
+            this.editingTodoImages.push(res.image);
+            this.showToast('Đã tải ảnh lên thành công!', 'success');
+          }
+        } catch (e) {
+          this.showToast('Lỗi tải ảnh: ' + (e?.message || e), 'error');
+        } finally {
+          this.imageUploading = false;
+        }
+      } else {
+        const tempImg = {
+          id: 'temp_img_' + Date.now(),
+          image_data: base64Data,
+          file_name: name
+        };
+        this.editingTodoImages.push(tempImg);
+        this.showToast('Đã chọn ảnh thành công!', 'success');
+      }
+    },
+
+    async checkMaintenanceStatus() {
+      try {
+        const res = await this.api('/api/app-status');
+        if (res) {
+          this.isUnderMaintenance = Boolean(res.maintenance ?? res.isUnderMaintenance ?? false);
+          if (res.maintenance_message || res.message) {
+            this.maintenanceMessage = res.maintenance_message || res.message;
+          }
+        }
+      } catch (e) {
+        console.warn('checkMaintenanceStatus error:', e);
+      }
+    },
+
+    async checkNativeOtaUpdate() {
+      if (!window.Capacitor) return;
+      try {
+        const updater = window.Capacitor.Plugins?.CapacitorUpdater || window.Capacitor.Plugins?.CapgoUpdater;
+        if (!updater) return;
+
+        if (updater.notifyAppReady) {
+          await updater.notifyAppReady();
+        }
+
+        const res = await this.api('/api/app-status');
+        const bundleUrl = res?.latest_bundle?.url || res?.otaBundleUrl;
+        const bundleVersion = res?.latest_bundle?.version || res?.otaBundleVersion;
+        if (bundleUrl && bundleVersion) {
+          const currentVersion = this.appVersion || '2.0.0';
+          if (bundleVersion !== currentVersion && updater.download && updater.set) {
+            console.log('Downloading OTA bundle update:', bundleVersion);
+            const version = await updater.download({
+              url: bundleUrl,
+              version: bundleVersion,
+            });
+            if (version) {
+              await updater.set(version);
+              console.log('OTA bundle update ready. Will apply on restart.');
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('OTA check error:', e);
+      }
+    },
+
+    async getCurrentLocation() {
+      if (window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('Geolocation')) {
+        try {
+          const { Geolocation } = window.Capacitor.Plugins;
+          const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+          return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+        } catch (e) {
+          console.warn('Capacitor Geolocation error:', e);
+        }
+      }
+      if ('geolocation' in navigator) {
+        return new Promise((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            (p) => resolve({ latitude: p.coords.latitude, longitude: p.coords.longitude }),
+            () => resolve(null),
+            { enableHighAccuracy: true, timeout: 5000 }
+          );
+        });
+      }
+      return null;
     }
   };
 }

@@ -5,8 +5,13 @@ const config: CapacitorConfig = {
   appName: 'ToDoList',
   webDir: 'dist',
   server: {
-    url: 'https://app.todolists.workers.dev/',
-    cleartext: true
+    androidScheme: 'https',
+    iosScheme: 'capacitor'
+  },
+  plugins: {
+    CapacitorCookies: {
+      enabled: true
+    }
   }
 };
 

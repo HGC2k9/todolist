@@ -23,9 +23,21 @@ import { generateIOSMobileConfig } from './iosProfile';
 import {
   sendTelegramTaskReminder,
   sendTelegramTestMessage,
+  sendTelegramMessage,
   deleteTelegramMessage,
-  answerCallbackQuery
+  answerCallbackQuery,
+  parseTaskFromText,
+  formatVnDateTime,
+  escapeHtml,
+  buildHelpResponse,
+  buildTodayTasksResponse,
+  buildOverdueTasksResponse,
+  buildStatsResponse,
+  buildMorningBriefing,
+  buildEveningBriefing,
+  downloadTelegramFile
 } from './telegram';
+import { generateIcs, exportTodosJson, validateAndParseImportJson } from './export';
 
 // ─── Helper: Lấy thông tin thời gian theo múi giờ Việt Nam (UTC+7) ───
 export function getVnDateParts(date: Date) {
@@ -52,7 +64,7 @@ export async function resetRecurringTasks(db: D1Database, userId?: string): Prom
     const nowVn = getVnDateParts(now);
     const nowIso = now.toISOString();
 
-    let query = "SELECT id, user_id, title, priority, due_date, is_completed, repeat_mode, updated_at FROM todos WHERE repeat_mode IN ('daily', 'weekly')";
+    let query = "SELECT id, user_id, title, priority, due_date, is_completed, repeat_mode, updated_at FROM todos WHERE deleted_at IS NULL AND repeat_mode IN ('daily', 'weekly')";
     const params: any[] = [];
     if (userId) {
       query += ' AND user_id = ?';
@@ -127,8 +139,8 @@ export async function checkAndSendReminders(env: Env): Promise<{ checked: number
   try {
     await ensureDbColumns(env.DB);
     const todosRes = await env.DB.prepare(
-      `SELECT id, user_id, title, description, category, priority, due_date, repeat_mode, is_completed, telegram_message_id, created_at, updated_at
-       FROM todos WHERE is_completed = 0 AND due_date IS NOT NULL`
+      `SELECT id, user_id, title, description, category, priority, due_date, repeat_mode, is_completed, telegram_message_id, reminder_offset, created_at, updated_at
+       FROM todos WHERE deleted_at IS NULL AND is_completed = 0 AND due_date IS NOT NULL`
     ).all<Todo>();
 
     const todos = todosRes.results || [];
@@ -140,15 +152,19 @@ export async function checkAndSendReminders(env: Env): Promise<{ checked: number
       const dueTime = new Date(normalizedDate).getTime();
       if (isNaN(dueTime)) continue;
 
-      const diffMs = dueTime - now;
-      const minLeft = Math.ceil(diffMs / 60000);
+      const offsetMin = task.reminder_offset || 0;
+      const targetReminderTime = dueTime - offsetMin * 60000;
+      const diffToTarget = targetReminderTime - now;
+      const minToTarget = Math.ceil(diffToTarget / 60000);
+      const minLeft = Math.ceil((dueTime - now) / 60000);
 
       let windowMin = 15;
       if (task.priority === 'High') windowMin = 30;
       else if (task.priority === 'Low') windowMin = 5;
 
-      // Nằm trong khung thông báo (từ 0 đến windowMin phút trước hạn)
-      if (minLeft >= 0 && minLeft <= windowMin) {
+      // Nằm trong khung thông báo: từ lúc đến mốc targetReminderTime (hoặc trước windowMin phút) và chưa trễ quá 5 phút
+      const isDueForReminder = minToTarget <= windowMin && minLeft >= -5;
+      if (isDueForReminder) {
         // Kiểm tra xem đã gửi nhắc nhở gần đây chưa
         const logRes = await env.DB.prepare(
           `SELECT MAX(notified_at) as last_notified, COUNT(*) as total_count FROM reminder_logs WHERE todo_id = ?`
@@ -189,6 +205,56 @@ export async function checkAndSendReminders(env: Env): Promise<{ checked: number
   }
 }
 
+// ─── Helper: Gửi thông báo tổng kết Sáng (07:30) & Tối (21:30) qua Telegram ───
+export async function checkAndSendDailyBriefings(env: Env): Promise<{ morning: boolean; evening: boolean }> {
+  if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) {
+    return { morning: false, evening: false };
+  }
+
+  const now = new Date();
+  const vn = getVnDateParts(now);
+  let morningSent = false;
+  let eveningSent = false;
+
+  const defaultUser = await env.DB.prepare('SELECT id FROM users ORDER BY created_at ASC LIMIT 1').first<{ id: string }>();
+  if (!defaultUser) return { morning: false, evening: false };
+  const userId = defaultUser.id;
+
+  // Bản tin Sáng: 07:30 VN (quét trong khoảng 07:25 - 07:35)
+  if (vn.hours === 7 && vn.minutes >= 25 && vn.minutes <= 35) {
+    const existing = await env.DB.prepare(
+      'SELECT id FROM briefing_logs WHERE type = ? AND date_str = ?'
+    ).bind('morning', vn.dateStr).first();
+
+    if (!existing) {
+      const briefing = await buildMorningBriefing(env, userId);
+      await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, briefing.text, briefing.replyMarkup);
+      await env.DB.prepare(
+        'INSERT INTO briefing_logs (id, type, date_str, sent_at) VALUES (?, ?, ?, ?)'
+      ).bind(generateId(), 'morning', vn.dateStr, now.toISOString()).run();
+      morningSent = true;
+    }
+  }
+
+  // Bản tin Tối: 21:30 VN (quét trong khoảng 21:25 - 21:35)
+  if (vn.hours === 21 && vn.minutes >= 25 && vn.minutes <= 35) {
+    const existing = await env.DB.prepare(
+      'SELECT id FROM briefing_logs WHERE type = ? AND date_str = ?'
+    ).bind('evening', vn.dateStr).first();
+
+    if (!existing) {
+      const briefing = await buildEveningBriefing(env, userId);
+      await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, briefing.text, briefing.replyMarkup);
+      await env.DB.prepare(
+        'INSERT INTO briefing_logs (id, type, date_str, sent_at) VALUES (?, ?, ?, ?)'
+      ).bind(generateId(), 'evening', vn.dateStr, now.toISOString()).run();
+      eveningSent = true;
+    }
+  }
+
+  return { morning: morningSent, evening: eveningSent };
+}
+
 // ─── Hono App ───
 
 type Variables = {
@@ -204,11 +270,29 @@ app.use('*', async (c, next) => {
   c.res.headers.set('X-Frame-Options', 'DENY');
   c.res.headers.set('X-XSS-Protection', '1; mode=block');
   c.res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  c.res.headers.set('Permissions-Policy', 'microphone=(self)');
 });
 
 app.use('/api/*', cors({
-  origin: '*',
+  origin: (origin) => {
+    if (!origin) return '*';
+    if (
+      origin.startsWith('capacitor://') ||
+      origin.startsWith('ionic://') ||
+      origin.includes('localhost') ||
+      origin.includes('127.0.0.1') ||
+      origin.includes('todolists.workers.dev') ||
+      origin.includes('todolists')
+    ) {
+      return origin;
+    }
+    return origin;
+  },
   credentials: true,
+  allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie'],
+  exposeHeaders: ['Set-Cookie'],
+  maxAge: 86400,
 }));
 
 // ─── Helper: Đảm bảo tương thích DB (Safe Migration) ───
@@ -224,6 +308,51 @@ async function ensureDbColumns(db: D1Database) {
   try {
     await db.prepare('ALTER TABLE todos ADD COLUMN telegram_message_id INTEGER DEFAULT NULL').run();
   } catch { }
+  try {
+    await db.prepare("ALTER TABLE todos ADD COLUMN subtasks TEXT DEFAULT '[]'").run();
+  } catch { }
+  try {
+    await db.prepare('ALTER TABLE todos ADD COLUMN reminder_offset INTEGER DEFAULT 0').run();
+  } catch { }
+  try {
+    await db.prepare("ALTER TABLE todos ADD COLUMN tags TEXT DEFAULT '[]'").run();
+  } catch { }
+  try {
+    await db.prepare("ALTER TABLE todos ADD COLUMN status TEXT DEFAULT 'todo'").run();
+  } catch { }
+  try {
+    await db.prepare('ALTER TABLE todos ADD COLUMN position INTEGER DEFAULT 0').run();
+  } catch { }
+  try {
+    await db.prepare('ALTER TABLE todos ADD COLUMN deleted_at TEXT DEFAULT NULL').run();
+  } catch { }
+  try {
+    await db.prepare('ALTER TABLE todos ADD COLUMN estimated_minutes INTEGER DEFAULT 0').run();
+  } catch { }
+  try {
+    await db.prepare('ALTER TABLE todos ADD COLUMN actual_minutes INTEGER DEFAULT 0').run();
+  } catch { }
+  try {
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS todo_images (
+        id TEXT PRIMARY KEY,
+        todo_id TEXT NOT NULL,
+        image_data TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    `).run();
+  } catch { }
+  try {
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS briefing_logs (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        date_str TEXT NOT NULL,
+        sent_at TEXT NOT NULL,
+        UNIQUE(type, date_str)
+      )
+    `).run();
+  } catch { }
   dbMigrated = true;
 }
 
@@ -235,11 +364,16 @@ function normalizeDate(dateVal: any): string | null {
   return d.toISOString();
 }
 
-// ─── Auth Middleware (cho /api/todos/*) ───
-app.use('/api/todos/*', async (c, next) => {
-  const cookieHeader = c.req.header('Cookie') || '';
-  const cookies = parseCookies(cookieHeader);
-  const token = cookies[c.env.COOKIE_NAME];
+// ─── Auth Middleware ───
+const requireAuth = async (c: any, next: any) => {
+  const authHeader = c.req.header('Authorization') || '';
+  let token = authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : '';
+
+  if (!token) {
+    const cookieHeader = c.req.header('Cookie') || '';
+    const cookies = parseCookies(cookieHeader);
+    token = cookies[c.env.COOKIE_NAME];
+  }
 
   if (!token) {
     return c.json({ error: 'Chưa đăng nhập. Vui lòng đăng nhập.' }, 401);
@@ -253,26 +387,18 @@ app.use('/api/todos/*', async (c, next) => {
   c.set('user', payload);
   await ensureDbColumns(c.env.DB);
   await next();
-});
+};
 
-// ─── Auth Middleware (cho /api/categories) ───
-app.use('/api/categories', async (c, next) => {
-  const cookieHeader = c.req.header('Cookie') || '';
-  const cookies = parseCookies(cookieHeader);
-  const token = cookies[c.env.COOKIE_NAME];
-
-  if (!token) {
-    return c.json({ error: 'Chưa đăng nhập.' }, 401);
-  }
-
-  const payload = await verifyJWT(token, c.env.JWT_SECRET);
-  if (!payload) {
-    return c.json({ error: 'Phiên hết hạn.' }, 401);
-  }
-
-  c.set('user', payload);
-  await next();
-});
+app.use('/api/todos', requireAuth);
+app.use('/api/todos/*', requireAuth);
+app.use('/api/categories', requireAuth);
+app.use('/api/export/*', requireAuth);
+app.use('/api/import/*', requireAuth);
+app.use('/api/trash', requireAuth);
+app.use('/api/trash/*', requireAuth);
+app.use('/api/sync/*', requireAuth);
+app.use('/api/analytics', requireAuth);
+app.use('/api/ai/*', requireAuth);
 
 // ════════════════════════════════════════════════════════════
 //  AUTH ROUTES
@@ -328,6 +454,7 @@ app.post('/api/auth/register', async (c) => {
       JSON.stringify({
         success: true,
         user: { id, email: email.toLowerCase(), username: username.trim() },
+        token,
       }),
       {
         status: 201,
@@ -383,6 +510,7 @@ app.post('/api/auth/login', async (c) => {
       JSON.stringify({
         success: true,
         user: { id: user.id, email: user.email, username: user.username },
+        token,
       }),
       {
         status: 200,
@@ -414,9 +542,14 @@ app.post('/api/auth/logout', async (c) => {
 
 // GET /api/auth/me — Kiểm tra trạng thái đăng nhập
 app.get('/api/auth/me', async (c) => {
-  const cookieHeader = c.req.header('Cookie') || '';
-  const cookies = parseCookies(cookieHeader);
-  const token = cookies[c.env.COOKIE_NAME];
+  const authHeader = c.req.header('Authorization') || '';
+  let token = authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : '';
+
+  if (!token) {
+    const cookieHeader = c.req.header('Cookie') || '';
+    const cookies = parseCookies(cookieHeader);
+    token = cookies[c.env.COOKIE_NAME];
+  }
 
   if (!token) {
     return c.json({ authenticated: false }, 200);
@@ -434,6 +567,22 @@ app.get('/api/auth/me', async (c) => {
       email: payload.email,
       username: payload.username,
     },
+  });
+});
+
+// GET /api/app-status — Trạng thái bảo trì, kiểm tra kết nối & OTA Bundle cho iOS Native App
+app.get('/api/app-status', async (c) => {
+  return c.json({
+    status: 'online',
+    maintenance: false,
+    maintenance_message: '',
+    app_version: '2.0.0',
+    min_supported_version: '1.0.0',
+    latest_bundle: {
+      version: '2.0.0',
+      url: 'https://app.todolists.workers.dev/dist.zip',
+    },
+    server_time: new Date().toISOString()
   });
 });
 
@@ -457,7 +606,7 @@ app.get('/api/todos', async (c) => {
   const sort = url.searchParams.get('sort') || 'due_date'; // due_date | created_at
   const order = url.searchParams.get('order') || 'asc';     // asc | desc
 
-  let query = "SELECT *, COALESCE(is_pinned, 0) as is_pinned, COALESCE(repeat_mode, 'none') as repeat_mode FROM todos WHERE user_id = ?";
+  let query = "SELECT *, COALESCE(is_pinned, 0) as is_pinned, COALESCE(repeat_mode, 'none') as repeat_mode FROM todos WHERE user_id = ? AND deleted_at IS NULL";
   const params: any[] = [user.sub];
 
   // Filter by status
@@ -505,7 +654,7 @@ app.get('/api/todos', async (c) => {
   return c.json({ todos: result.results || [] });
 });
 
-// POST /api/todos — Tạo todo mới (có hỗ trợ repeat_mode)
+// POST /api/todos — Tạo todo mới (có hỗ trợ repeat_mode, subtasks, tags, reminder_offset, status, position)
 app.post('/api/todos', async (c) => {
   try {
     const user = c.get('user');
@@ -513,10 +662,17 @@ app.post('/api/todos', async (c) => {
       title: string;
       description?: string;
       category?: string;
-      priority?: string;
+      priority?: 'Low' | 'Medium' | 'High';
       due_date?: string | null;
       is_pinned?: number;
       repeat_mode?: string;
+      subtasks?: any;
+      tags?: any;
+      reminder_offset?: number;
+      status?: 'todo' | 'in_progress' | 'completed';
+      position?: number;
+      estimated_minutes?: number;
+      actual_minutes?: number;
     }>();
 
     if (!body.title || !body.title.trim()) {
@@ -527,10 +683,17 @@ app.post('/api/todos', async (c) => {
     const now = new Date().toISOString();
     const normalizedDueDate = normalizeDate(body.due_date);
     const repeatMode = (body.repeat_mode === 'daily' || body.repeat_mode === 'weekly') ? body.repeat_mode : 'none';
+    const subtasks = Array.isArray(body.subtasks) ? JSON.stringify(body.subtasks) : (typeof body.subtasks === 'string' ? body.subtasks : '[]');
+    const tags = Array.isArray(body.tags) ? JSON.stringify(body.tags) : (typeof body.tags === 'string' ? body.tags : '[]');
+    const reminderOffset = typeof body.reminder_offset === 'number' ? body.reminder_offset : 0;
+    const status = (body.status === 'in_progress' || body.status === 'completed') ? body.status : 'todo';
+    const position = typeof body.position === 'number' ? body.position : 0;
+    const estimatedMinutes = typeof body.estimated_minutes === 'number' ? body.estimated_minutes : 0;
+    const actualMinutes = typeof body.actual_minutes === 'number' ? body.actual_minutes : 0;
 
     await c.env.DB.prepare(
-      `INSERT INTO todos (id, user_id, title, description, category, priority, due_date, is_completed, is_pinned, repeat_mode, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`
+      `INSERT INTO todos (id, user_id, title, description, category, priority, due_date, is_completed, is_pinned, repeat_mode, subtasks, tags, reminder_offset, status, position, estimated_minutes, actual_minutes, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       id,
       user.sub,
@@ -541,6 +704,13 @@ app.post('/api/todos', async (c) => {
       normalizedDueDate,
       body.is_pinned ? 1 : 0,
       repeatMode,
+      subtasks,
+      tags,
+      reminderOffset,
+      status,
+      position,
+      estimatedMinutes,
+      actualMinutes,
       now,
       now
     ).run();
@@ -575,11 +745,18 @@ app.put('/api/todos/:id', async (c) => {
       title: string;
       description: string;
       category: string;
-      priority: string;
+      priority: 'Low' | 'Medium' | 'High';
       due_date: string | null;
       is_completed: number;
       is_pinned: number;
       repeat_mode: string;
+      subtasks: any;
+      tags: any;
+      reminder_offset: number;
+      status: 'todo' | 'in_progress' | 'completed';
+      position: number;
+      estimated_minutes: number;
+      actual_minutes: number;
     }>>();
 
     const now = new Date().toISOString();
@@ -603,6 +780,27 @@ app.put('/api/todos/:id', async (c) => {
       } catch { }
     }
 
+    let isCompleted = body.is_completed !== undefined ? body.is_completed : existing.is_completed;
+    let status = body.status !== undefined ? body.status : (existing.status || (isCompleted ? 'completed' : 'todo'));
+    if (body.status !== undefined && body.is_completed === undefined) {
+      isCompleted = body.status === 'completed' ? 1 : 0;
+    } else if (body.is_completed !== undefined && body.status === undefined) {
+      status = body.is_completed ? 'completed' : 'todo';
+    }
+
+    const subtasks = body.subtasks !== undefined
+      ? (Array.isArray(body.subtasks) ? JSON.stringify(body.subtasks) : String(body.subtasks))
+      : (typeof existing.subtasks === 'string' ? existing.subtasks : JSON.stringify(existing.subtasks || []));
+
+    const tags = body.tags !== undefined
+      ? (Array.isArray(body.tags) ? JSON.stringify(body.tags) : String(body.tags))
+      : (typeof existing.tags === 'string' ? existing.tags : JSON.stringify(existing.tags || []));
+
+    const reminderOffset = body.reminder_offset !== undefined ? body.reminder_offset : (existing.reminder_offset || 0);
+    const position = body.position !== undefined ? body.position : (existing.position || 0);
+    const estimatedMinutes = body.estimated_minutes !== undefined ? body.estimated_minutes : (existing.estimated_minutes || 0);
+    const actualMinutes = body.actual_minutes !== undefined ? body.actual_minutes : (existing.actual_minutes || 0);
+
     await c.env.DB.prepare(
       `UPDATE todos SET
         title = ?,
@@ -613,6 +811,13 @@ app.put('/api/todos/:id', async (c) => {
         is_completed = ?,
         is_pinned = ?,
         repeat_mode = ?,
+        subtasks = ?,
+        tags = ?,
+        reminder_offset = ?,
+        status = ?,
+        position = ?,
+        estimated_minutes = ?,
+        actual_minutes = ?,
         telegram_message_id = ?,
         updated_at = ?
        WHERE id = ? AND user_id = ?`
@@ -622,9 +827,16 @@ app.put('/api/todos/:id', async (c) => {
       body.category?.trim() ?? existing.category,
       body.priority ?? existing.priority,
       normalizedDueDate,
-      body.is_completed !== undefined ? body.is_completed : existing.is_completed,
+      isCompleted,
       body.is_pinned !== undefined ? body.is_pinned : existing.is_pinned,
       repeatMode,
+      subtasks,
+      tags,
+      reminderOffset,
+      status,
+      position,
+      estimatedMinutes,
+      actualMinutes,
       newTelegramMessageId,
       now,
       todoId,
@@ -639,6 +851,165 @@ app.put('/api/todos/:id', async (c) => {
   } catch (err: any) {
     console.error('Update todo error:', err);
     return c.json({ error: 'Lỗi cập nhật công việc.' }, 500);
+  }
+});
+
+// PATCH /api/todos/:id/subtasks/:subtaskId/toggle — Tick/untick từng việc con
+app.patch('/api/todos/:id/subtasks/:subtaskId/toggle', async (c) => {
+  try {
+    const user = c.get('user');
+    const todoId = c.req.param('id');
+    const subtaskId = c.req.param('subtaskId');
+
+    const existing = await c.env.DB.prepare(
+      'SELECT * FROM todos WHERE id = ? AND user_id = ?'
+    ).bind(todoId, user.sub).first<Todo>();
+
+    if (!existing) {
+      return c.json({ error: 'Không tìm thấy công việc.' }, 404);
+    }
+
+    let subtasks: any[] = [];
+    try {
+      subtasks = typeof existing.subtasks === 'string' ? JSON.parse(existing.subtasks || '[]') : (existing.subtasks || []);
+    } catch {
+      subtasks = [];
+    }
+
+    const targetSubtask = subtasks.find((st: any) => String(st.id) === subtaskId);
+    if (!targetSubtask) {
+      return c.json({ error: 'Không tìm thấy việc con.' }, 404);
+    }
+
+    targetSubtask.is_completed = targetSubtask.is_completed ? 0 : 1;
+    const now = new Date().toISOString();
+
+    await c.env.DB.prepare(
+      'UPDATE todos SET subtasks = ?, updated_at = ? WHERE id = ? AND user_id = ?'
+    ).bind(JSON.stringify(subtasks), now, todoId, user.sub).run();
+
+    const updated = await c.env.DB.prepare('SELECT * FROM todos WHERE id = ?').bind(todoId).first<Todo>();
+    return c.json({ success: true, todo: updated });
+  } catch (err: any) {
+    console.error('Toggle subtask error:', err);
+    return c.json({ error: 'Lỗi cập nhật việc con.' }, 500);
+  }
+});
+
+// PUT /api/todos/reorder — Sắp xếp vị trí kéo thả / chuyển cột Kanban
+app.put('/api/todos/reorder', async (c) => {
+  try {
+    const user = c.get('user');
+    const body = await c.req.json<{
+      items: Array<{ id: string; position: number; status?: 'todo' | 'in_progress' | 'completed' }>;
+    }>();
+
+    if (!body.items || !Array.isArray(body.items)) {
+      return c.json({ error: 'Dữ liệu sắp xếp không hợp lệ.' }, 400);
+    }
+
+    const now = new Date().toISOString();
+    const statements = body.items.map((item) => {
+      const isCompleted = item.status === 'completed' ? 1 : (item.status ? 0 : undefined);
+      if (item.status && isCompleted !== undefined) {
+        return c.env.DB.prepare(
+          'UPDATE todos SET position = ?, status = ?, is_completed = ?, updated_at = ? WHERE id = ? AND user_id = ?'
+        ).bind(item.position, item.status, isCompleted, now, item.id, user.sub);
+      } else {
+        return c.env.DB.prepare(
+          'UPDATE todos SET position = ?, updated_at = ? WHERE id = ? AND user_id = ?'
+        ).bind(item.position, now, item.id, user.sub);
+      }
+    });
+
+    if (statements.length > 0) {
+      await c.env.DB.batch(statements);
+    }
+
+    return c.json({ success: true, count: statements.length });
+  } catch (err: any) {
+    console.error('Reorder error:', err);
+    return c.json({ error: 'Lỗi sắp xếp công việc.' }, 500);
+  }
+});
+
+// GET /api/export/ics — Xuất file iCalendar (.ics RFC 5545) đồng bộ Google/Apple Calendar
+app.get('/api/export/ics', async (c) => {
+  const user = c.get('user');
+  const result = await c.env.DB.prepare(
+    'SELECT * FROM todos WHERE user_id = ? ORDER BY due_date ASC'
+  ).bind(user.sub).all<Todo>();
+
+  const icsContent = generateIcs(result.results || []);
+  return new Response(icsContent, {
+    headers: {
+      'Content-Type': 'text/calendar; charset=utf-8',
+      'Content-Disposition': 'attachment; filename="todolist.ics"',
+      'Cache-Control': 'no-cache',
+    },
+  });
+});
+
+// GET /api/export/json — Sao lưu file JSON dữ liệu công việc
+app.get('/api/export/json', async (c) => {
+  const user = c.get('user');
+  const result = await c.env.DB.prepare(
+    'SELECT * FROM todos WHERE user_id = ? ORDER BY created_at DESC'
+  ).bind(user.sub).all<Todo>();
+
+  const jsonContent = exportTodosJson(result.results || []);
+  const dateStr = new Date().toISOString().split('T')[0];
+  return new Response(jsonContent, {
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Content-Disposition': `attachment; filename="todolist_backup_${dateStr}.json"`,
+      'Cache-Control': 'no-cache',
+    },
+  });
+});
+
+// POST /api/import/json — Khôi phục từ file sao lưu JSON
+app.post('/api/import/json', async (c) => {
+  try {
+    const user = c.get('user');
+    const rawText = await c.req.text();
+    const importedTodos = validateAndParseImportJson(rawText);
+
+    if (importedTodos.length === 0) {
+      return c.json({ error: 'Không tìm thấy công việc hợp lệ trong file sao lưu.' }, 400);
+    }
+
+    const now = new Date().toISOString();
+    const statements = importedTodos.map((t) => {
+      const id = generateId();
+      return c.env.DB.prepare(
+        `INSERT INTO todos (id, user_id, title, description, category, priority, due_date, is_completed, is_pinned, repeat_mode, subtasks, tags, reminder_offset, status, position, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        id,
+        user.sub,
+        t.title,
+        t.description || '',
+        t.category || 'Personal',
+        t.priority || 'Medium',
+        t.due_date || null,
+        t.is_completed || 0,
+        t.is_pinned || 0,
+        t.repeat_mode || 'none',
+        JSON.stringify(t.subtasks || []),
+        JSON.stringify(t.tags || []),
+        t.reminder_offset || 0,
+        t.status || 'todo',
+        t.position || 0,
+        now,
+        now
+      );
+    });
+
+    await c.env.DB.batch(statements);
+    return c.json({ success: true, count: statements.length });
+  } catch (err: any) {
+    return c.json({ error: `Lỗi nhập dữ liệu: ${err.message || 'File không đúng cấu trúc'}` }, 400);
   }
 });
 
@@ -726,11 +1097,13 @@ app.patch('/api/todos/:id/pin', async (c) => {
   }
 });
 
-// DELETE /api/todos/:id — Xoá todo
+// DELETE /api/todos/:id — Xoá todo (mặc định xóa mềm vào thùng rác, permanent=true xóa vĩnh viễn)
 app.delete('/api/todos/:id', async (c) => {
   try {
     const user = c.get('user');
     const todoId = c.req.param('id');
+    const url = new URL(c.req.url);
+    const permanent = url.searchParams.get('permanent') === 'true';
 
     const existing = await c.env.DB.prepare(
       'SELECT id, telegram_message_id FROM todos WHERE id = ? AND user_id = ?'
@@ -745,30 +1118,40 @@ app.delete('/api/todos/:id', async (c) => {
       await deleteTelegramMessage(c.env.TELEGRAM_BOT_TOKEN, c.env.TELEGRAM_CHAT_ID, existing.telegram_message_id);
     }
 
-    // Xóa nhật ký nhắc nhở
-    try {
-      await c.env.DB.prepare('DELETE FROM reminder_logs WHERE todo_id = ?').bind(todoId).run();
-    } catch { }
+    if (permanent) {
+      try {
+        await c.env.DB.prepare('DELETE FROM reminder_logs WHERE todo_id = ?').bind(todoId).run();
+        await c.env.DB.prepare('DELETE FROM todo_images WHERE todo_id = ?').bind(todoId).run();
+      } catch { }
 
-    await c.env.DB.prepare(
-      'DELETE FROM todos WHERE id = ? AND user_id = ?'
-    ).bind(todoId, user.sub).run();
+      await c.env.DB.prepare(
+        'DELETE FROM todos WHERE id = ? AND user_id = ?'
+      ).bind(todoId, user.sub).run();
 
-    return c.json({ success: true });
+      return c.json({ success: true, permanent: true });
+    } else {
+      const now = new Date().toISOString();
+      await c.env.DB.prepare(
+        'UPDATE todos SET deleted_at = ?, telegram_message_id = NULL, updated_at = ? WHERE id = ? AND user_id = ?'
+      ).bind(now, now, todoId, user.sub).run();
+
+      return c.json({ success: true, soft_deleted: true });
+    }
   } catch (err: any) {
     console.error('Delete todo error:', err);
     return c.json({ error: 'Lỗi xoá công việc.' }, 500);
   }
 });
 
-// POST /api/todos/clear-completed — Xoá tất cả việc đã hoàn thành
+// POST /api/todos/clear-completed — Xoá tất cả việc đã hoàn thành (chuyển vào thùng rác)
 app.post('/api/todos/clear-completed', async (c) => {
   try {
     const user = c.get('user');
+    const now = new Date().toISOString();
 
     await c.env.DB.prepare(
-      'DELETE FROM todos WHERE user_id = ? AND is_completed = 1'
-    ).bind(user.sub).run();
+      'UPDATE todos SET deleted_at = ?, telegram_message_id = NULL, updated_at = ? WHERE user_id = ? AND is_completed = 1 AND deleted_at IS NULL'
+    ).bind(now, now, user.sub).run();
 
     return c.json({ success: true });
   } catch (err: any) {
@@ -777,12 +1160,255 @@ app.post('/api/todos/clear-completed', async (c) => {
   }
 });
 
+// GET /api/trash — Danh sách công việc trong thùng rác
+app.get('/api/trash', async (c) => {
+  const user = c.get('user');
+  const result = await c.env.DB.prepare(
+    'SELECT * FROM todos WHERE user_id = ? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC'
+  ).bind(user.sub).all<Todo>();
+
+  return c.json({ todos: result.results || [] });
+});
+
+// POST /api/todos/:id/restore — Khôi phục công việc từ thùng rác
+app.post('/api/todos/:id/restore', async (c) => {
+  try {
+    const user = c.get('user');
+    const todoId = c.req.param('id');
+    const now = new Date().toISOString();
+
+    const res = await c.env.DB.prepare(
+      'UPDATE todos SET deleted_at = NULL, updated_at = ? WHERE id = ? AND user_id = ?'
+    ).bind(now, todoId, user.sub).run();
+
+    if (!res.success) {
+      return c.json({ error: 'Không thể khôi phục công việc.' }, 400);
+    }
+
+    const todo = await c.env.DB.prepare('SELECT * FROM todos WHERE id = ?').bind(todoId).first<Todo>();
+    return c.json({ success: true, todo });
+  } catch (err: any) {
+    return c.json({ error: 'Lỗi khôi phục: ' + err.message }, 500);
+  }
+});
+
+// DELETE /api/trash/empty — Dọn sạch toàn bộ thùng rác (xóa vĩnh viễn)
+app.delete('/api/trash/empty', async (c) => {
+  try {
+    const user = c.get('user');
+    await c.env.DB.prepare(
+      'DELETE FROM todos WHERE user_id = ? AND deleted_at IS NOT NULL'
+    ).bind(user.sub).run();
+    return c.json({ success: true });
+  } catch (err: any) {
+    return c.json({ error: 'Lỗi dọn sạch thùng rác: ' + err.message }, 500);
+  }
+});
+
+// POST /api/trash/restore-all — Khôi phục tất cả công việc trong thùng rác
+app.post('/api/trash/restore-all', async (c) => {
+  try {
+    const user = c.get('user');
+    const now = new Date().toISOString();
+    await c.env.DB.prepare(
+      'UPDATE todos SET deleted_at = NULL, updated_at = ? WHERE user_id = ? AND deleted_at IS NOT NULL'
+    ).bind(now, user.sub).run();
+    return c.json({ success: true });
+  } catch (err: any) {
+    return c.json({ error: 'Lỗi khôi phục tất cả: ' + err.message }, 500);
+  }
+});
+
+// GET /api/sync/version — Kiểm tra phiên bản dữ liệu mới nhất (Real-time Live Sync)
+app.get('/api/sync/version', async (c) => {
+  const user = c.get('user');
+  const row = await c.env.DB.prepare(
+    'SELECT MAX(updated_at) as max_updated, COUNT(*) as count FROM todos WHERE user_id = ?'
+  ).bind(user.sub).first<{ max_updated: string | null; count: number }>();
+
+  return c.json({
+    version: row?.max_updated || '0',
+    count: row?.count || 0,
+    server_time: new Date().toISOString()
+  });
+});
+
+// GET /api/analytics — Thống kê năng suất sâu (Weekly, on-time ratio, category distribution, time tracking)
+app.get('/api/analytics', async (c) => {
+  const user = c.get('user');
+  const now = new Date();
+  const vn = getVnDateParts(now);
+
+  const allRes = await c.env.DB.prepare(
+    'SELECT id, category, priority, due_date, is_completed, estimated_minutes, actual_minutes, created_at, updated_at FROM todos WHERE user_id = ? AND deleted_at IS NULL'
+  ).bind(user.sub).all<Todo>();
+
+  const todos = allRes.results || [];
+  const total = todos.length;
+  const completed = todos.filter(t => t.is_completed === 1).length;
+  const pending = total - completed;
+
+  let onTime = 0;
+  let overdueCompleted = 0;
+  for (const t of todos) {
+    if (t.is_completed === 1) {
+      if (t.due_date && t.updated_at && new Date(t.updated_at).getTime() > new Date(t.due_date).getTime() + 60000) {
+        overdueCompleted++;
+      } else {
+        onTime++;
+      }
+    }
+  }
+
+  const daysOfWeek = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+  const weekCounts = [0, 0, 0, 0, 0, 0, 0];
+  const mondayStart = vn.mondayMs;
+  const sundayEnd = mondayStart + 7 * 24 * 3600 * 1000;
+
+  for (const t of todos) {
+    if (t.is_completed === 1 && t.updated_at) {
+      const uTime = new Date(t.updated_at).getTime() + 7 * 3600 * 1000;
+      if (uTime >= mondayStart && uTime < sundayEnd) {
+        const dIdx = Math.floor((uTime - mondayStart) / (24 * 3600 * 1000));
+        if (dIdx >= 0 && dIdx < 7) {
+          weekCounts[dIdx]++;
+        }
+      }
+    }
+  }
+
+  const catMap: Record<string, number> = {};
+  for (const t of todos) {
+    const cat = t.category || 'Khác';
+    catMap[cat] = (catMap[cat] || 0) + 1;
+  }
+
+  let totalEstimatedMin = 0;
+  let totalActualMin = 0;
+  for (const t of todos) {
+    totalEstimatedMin += (t.estimated_minutes || 0);
+    totalActualMin += (t.actual_minutes || 0);
+  }
+
+  return c.json({
+    total,
+    completed,
+    pending,
+    completion_rate: total > 0 ? Math.round((completed / total) * 100) : 0,
+    on_time: onTime,
+    overdue_completed: overdueCompleted,
+    week_stats: daysOfWeek.map((day, idx) => ({ day, count: weekCounts[idx] })),
+    category_distribution: Object.entries(catMap).map(([cat, count]) => ({ category: cat, count })),
+    total_estimated_minutes: totalEstimatedMin,
+    total_actual_minutes: totalActualMin
+  });
+});
+
+// POST /api/ai/transcribe — Nhận diện giọng nói tiếng Việt bằng Cloudflare Workers AI Whisper
+app.post('/api/ai/transcribe', async (c) => {
+  try {
+    if (!c.env.AI) {
+      return c.json({ error: 'Workers AI chưa được cấu hình.' }, 500);
+    }
+    const contentType = c.req.header('Content-Type') || '';
+    let audioBytes: Uint8Array;
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await c.req.formData();
+      const file = formData.get('file') as File | null;
+      if (!file) return c.json({ error: 'Không tìm thấy file âm thanh.' }, 400);
+      const arrayBuffer = await file.arrayBuffer();
+      audioBytes = new Uint8Array(arrayBuffer);
+    } else {
+      const arrayBuffer = await c.req.arrayBuffer();
+      audioBytes = new Uint8Array(arrayBuffer);
+    }
+
+    if (!audioBytes || audioBytes.length === 0) {
+      return c.json({ error: 'Dữ liệu âm thanh trống.' }, 400);
+    }
+
+    const audioArray = new Array(audioBytes.length);
+    for (let i = 0; i < audioBytes.length; i++) {
+      audioArray[i] = audioBytes[i];
+    }
+
+    const whisperRes: any = await c.env.AI.run('@cf/openai/whisper', {
+      audio: audioArray
+    });
+
+    return c.json({ success: true, text: whisperRes?.text || '' });
+  } catch (err: any) {
+    console.error('Whisper transcribe error:', err);
+    return c.json({ error: 'Lỗi nhận diện giọng nói: ' + (err.message || 'Không thể giải mã file âm thanh') }, 500);
+  }
+});
+
+// GET /api/todos/:id/images — Lấy danh sách ảnh đính kèm của việc
+app.get('/api/todos/:id/images', async (c) => {
+  const user = c.get('user');
+  const todoId = c.req.param('id');
+  const todo = await c.env.DB.prepare('SELECT id FROM todos WHERE id = ? AND user_id = ?').bind(todoId, user.sub).first();
+  if (!todo) return c.json({ error: 'Không tìm thấy công việc.' }, 404);
+
+  const imagesRes = await c.env.DB.prepare(
+    'SELECT id, todo_id, image_data, created_at FROM todo_images WHERE todo_id = ? ORDER BY created_at ASC'
+  ).bind(todoId).all();
+
+  return c.json({ images: imagesRes.results || [] });
+});
+
+// POST /api/todos/:id/images — Thêm ảnh đính kèm (đã nén base64)
+app.post('/api/todos/:id/images', async (c) => {
+  try {
+    const user = c.get('user');
+    const todoId = c.req.param('id');
+    const todo = await c.env.DB.prepare('SELECT id FROM todos WHERE id = ? AND user_id = ?').bind(todoId, user.sub).first();
+    if (!todo) return c.json({ error: 'Không tìm thấy công việc.' }, 404);
+
+    const { image_data } = await c.req.json<{ image_data: string }>();
+    if (!image_data || typeof image_data !== 'string' || !image_data.startsWith('data:image/')) {
+      return c.json({ error: 'Định dạng hình ảnh không hợp lệ.' }, 400);
+    }
+
+    if (image_data.length > 350000) {
+      return c.json({ error: 'Kích thước ảnh vượt quá giới hạn 250KB.' }, 400);
+    }
+
+    const imageId = generateId();
+    const now = new Date().toISOString();
+
+    await c.env.DB.prepare(
+      'INSERT INTO todo_images (id, todo_id, image_data, created_at) VALUES (?, ?, ?, ?)'
+    ).bind(imageId, todoId, image_data, now).run();
+
+    return c.json({ success: true, image: { id: imageId, todo_id: todoId, image_data, created_at: now } }, 201);
+  } catch (err: any) {
+    return c.json({ error: 'Lỗi tải ảnh lên: ' + err.message }, 500);
+  }
+});
+
+// DELETE /api/todos/:id/images/:imageId — Xoá ảnh đính kèm
+app.delete('/api/todos/:id/images/:imageId', async (c) => {
+  try {
+    const user = c.get('user');
+    const todoId = c.req.param('id');
+    const imageId = c.req.param('imageId');
+    const todo = await c.env.DB.prepare('SELECT id FROM todos WHERE id = ? AND user_id = ?').bind(todoId, user.sub).first();
+    if (!todo) return c.json({ error: 'Không tìm thấy công việc.' }, 404);
+
+    await c.env.DB.prepare('DELETE FROM todo_images WHERE id = ? AND todo_id = ?').bind(imageId, todoId).run();
+    return c.json({ success: true });
+  } catch (err: any) {
+    return c.json({ error: 'Lỗi xóa ảnh: ' + err.message }, 500);
+  }
+});
+
 // GET /api/categories — Lấy danh sách categories của user
 app.get('/api/categories', async (c) => {
   const user = c.get('user');
 
   const result = await c.env.DB.prepare(
-    'SELECT DISTINCT category FROM todos WHERE user_id = ? AND category IS NOT NULL AND category != "" ORDER BY category'
+    'SELECT DISTINCT category FROM todos WHERE user_id = ? AND deleted_at IS NULL AND category IS NOT NULL AND category != "" ORDER BY category'
   ).bind(user.sub).all<{ category: string }>();
 
   const categories = (result.results || []).map((r) => r.category);
@@ -828,7 +1454,7 @@ app.get('/favicon.ico', async () => {
   });
 });
 
-// GET /manifest.json — Web App Manifest định danh tên "To-Do List"
+// GET /manifest.json — Web App Manifest định danh tên "To-Do List" & PWA Quick Shortcuts
 app.get('/manifest.json', async () => {
   const manifest = {
     name: 'To-Do List',
@@ -845,6 +1471,29 @@ app.get('/manifest.json', async () => {
         sizes: '192x192',
         type: 'image/png',
         purpose: 'any maskable'
+      }
+    ],
+    shortcuts: [
+      {
+        name: 'Thêm việc mới',
+        short_name: 'Thêm việc',
+        description: 'Tạo công việc mới ngay',
+        url: '/?action=new',
+        icons: [{ src: '/icon-192.png', sizes: '192x192' }]
+      },
+      {
+        name: 'Việc hôm nay',
+        short_name: 'Hôm nay',
+        description: 'Xem các việc cần làm hôm nay',
+        url: '/?filter=today',
+        icons: [{ src: '/icon-192.png', sizes: '192x192' }]
+      },
+      {
+        name: 'Nói để tạo việc',
+        short_name: 'Giọng nói',
+        description: 'Nhập công việc bằng giọng nói',
+        url: '/?action=voice',
+        icons: [{ src: '/icon-192.png', sizes: '192x192' }]
       }
     ]
   };
@@ -951,116 +1600,353 @@ app.get('/api/test-telegram', async (c) => {
   return c.json(res);
 });
 
-// POST /api/telegram-webhook — Tiếp nhận phản hồi từ Inline Keyboard của Telegram
+// Helper: Lấy userId của tài khoản chính (dùng khi tương tác qua Telegram Bot)
+async function getDefaultUserId(db?: D1Database): Promise<string> {
+  if (!db) return '';
+  try {
+    const stmt: any = db.prepare('SELECT id FROM users ORDER BY created_at ASC LIMIT 1');
+    const res = typeof stmt.first === 'function' ? await stmt.first() : (typeof stmt.bind === 'function' ? await stmt.bind().first() : null);
+    return res?.id || '';
+  } catch {
+    return '';
+  }
+}
+
+// POST /api/telegram-webhook — Tiếp nhận phản hồi từ Telegram (Inline Keyboard & Tin nhắn lệnh trực tiếp)
 app.post('/api/telegram-webhook', async (c) => {
   try {
     const update: any = await c.req.json();
-    const callbackQuery = update?.callback_query;
-    if (!callbackQuery) {
-      return c.json({ ok: true, message: 'No callback_query' });
-    }
 
-    const callbackQueryId = callbackQuery.id;
-    const messageId = callbackQuery.message?.message_id;
-    const chatId = String(callbackQuery.message?.chat?.id || '');
-    const data = String(callbackQuery.data || '');
+    // ────────────────────────────────────────────────────────────
+    // 1. Xử lý Callback Query (Bấm nút trên Inline Keyboard)
+    // ────────────────────────────────────────────────────────────
+    if (update.callback_query) {
+      const callbackQuery = update.callback_query;
+      const callbackQueryId = callbackQuery.id;
+      const messageId = callbackQuery.message?.message_id;
+      const chatId = String(callbackQuery.message?.chat?.id || '');
+      const data = String(callbackQuery.data || '');
 
-    // Xác thực chat.id khớp với env.TELEGRAM_CHAT_ID để bảo mật
-    if (c.env.TELEGRAM_CHAT_ID && chatId !== String(c.env.TELEGRAM_CHAT_ID).trim()) {
-      console.warn('[Telegram Webhook] Unauthorized chat ID:', chatId);
-      if (c.env.TELEGRAM_BOT_TOKEN) {
-        await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Bạn không có quyền thực hiện thao tác này!', true);
-      }
-      return c.json({ ok: false, error: 'Unauthorized chat ID' }, 403);
-    }
-
-    await ensureDbColumns(c.env.DB);
-
-    // 1. Hoàn thành công việc: complete_<task_id>
-    if (data.startsWith('complete_')) {
-      const taskId = data.replace('complete_', '');
-      const task = await c.env.DB.prepare(
-        "SELECT *, COALESCE(repeat_mode, 'none') as repeat_mode FROM todos WHERE id = ?"
-      ).bind(taskId).first<Todo>();
-
-      if (!task) {
+      // Xác thực chat.id khớp với env.TELEGRAM_CHAT_ID để bảo mật
+      if (c.env.TELEGRAM_CHAT_ID && chatId !== String(c.env.TELEGRAM_CHAT_ID).trim()) {
+        console.warn('[Telegram Webhook] Unauthorized chat ID:', chatId);
         if (c.env.TELEGRAM_BOT_TOKEN) {
-          await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Không tìm thấy công việc tương ứng!');
+          await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Bạn không có quyền thực hiện thao tác này!', true);
         }
-        return c.json({ ok: true, message: 'Task not found' });
+        return c.json({ ok: false, error: 'Unauthorized chat ID' }, 403);
       }
 
-      let nextDueDate = task.due_date;
-      if (task.repeat_mode && task.repeat_mode !== 'none' && task.due_date) {
-        const d = new Date(task.due_date);
-        if (!isNaN(d.getTime())) {
-          const increment = task.repeat_mode === 'daily' ? 1 : 7;
-          d.setDate(d.getDate() + increment);
-          while (d.getTime() < Date.now()) {
-            d.setDate(d.getDate() + increment);
+      if (c.env.DB) {
+        await ensureDbColumns(c.env.DB);
+      }
+
+      // 1.1 Hoàn thành công việc: complete_<task_id>
+      if (data.startsWith('complete_')) {
+        const taskId = data.replace('complete_', '');
+        const task = await c.env.DB.prepare(
+          "SELECT *, COALESCE(repeat_mode, 'none') as repeat_mode FROM todos WHERE id = ?"
+        ).bind(taskId).first<Todo>();
+
+        if (!task) {
+          if (c.env.TELEGRAM_BOT_TOKEN) {
+            await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Không tìm thấy công việc tương ứng!');
           }
-          nextDueDate = d.toISOString();
+          return c.json({ ok: true, message: 'Task not found' });
         }
-      }
 
-      const now = new Date().toISOString();
-      await c.env.DB.prepare(
-        'UPDATE todos SET is_completed = 1, due_date = ?, telegram_message_id = NULL, updated_at = ? WHERE id = ?'
-      ).bind(nextDueDate, now, taskId).run();
+        let nextDueDate = task.due_date;
+        if (task.repeat_mode && task.repeat_mode !== 'none' && task.due_date) {
+          const d = new Date(task.due_date);
+          if (!isNaN(d.getTime())) {
+            const increment = task.repeat_mode === 'daily' ? 1 : 7;
+            d.setDate(d.getDate() + increment);
+            while (d.getTime() < Date.now()) {
+              d.setDate(d.getDate() + increment);
+            }
+            nextDueDate = d.toISOString();
+          }
+        }
 
-      // Xóa tin nhắn nhắc nhở trên Telegram
-      if (messageId && c.env.TELEGRAM_BOT_TOKEN && c.env.TELEGRAM_CHAT_ID) {
-        await deleteTelegramMessage(c.env.TELEGRAM_BOT_TOKEN, c.env.TELEGRAM_CHAT_ID, messageId);
-      }
+        const now = new Date().toISOString();
+        await c.env.DB.prepare(
+          "UPDATE todos SET is_completed = 1, status = 'completed', due_date = ?, telegram_message_id = NULL, updated_at = ? WHERE id = ?"
+        ).bind(nextDueDate, now, taskId).run();
 
-      if (c.env.TELEGRAM_BOT_TOKEN) {
-        await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Đã hoàn thành công việc! 🎉');
-      }
-      return c.json({ ok: true, action: 'completed', taskId });
-    }
+        // Xóa tin nhắn nhắc nhở trên Telegram
+        if (messageId && c.env.TELEGRAM_BOT_TOKEN && c.env.TELEGRAM_CHAT_ID) {
+          await deleteTelegramMessage(c.env.TELEGRAM_BOT_TOKEN, c.env.TELEGRAM_CHAT_ID, messageId);
+        }
 
-    // 2. Hoãn 15 phút: snooze_<task_id>
-    if (data.startsWith('snooze_')) {
-      const taskId = data.replace('snooze_', '');
-      const task = await c.env.DB.prepare(
-        'SELECT * FROM todos WHERE id = ?'
-      ).bind(taskId).first<Todo>();
-
-      if (!task) {
         if (c.env.TELEGRAM_BOT_TOKEN) {
-          await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Không tìm thấy công việc tương ứng!');
+          await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Đã hoàn thành công việc! 🎉');
         }
-        return c.json({ ok: true, message: 'Task not found' });
+        return c.json({ ok: true, action: 'completed', taskId });
       }
 
-      // Cộng thêm 15 phút vào due_date
-      const currentDue = task.due_date ? new Date(task.due_date).getTime() : Date.now();
-      const baseTime = (isNaN(currentDue) || currentDue < Date.now()) ? Date.now() : currentDue;
-      const newDueTime = baseTime + 15 * 60 * 1000;
-      const newDueDate = new Date(newDueTime).toISOString();
-      const now = new Date().toISOString();
+      // 1.2 Hoãn 15 phút: snooze_<task_id>
+      if (data.startsWith('snooze_')) {
+        const taskId = data.replace('snooze_', '');
+        const task = await c.env.DB.prepare('SELECT * FROM todos WHERE id = ?').bind(taskId).first<Todo>();
 
-      await c.env.DB.prepare(
-        'UPDATE todos SET due_date = ?, is_completed = 0, telegram_message_id = NULL, updated_at = ? WHERE id = ?'
-      ).bind(newDueDate, now, taskId).run();
+        if (!task) {
+          if (c.env.TELEGRAM_BOT_TOKEN) {
+            await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Không tìm thấy công việc tương ứng!');
+          }
+          return c.json({ ok: true, message: 'Task not found' });
+        }
 
-      // Đặt lại trạng thái chưa gửi nhắc nhở (xóa reminder_logs của việc này)
-      await c.env.DB.prepare(
-        'DELETE FROM reminder_logs WHERE todo_id = ?'
-      ).bind(taskId).run();
+        // Cộng thêm 15 phút vào due_date
+        const currentDue = task.due_date ? new Date(task.due_date).getTime() : Date.now();
+        const baseTime = (isNaN(currentDue) || currentDue < Date.now()) ? Date.now() : currentDue;
+        const newDueTime = baseTime + 15 * 60 * 1000;
+        const newDueDate = new Date(newDueTime).toISOString();
+        const now = new Date().toISOString();
 
-      // Xóa tin nhắn Telegram cũ
-      if (messageId && c.env.TELEGRAM_BOT_TOKEN && c.env.TELEGRAM_CHAT_ID) {
-        await deleteTelegramMessage(c.env.TELEGRAM_BOT_TOKEN, c.env.TELEGRAM_CHAT_ID, messageId);
+        await c.env.DB.prepare(
+          'UPDATE todos SET due_date = ?, is_completed = 0, telegram_message_id = NULL, updated_at = ? WHERE id = ?'
+        ).bind(newDueDate, now, taskId).run();
+
+        // Đặt lại trạng thái chưa gửi nhắc nhở (xóa reminder_logs của việc này)
+        await c.env.DB.prepare('DELETE FROM reminder_logs WHERE todo_id = ?').bind(taskId).run();
+
+        // Xóa tin nhắn Telegram cũ
+        if (messageId && c.env.TELEGRAM_BOT_TOKEN && c.env.TELEGRAM_CHAT_ID) {
+          await deleteTelegramMessage(c.env.TELEGRAM_BOT_TOKEN, c.env.TELEGRAM_CHAT_ID, messageId);
+        }
+
+        if (c.env.TELEGRAM_BOT_TOKEN) {
+          await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Đã hoãn 15 phút (Hạn chót đã lùi +15p) ⏰');
+        }
+        return c.json({ ok: true, action: 'snoozed', taskId, new_due_date: newDueDate });
       }
 
-      if (c.env.TELEGRAM_BOT_TOKEN) {
-        await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Đã hoãn 15 phút (Hạn chót đã lùi +15p) ⏰');
+      // 1.3 Xóa công việc: delete_<task_id>
+      if (data.startsWith('delete_')) {
+        const taskId = data.replace('delete_', '');
+        await c.env.DB.prepare('DELETE FROM todos WHERE id = ?').bind(taskId).run();
+        try {
+          await c.env.DB.prepare('DELETE FROM reminder_logs WHERE todo_id = ?').bind(taskId).run();
+        } catch { }
+
+        if (messageId && c.env.TELEGRAM_BOT_TOKEN && c.env.TELEGRAM_CHAT_ID) {
+          await deleteTelegramMessage(c.env.TELEGRAM_BOT_TOKEN, c.env.TELEGRAM_CHAT_ID, messageId);
+        }
+
+        if (c.env.TELEGRAM_BOT_TOKEN) {
+          await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Đã xóa công việc! 🗑️');
+        }
+        return c.json({ ok: true, action: 'deleted', taskId });
       }
-      return c.json({ ok: true, action: 'snoozed', taskId, new_due_date: newDueDate });
+
+      // 1.4 Xem danh sách việc hôm nay: cmd_today
+      if (data === 'cmd_today') {
+        const userId = await getDefaultUserId(c.env.DB);
+        const resp = await buildTodayTasksResponse(c.env, userId);
+        await sendTelegramMessage(c.env.TELEGRAM_BOT_TOKEN, chatId, resp.text, resp.replyMarkup);
+        if (c.env.TELEGRAM_BOT_TOKEN) {
+          await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Đã tải danh sách việc hôm nay');
+        }
+        return c.json({ ok: true, action: 'cmd_today' });
+      }
+
+      // 1.5 Xem việc trễ hạn: cmd_overdue
+      if (data === 'cmd_overdue') {
+        const userId = await getDefaultUserId(c.env.DB);
+        const resp = await buildOverdueTasksResponse(c.env, userId);
+        await sendTelegramMessage(c.env.TELEGRAM_BOT_TOKEN, chatId, resp.text, resp.replyMarkup);
+        if (c.env.TELEGRAM_BOT_TOKEN) {
+          await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Đã tải danh sách việc trễ hạn');
+        }
+        return c.json({ ok: true, action: 'cmd_overdue' });
+      }
+
+      // 1.6 Xem thống kê: cmd_stats
+      if (data === 'cmd_stats') {
+        const userId = await getDefaultUserId(c.env.DB);
+        const resp = await buildStatsResponse(c.env, userId);
+        await sendTelegramMessage(c.env.TELEGRAM_BOT_TOKEN, chatId, resp.text, resp.replyMarkup);
+        if (c.env.TELEGRAM_BOT_TOKEN) {
+          await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Đã tải báo cáo thống kê');
+        }
+        return c.json({ ok: true, action: 'cmd_stats' });
+      }
+
+      // 1.7 Dời tất cả việc chưa xong sang ngày mai: snooze_all_tomorrow
+      if (data === 'snooze_all_tomorrow') {
+        const userId = await getDefaultUserId(c.env.DB);
+        if (!userId) {
+          if (c.env.TELEGRAM_BOT_TOKEN) {
+            await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Không tìm thấy tài khoản người dùng.');
+          }
+          return c.json({ ok: true });
+        }
+        const now = new Date().toISOString();
+        const incompleteRes = await c.env.DB.prepare(
+          "SELECT id, due_date FROM todos WHERE user_id = ? AND is_completed = 0 AND deleted_at IS NULL"
+        ).bind(userId).all<{ id: string; due_date: string | null }>();
+        const incompleteTasks = incompleteRes.results || [];
+        for (const t of incompleteTasks) {
+          let newDue: string;
+          if (t.due_date) {
+            const dt = new Date(t.due_date);
+            dt.setDate(dt.getDate() + 1);
+            newDue = dt.toISOString();
+          } else {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(9, 0, 0, 0);
+            newDue = tomorrow.toISOString();
+          }
+          await c.env.DB.prepare("UPDATE todos SET due_date = ?, updated_at = ? WHERE id = ?").bind(newDue, now, t.id).run();
+        }
+        if (c.env.TELEGRAM_BOT_TOKEN) {
+          await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, `Đã dời ${incompleteTasks.length} việc sang ngày mai! 🌅`);
+        }
+        return c.json({ ok: true, action: 'snooze_all_tomorrow', count: incompleteTasks.length });
+      }
+
+      return c.json({ ok: true, message: 'Unknown callback query' });
     }
 
-    return c.json({ ok: true, message: 'Unknown action' });
+    // ────────────────────────────────────────────────────────────
+    // 2. Xử lý Tin nhắn Chat trực tiếp với Telegram Bot (@hgc_todolist_bot)
+    // ────────────────────────────────────────────────────────────
+    if (update.message) {
+      const msg = update.message;
+      const chatId = String(msg.chat?.id || '');
+      let text = String(msg.text || '').trim();
+
+      // Xác thực chat.id
+      if (c.env.TELEGRAM_CHAT_ID && chatId !== String(c.env.TELEGRAM_CHAT_ID).trim()) {
+        console.warn('[Telegram Webhook] Unauthorized message from chat ID:', chatId);
+        return c.json({ ok: false, error: 'Unauthorized chat ID' }, 403);
+      }
+
+      // Xử lý Voice Note hoặc Audio message bằng Workers AI Whisper
+      let isVoiceNote = false;
+      if (!text && (msg.voice || msg.audio)) {
+        const fileId = msg.voice?.file_id || msg.audio?.file_id;
+        if (fileId && c.env.TELEGRAM_BOT_TOKEN && c.env.AI) {
+          try {
+            const audioBytes = await downloadTelegramFile(c.env.TELEGRAM_BOT_TOKEN, fileId);
+            if (audioBytes && audioBytes.length > 0) {
+              const audioArray = new Array(audioBytes.length);
+              for (let i = 0; i < audioBytes.length; i++) {
+                audioArray[i] = audioBytes[i];
+              }
+              const whisperResult: any = await c.env.AI.run('@cf/openai/whisper', {
+                audio: audioArray
+              });
+              if (whisperResult && whisperResult.text) {
+                text = whisperResult.text.trim();
+                isVoiceNote = true;
+              }
+            }
+          } catch (voiceErr: any) {
+            console.error('[Telegram Voice] Whisper transcription error:', voiceErr);
+            await sendTelegramMessage(
+              c.env.TELEGRAM_BOT_TOKEN,
+              chatId,
+              '❌ <i>Không thể nhận diện giọng nói từ tin nhắn thoại. Vui lòng thử lại hoặc gõ văn bản!</i>'
+            );
+            return c.json({ ok: false, error: 'Voice transcription failed' });
+          }
+        }
+      }
+
+      if (!text) {
+        return c.json({ ok: true, message: 'No text or voice message' });
+      }
+
+      const userId = await getDefaultUserId(c.env.DB);
+      if (!userId) {
+        await sendTelegramMessage(
+          c.env.TELEGRAM_BOT_TOKEN,
+          chatId,
+          '⚠️ <b>Hệ thống chưa có tài khoản nào.</b>\nVui lòng đăng nhập hoặc đăng ký tài khoản trên web app trước:\n👉 <a href="https://app.todolists.workers.dev">Mở ứng dụng</a>'
+        );
+        return c.json({ ok: true, error: 'No user registered' });
+      }
+
+      const lowerText = text.toLowerCase();
+
+      // 2.1 Lệnh trợ giúp / Bắt đầu
+      if (lowerText === '/start' || lowerText === '/help') {
+        const resp = buildHelpResponse();
+        await sendTelegramMessage(c.env.TELEGRAM_BOT_TOKEN, chatId, resp.text, resp.replyMarkup);
+        return c.json({ ok: true, command: lowerText });
+      }
+
+      // 2.2 Lệnh xem việc hôm nay
+      if (lowerText === '/today') {
+        const resp = await buildTodayTasksResponse(c.env, userId);
+        await sendTelegramMessage(c.env.TELEGRAM_BOT_TOKEN, chatId, resp.text, resp.replyMarkup);
+        return c.json({ ok: true, command: '/today' });
+      }
+
+      // 2.3 Lệnh xem việc trễ hạn
+      if (lowerText === '/overdue') {
+        const resp = await buildOverdueTasksResponse(c.env, userId);
+        await sendTelegramMessage(c.env.TELEGRAM_BOT_TOKEN, chatId, resp.text, resp.replyMarkup);
+        return c.json({ ok: true, command: '/overdue' });
+      }
+
+      // 2.4 Lệnh xem thống kê & streak
+      if (lowerText === '/stats') {
+        const resp = await buildStatsResponse(c.env, userId);
+        await sendTelegramMessage(c.env.TELEGRAM_BOT_TOKEN, chatId, resp.text, resp.replyMarkup);
+        return c.json({ ok: true, command: '/stats' });
+      }
+
+      // 2.5 Tự động tạo việc: /add <nội dung> hoặc nhập văn bản tự nhiên (Ví dụ: "Họp dự án 15h mai #gap")
+      const parsed = parseTaskFromText(text);
+      const newId = generateId();
+      const now = new Date().toISOString();
+      const tagsJson = JSON.stringify(parsed.tags || []);
+
+      await c.env.DB.prepare(
+        `INSERT INTO todos (id, user_id, title, description, category, priority, due_date, is_completed, is_pinned, repeat_mode, subtasks, tags, reminder_offset, status, position, created_at, updated_at)
+         VALUES (?, ?, ?, '', 'Personal', ?, ?, 0, 0, 'none', '[]', ?, 0, 'todo', 0, ?, ?)`
+      ).bind(
+        newId,
+        userId,
+        parsed.title,
+        parsed.priority,
+        parsed.dueDate,
+        tagsJson,
+        now,
+        now
+      ).run();
+
+      const pLabel = parsed.priority === 'High' ? '🔴 <b>Cao (High)</b>' : (parsed.priority === 'Low' ? '🟢 <b>Thấp (Low)</b>' : '🟡 <b>Trung bình (Medium)</b>');
+      const dueStr = parsed.dueDate ? formatVnDateTime(parsed.dueDate) : 'Không đặt hạn chót';
+      const tagsStr = parsed.tags.length > 0 ? parsed.tags.map(t => '#' + t).join(' ') : '';
+
+      const confirmLines = [
+        isVoiceNote ? `🎙️ <b>ĐÃ NHẬN DIỆN TỪ TIN NHẮN THOẠI & TẠO VIỆC THÀNH CÔNG!</b>` : `✅ <b>ĐÃ TẠO CÔNG VIỆC MỚI THÀNH CÔNG!</b>`,
+        ``,
+        `📌 <b>Tiêu đề:</b> <b>${escapeHtml(parsed.title)}</b>`,
+        `🕒 <b>Hạn chót:</b> ${dueStr}`,
+        `⚠️ <b>Mức độ ưu tiên:</b> ${pLabel}`,
+        tagsStr ? `🏷️ <b>Thẻ:</b> <code>${escapeHtml(tagsStr)}</code>` : '',
+        ``,
+        `👉 <a href="https://app.todolists.workers.dev">Xem trong ứng dụng To-Do List</a>`
+      ].filter(line => line !== '').join('\n');
+
+      const replyMarkup = {
+        inline_keyboard: [
+          [
+            { text: '✅ Hoàn thành', callback_data: `complete_${newId}` },
+            { text: '🗑️ Xóa việc này', callback_data: `delete_${newId}` }
+          ]
+        ]
+      };
+
+      await sendTelegramMessage(c.env.TELEGRAM_BOT_TOKEN, chatId, confirmLines, replyMarkup);
+      return c.json({ ok: true, action: 'task_created', id: newId, parsed });
+    }
+
+    return c.json({ ok: true, message: 'Unhandled update' });
   } catch (err: any) {
     console.error('[Telegram Webhook] Error:', err);
     return c.json({ ok: false, error: err.message }, 500);
@@ -1091,7 +1977,7 @@ app.get('/api/setup-telegram-webhook', async (c) => {
 });
 
 // GET /api/version — Kiểm tra phiên bản mới nhất để App iOS / PWA tự cập nhật ngầm
-export const APP_VERSION = '1.8.3';
+const APP_VERSION = '2.0.0';
 app.get('/api/version', (c) => {
   return c.json({
     version: APP_VERSION,
@@ -1141,6 +2027,16 @@ export default {
       await resetRecurringTasks(env.DB);
       // 2. Quét và gửi thông báo nhắc việc đến hạn qua Telegram Bot
       await checkAndSendReminders(env);
+      // 3. Gửi tóm tắt công việc Sáng (07:30) & Tối (21:30) qua Telegram
+      await checkAndSendDailyBriefings(env);
+      // 4. Tự động dọn dẹp các mục trong thùng rác đã xóa quá 30 ngày
+      try {
+        await env.DB.prepare(
+          "DELETE FROM todos WHERE deleted_at IS NOT NULL AND deleted_at < datetime('now', '-30 days')"
+        ).run();
+      } catch (err) {
+        console.error('[Scheduled trash cleanup error]:', err);
+      }
     } catch (err) {
       console.error('[Cloudflare Cron] Scheduled error:', err);
     }
