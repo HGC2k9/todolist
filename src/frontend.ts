@@ -291,10 +291,10 @@ export function renderHTML(): string {
 </div>
 
 <!-- ═══════ MAIN APPLICATION INTERFACE ═══════ -->
-<div x-show="authenticated" x-cloak class="min-h-screen flex flex-col">
+<div x-show="authenticated" x-cloak class="h-screen h-[100dvh] flex flex-col overflow-hidden bg-slate-50 dark:bg-[#0b0f19] text-slate-900 dark:text-slate-100 font-sans">
 
   <!-- ─── HEADER ĐÃ SỬA: ĐỆM AN TOÀN TRÁNH TAI THỎ / DYNAMIC ISLAND ─── -->
-  <header class="sticky top-0 z-50 bg-white/90 dark:bg-[#0b0f19]/90 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 transition-all"
+  <header class="shrink-0 z-50 bg-white/95 dark:bg-[#0b0f19]/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 transition-all select-none"
           style="padding-top: calc(max(14px, env(safe-area-inset-top, 0px)) + 12px); padding-left: max(0.75rem, env(safe-area-inset-left, 0px)); padding-right: max(0.75rem, env(safe-area-inset-right, 0px));">
     <div class="max-w-5xl mx-auto px-2 sm:px-4 pb-3 flex items-center justify-between gap-2">
       
@@ -404,6 +404,9 @@ export function renderHTML(): string {
       </div>
     </div>
   </header>
+
+  <!-- ═══════ PHẦN 2: BODY CUỘN ĐỘC LẬP ═══════ -->
+  <div class="flex-1 overflow-y-auto overscroll-contain ios-scroll-body" style="padding-bottom: calc(max(1.25rem, env(safe-area-inset-bottom, 0px)) + 4rem);">
 
   <!-- ─── Banner thông báo nhắc nhở theo mức độ ưu tiên ─── -->
   <div x-show="imminentTodos.length > 0" x-cloak
@@ -707,13 +710,16 @@ export function renderHTML(): string {
                     :class="{
                       'bg-emerald-500 border-emerald-500 text-white shadow-emerald-500/20': todo.is_completed,
                       'bg-rose-50 dark:bg-rose-950/80 border-rose-500 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900': !todo.is_completed && isOverdue(todo),
-                      'border-slate-300 dark:border-slate-600 hover:border-brand-500 hover:bg-brand-50/40 dark:hover:bg-brand-950/40 bg-white dark:bg-slate-800 text-transparent': !todo.is_completed && !isOverdue(todo)
+                      'border-amber-400 dark:border-amber-600 bg-amber-50/50 dark:bg-amber-950/30 text-amber-500': !todo.is_completed && !isOverdue(todo) && hasUncompletedSubtasks(todo),
+                      'border-slate-300 dark:border-slate-600 hover:border-brand-500 hover:bg-brand-50/40 dark:hover:bg-brand-950/40 bg-white dark:bg-slate-800 text-transparent': !todo.is_completed && !isOverdue(todo) && !hasUncompletedSubtasks(todo)
                     }"
-                    :title="todo.is_completed ? 'Đã hoàn thành (Bấm để mở lại)' : (isOverdue(todo) ? 'Quá hạn (Tự hủy) - Bấm để xác nhận xong việc' : 'Đánh dấu hoàn thành')">
+                    :title="todo.is_completed ? 'Đã hoàn thành (Bấm để mở lại)' : (hasUncompletedSubtasks(todo) ? ('Còn ' + getUncompletedSubtasksCount(todo) + ' việc con chưa xong!') : (isOverdue(todo) ? 'Quá hạn (Tự hủy) - Bấm để xác nhận xong việc' : 'Đánh dấu hoàn thành'))">
               <!-- Đã xong: checkmark xanh lá -->
               <svg x-show="todo.is_completed" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
               <!-- Quá hạn: Dấu X đỏ tự hủy, bấm vào sẽ tick thành xong việc -->
               <svg x-show="!todo.is_completed && isOverdue(todo)" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              <!-- Còn việc con chưa xong: Chấm amber cảnh báo -->
+              <span x-show="!todo.is_completed && !isOverdue(todo) && hasUncompletedSubtasks(todo)" class="w-2 h-2 rounded-full bg-amber-500"></span>
             </button>
 
             <div class="flex-1 min-w-0">
@@ -1068,6 +1074,7 @@ export function renderHTML(): string {
       </div>
     </div>
   </main>
+  </div>
 
   <!-- ─── Floating Action Button (FAB) cho Mobile ─── -->
   <div class="fixed sm:hidden z-40"
@@ -1266,21 +1273,26 @@ export function renderHTML(): string {
        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
 
-  <div class="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-7 max-h-[90vh] overflow-y-auto ios-safe-bottom"
+  <div class="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 h-[88vh] sm:h-auto sm:max-h-[85vh] flex flex-col overflow-hidden ios-safe-bottom"
        x-transition:enter="transition ease-out duration-250" x-transition:enter-start="opacity-0 translate-y-6 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-6 sm:translate-y-0 sm:scale-95"
        @click.stop>
     
-    <div class="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-4 sm:hidden"></div>
+    <!-- ─── PHẦN 1: HEADER CỐ ĐỊNH (Thanh kéo + Tiêu đề + Nút đóng) ─── -->
+    <div class="shrink-0 px-5 sm:px-7 pt-4 pb-3 border-b border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900 select-none">
+      <!-- Thanh kéo cửa sổ mobile -->
+      <div class="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-3 sm:hidden cursor-grab active:cursor-grabbing"></div>
 
-    <div class="flex items-center justify-between mb-4">
-      <h2 id="todo-modal-title" class="text-lg sm:text-xl font-black text-slate-900 dark:text-white" x-text="editingTodo ? 'Chỉnh sửa công việc' : 'Tạo công việc mới'"></h2>
-      <button @click="showModal=false" aria-label="Đóng cửa sổ" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95">
-        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
+      <div class="flex items-center justify-between">
+        <h2 id="todo-modal-title" class="text-lg sm:text-xl font-black text-slate-900 dark:text-white" x-text="editingTodo ? 'Chỉnh sửa công việc' : 'Tạo công việc mới'"></h2>
+        <button @click="showModal=false" type="button" aria-label="Đóng cửa sổ" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 cursor-pointer">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
     </div>
 
-    <form @submit.prevent="saveTodo()" class="space-y-4">
+    <!-- ─── PHẦN 2: BODY CUỘN ĐỘC LẬP (Toàn bộ form nhập liệu) ─── -->
+    <form id="todo-create-form" @submit.prevent="saveTodo()" class="flex-1 overflow-y-auto px-5 sm:px-7 py-4 space-y-4 overscroll-contain">
       <!-- Bước 1: Tiêu đề công việc kèm Nhập liệu bằng giọng nói (Voice Input) -->
       <div>
         <div class="flex items-center justify-between mb-1">
@@ -1499,18 +1511,22 @@ export function renderHTML(): string {
         </label>
       </div>
 
-      <div class="flex gap-2.5 pt-2">
+    </form>
+
+    <!-- ─── PHẦN 3: FOOTER CỐ ĐỊNH (2 nút Hủy và "Tạo việc mới" / "Cập nhật") ─── -->
+    <div class="shrink-0 px-5 sm:px-7 py-3 sm:py-4 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm border-t border-slate-100 dark:border-slate-800/80 select-none">
+      <div class="flex gap-2.5">
         <button type="button" @click="showModal=false"
-                class="flex-1 h-11 px-4 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition text-sm active:scale-95 inline-flex items-center justify-center">
+                class="flex-1 h-11 px-4 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition text-sm active:scale-95 inline-flex items-center justify-center cursor-pointer">
           Huỷ
         </button>
-        <button type="submit" :disabled="todoSaving"
-                class="flex-1 h-11 px-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-2xl shadow-lg shadow-brand-500/25 transition disabled:opacity-60 inline-flex items-center justify-center gap-2 text-sm active:scale-95">
+        <button type="submit" form="todo-create-form" :disabled="todoSaving"
+                class="flex-1 h-11 px-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-2xl shadow-lg shadow-brand-500/25 transition disabled:opacity-60 inline-flex items-center justify-center gap-2 text-sm active:scale-95 cursor-pointer">
           <svg x-show="todoSaving" class="spinner w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4 31.4" stroke-linecap="round"/></svg>
           <span x-text="editingTodo ? 'Cập nhật' : 'Tạo việc mới'"></span>
         </button>
       </div>
-    </form>
+    </div>
   </div>
 </div>
 
@@ -1521,7 +1537,7 @@ export function renderHTML(): string {
 <!-- ═══════ MODAL XÁC NHẬN HOÀN THÀNH CÔNG VIỆC KÈM MINH CHỨNG (TÙY CHỌN) ═══════ -->
 <div x-show="showCompletionModal" x-cloak class="fixed inset-0 z-[125] flex items-center justify-center p-4"
      role="dialog" aria-modal="true" aria-labelledby="completion-modal-title">
-  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showCompletionModal=false"
+  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="closeCompletionModal()"
        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
   <div class="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 text-center"
@@ -1575,7 +1591,7 @@ export function renderHTML(): string {
 
     <!-- Action Buttons -->
     <div class="flex gap-2">
-      <button type="button" @click="showCompletionModal=false; completingTodo=null; completingProofPhoto=null;"
+      <button type="button" @click="closeCompletionModal()"
               class="flex-1 h-10 px-3 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition active:scale-95 inline-flex items-center justify-center cursor-pointer">
         Huỷ
       </button>
@@ -3598,53 +3614,90 @@ function app() {
       // 4. Nhận diện Ngày & Giờ (Time & Date)
       const now = new Date();
       let targetDate = new Date(now);
-      if (/ngày\s*mai|mai/.test(lower)) {
+      const isTomorrow = /ngày\s*mai|mai\b/.test(lower);
+      const isDayAfter = /ngày\s*kia/.test(lower);
+      if (isTomorrow) {
         targetDate.setDate(targetDate.getDate() + 1);
-      } else if (/ngày\s*kia/.test(lower)) {
+      } else if (isDayAfter) {
         targetDate.setDate(targetDate.getDate() + 2);
       }
 
-      let hour = 11;
+      let hour = null;
       let minute = 0;
       let hasTime = false;
 
-      const truaMatch = lower.match(/(?:lúc|vào)?\s*(\d{1,2})\s*(?:h|giờ)?\s*trưa/);
-      const chieuMatch = lower.match(/(?:lúc|vào)?\s*(\d{1,2})\s*(?:h|giờ)?\s*chiều/);
-      const toiMatch = lower.match(/(?:lúc|vào)?\s*(\d{1,2})\s*(?:h|giờ)?\s*tối/);
-      const sangMatch = lower.match(/(?:lúc|vào)?\s*(\d{1,2})\s*(?:h|giờ)?\s*sáng/);
-      const generalTimeMatch = lower.match(/(?:lúc|vào)?\s*(\d{1,2})(?:h|:|\s*giờ\s*)(\d{1,2})?/);
+      // 1. Buổi trưa: 10-13h trưa / trưa 10-13h
+      const truaMatch = lower.match(/(?:lúc|vào)?\s*(\d{1,2})(?:h|:| giờ )?(\d{1,2})?\s*(?:rưỡi)?\s*trưa|trưa\s*(?:lúc|vào)?\s*(\d{1,2})(?:h|:| giờ )?(\d{1,2})?/);
+      // 2. Buổi chiều: 1-6h chiều / chiều 1-6h
+      const chieuMatch = lower.match(/(?:lúc|vào)?\s*(\d{1,2})(?:h|:| giờ )?(\d{1,2})?\s*(?:rưỡi)?\s*chiều|chiều\s*(?:lúc|vào)?\s*(\d{1,2})(?:h|:| giờ )?(\d{1,2})?/);
+      // 3. Buổi tối: 6-11h tối / tối 6-11h
+      const toiMatch = lower.match(/(?:lúc|vào)?\s*(\d{1,2})(?:h|:| giờ )?(\d{1,2})?\s*(?:rưỡi)?\s*tối|tối\s*(?:lúc|vào)?\s*(\d{1,2})(?:h|:| giờ )?(\d{1,2})?/);
+      // 4. Buổi sáng: 1-11h sáng / sáng 1-11h
+      const sangMatch = lower.match(/(?:lúc|vào)?\s*(\d{1,2})(?:h|:| giờ )?(\d{1,2})?\s*(?:rưỡi)?\s*sáng|sáng\s*(?:lúc|vào)?\s*(\d{1,2})(?:h|:| giờ )?(\d{1,2})?/);
+      // 5. Buổi đêm: 9-12h đêm / đêm 9-12h
+      const demMatch = lower.match(/(?:lúc|vào)?\s*(\d{1,2})(?:h|:| giờ )?(\d{1,2})?\s*(?:rưỡi)?\s*đêm|đêm\s*(?:lúc|vào)?\s*(\d{1,2})(?:h|:| giờ )?(\d{1,2})?/);
+      // 6. Giờ chung: 14h, 15:30, 9h rưỡi, lúc 9 giờ
+      const generalTimeMatch = lower.match(/(?:lúc|vào)?\s*(\d{1,2})(?:h|:|\s*giờ\s*)(\d{1,2})?(?:\s*phút)?(?:\s*rưỡi)?/);
 
       if (truaMatch) {
         hasTime = true;
-        hour = parseInt(truaMatch[1], 10);
+        hour = parseInt(truaMatch[1] || truaMatch[3], 10);
+        minute = truaMatch[2] || truaMatch[4] ? parseInt(truaMatch[2] || truaMatch[4], 10) : (lower.includes('rưỡi') ? 30 : 0);
         if (hour <= 3) hour += 12;
       } else if (chieuMatch) {
         hasTime = true;
-        hour = parseInt(chieuMatch[1], 10);
+        hour = parseInt(chieuMatch[1] || chieuMatch[3], 10);
+        minute = chieuMatch[2] || chieuMatch[4] ? parseInt(chieuMatch[2] || chieuMatch[4], 10) : (lower.includes('rưỡi') ? 30 : 0);
         if (hour < 12) hour += 12;
       } else if (toiMatch) {
         hasTime = true;
-        hour = parseInt(toiMatch[1], 10);
+        hour = parseInt(toiMatch[1] || toiMatch[3], 10);
+        minute = toiMatch[2] || toiMatch[4] ? parseInt(toiMatch[2] || toiMatch[4], 10) : (lower.includes('rưỡi') ? 30 : 0);
         if (hour < 12) hour += 12;
       } else if (sangMatch) {
         hasTime = true;
-        hour = parseInt(sangMatch[1], 10);
+        hour = parseInt(sangMatch[1] || sangMatch[3], 10);
+        minute = sangMatch[2] || sangMatch[4] ? parseInt(sangMatch[2] || sangMatch[4], 10) : (lower.includes('rưỡi') ? 30 : 0);
+      } else if (demMatch) {
+        hasTime = true;
+        hour = parseInt(demMatch[1] || demMatch[3], 10);
+        minute = demMatch[2] || demMatch[4] ? parseInt(demMatch[2] || demMatch[4], 10) : (lower.includes('rưỡi') ? 30 : 0);
+        if (hour === 12) hour = 0;
+        else if (hour < 12) hour += 12;
       } else if (generalTimeMatch) {
         hasTime = true;
         hour = parseInt(generalTimeMatch[1], 10);
-        minute = generalTimeMatch[2] ? parseInt(generalTimeMatch[2], 10) : 0;
+        minute = generalTimeMatch[2] ? parseInt(generalTimeMatch[2], 10) : (lower.includes('rưỡi') ? 30 : 0);
       }
 
       const pad = n => String(n).padStart(2, '0');
-      targetDate.setHours(hour, minute, 0, 0);
-      const dueDatetimeStr = targetDate.getFullYear() + '-' + pad(targetDate.getMonth() + 1) + '-' + pad(targetDate.getDate()) + 'T' + pad(hour) + ':' + pad(minute);
+      if (hasTime && hour !== null) {
+        targetDate.setHours(hour, minute, 0, 0);
+        const dueDatetimeStr = targetDate.getFullYear() + '-' + pad(targetDate.getMonth() + 1) + '-' + pad(targetDate.getDate()) + 'T' + pad(hour) + ':' + pad(minute);
+        this.todoForm.due_datetime = dueDatetimeStr;
+        this.todoForm.daily_time = pad(hour) + ':' + pad(minute);
+        this.todoForm.weekly_time = pad(hour) + ':' + pad(minute);
+      } else if (isTomorrow || isDayAfter) {
+        const curH = now.getHours();
+        const curM = now.getMinutes();
+        targetDate.setHours(curH, curM, 0, 0);
+        const dueDatetimeStr = targetDate.getFullYear() + '-' + pad(targetDate.getMonth() + 1) + '-' + pad(targetDate.getDate()) + 'T' + pad(curH) + ':' + pad(curM);
+        this.todoForm.due_datetime = dueDatetimeStr;
+      } else {
+        // Nếu không nói giờ: giữ nguyên thời gian hiện tại
+        if (!this.todoForm.due_datetime) {
+          this.todoForm.due_datetime = this.getCurrentLocalDatetime();
+        }
+      }
 
       // 5. Tách lấy Tiêu đề & Mô tả sạch sẽ
       let cleanTitle = text
-        .replace(/(?:vào\s*lúc|lúc)\s*\d{1,2}(?:\s*h|\s*giờ|:)?\s*\d{0,2}\s*(?:trưa|chiều|tối|sáng)?/gi, '')
-        .replace(/\d{1,2}\s*(?:h|giờ|:)\s*\d{0,2}\s*(?:trưa|chiều|tối|sáng)?/gi, '')
-        .replace(/\b(?:hôm\s*nay|ngày\s*mai|mai|ngày\s*kia|gấp|khẩn\s*cấp|khẩn|ngay\s*lập\s*tức)\b/gi, '')
-        .replace(/^(?:hãy|tạo\s*việc|thêm\s*việc|nhắc\s*tôi|nhắc)\s+/gi, '')
+        .replace(/(?:vào\s*lúc|lúc)\s*\d{1,2}(?:\s*h|\s*giờ|:)?\s*\d{0,2}\s*(?:trưa|chiều|tối|sáng|đêm)?/gi, ' ')
+        .replace(/\d{1,2}\s*(?:h|giờ|:)\s*\d{0,2}\s*(?:trưa|chiều|tối|sáng|đêm)?/gi, ' ')
+        .replace(/(?:sáng|trưa|chiều|tối|đêm)\s*(?:vào\s*lúc|lúc)?\s*\d{1,2}(?:\s*h|\s*giờ|:)?\s*\d{0,2}/gi, ' ')
+        .replace(/\b(?:rưỡi|hôm\s*nay|ngày\s*mai|mai|ngày\s*kia|gấp|khẩn\s*cấp|khẩn|ngay\s*lập\s*tức|hỏa\s*tốc|quan\s*trọng)\b/gi, ' ')
+        .replace(/^(?:hãy|tạo\s*việc|thêm\s*việc|nhắc\s*tôi|nhắc)\s+/gi, ' ')
+        .replace(/\s+/g, ' ')
         .trim();
 
       if (!cleanTitle) cleanTitle = text;
@@ -3657,9 +3710,6 @@ function app() {
       this.todoForm.priority = priority;
       this.todoForm.reminder_offset = reminderOffset;
       this.todoForm.repeat_mode = repeatMode;
-      this.todoForm.due_datetime = dueDatetimeStr;
-      this.todoForm.daily_time = pad(hour) + ':' + pad(minute);
-      this.todoForm.weekly_time = pad(hour) + ':' + pad(minute);
 
       this.editingTodo = null;
       this.customCategoryMode = false;
@@ -4149,13 +4199,40 @@ function app() {
       }
     },
 
+    hasUncompletedSubtasks(todo) {
+      if (!todo) return false;
+      const subtasks = this.getSubtasks(todo);
+      return subtasks.some(st => !st.is_completed);
+    },
+
+    getUncompletedSubtasksCount(todo) {
+      if (!todo) return 0;
+      const subtasks = this.getSubtasks(todo);
+      return subtasks.filter(st => !st.is_completed).length;
+    },
+
+    closeCompletionModal() {
+      this.showCompletionModal = false;
+      this.completingTodo = null;
+      this.completingProofPhoto = null;
+      this.completingPhotoName = '';
+      this.completingUploadingPhoto = false;
+    },
+
     async toggleTodo(todo, e) {
       if (e?.currentTarget?.blur) e.currentTarget.blur();
       if (document.activeElement && typeof document.activeElement.blur === 'function') {
         document.activeElement.blur();
       }
-      // Nếu việc chưa làm: mở Modal xác nhận hoàn thành kèm ảnh minh chứng (Tùy chọn)
+      // Nếu việc chưa làm:
       if (!todo.is_completed) {
+        // Yêu cầu 5: Kiểm tra nếu việc con (subtasks) chưa hoàn thành thì chặn lại
+        const uncompletedCount = this.getUncompletedSubtasksCount(todo);
+        if (uncompletedCount > 0) {
+          this.showToast('⚠️ Chưa thể hoàn thành: còn ' + uncompletedCount + ' việc con chưa xong!', 'error');
+          return;
+        }
+
         this.completingTodo = todo;
         this.completingProofPhoto = null;
         this.completingPhotoName = '';
@@ -4169,24 +4246,36 @@ function app() {
     async confirmCompleteTask() {
       if (!this.completingTodo) return;
       const todo = this.completingTodo;
-      this.completingUploadingPhoto = true;
+      const proofPhoto = this.completingProofPhoto;
+      const photoName = this.completingPhotoName;
+
+      // Kiểm tra lại nếu có việc con chưa xong
+      const uncompletedCount = this.getUncompletedSubtasksCount(todo);
+      if (uncompletedCount > 0) {
+        this.showToast('⚠️ Không thể hoàn thành: còn ' + uncompletedCount + ' việc con chưa xong!', 'error');
+        this.closeCompletionModal();
+        return;
+      }
+
+      // Yêu cầu 1: ĐÓNG CỬA SỔ CONFIRM NGAY LẬP TỨC để đảm bảo không bị hiện lại hay treo modal
+      this.closeCompletionModal();
 
       try {
         // Tải ảnh minh chứng nếu có
-        if (this.completingProofPhoto) {
+        if (proofPhoto) {
           try {
-            const fileName = this.completingPhotoName || ('proof_' + Date.now() + '.jpg');
+            const fileName = photoName || ('proof_' + Date.now() + '.jpg');
             await this.api('/api/todos/' + todo.id + '/images', {
               method: 'POST',
               body: JSON.stringify({
-                image_data: this.completingProofPhoto,
+                image_data: proofPhoto,
                 file_name: fileName
               })
             });
             if (!this.todoImagesMap[todo.id]) this.todoImagesMap[todo.id] = [];
             this.todoImagesMap[todo.id].push({
               id: 'img_' + Date.now(),
-              image_data: this.completingProofPhoto,
+              image_data: proofPhoto,
               file_name: fileName
             });
           } catch (imgErr) {
@@ -4195,15 +4284,11 @@ function app() {
         }
 
         await this.executeToggleTodo(todo, 1);
-        this.playChime();
-        this.triggerConfetti();
-
-        this.showCompletionModal = false;
-        this.completingTodo = null;
-        this.completingProofPhoto = null;
-        this.completingPhotoName = '';
-      } finally {
-        this.completingUploadingPhoto = false;
+        try { this.playChime(); } catch {}
+        try { this.triggerConfetti(); } catch {}
+      } catch (err) {
+        console.error('Lỗi khi lưu trạng thái hoàn thành:', err);
+        this.showToast(err.message || 'Lỗi khi cập nhật công việc', 'error');
       }
     },
 

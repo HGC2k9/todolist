@@ -1149,6 +1149,20 @@ app.patch('/api/todos/:id/toggle', async (c) => {
     const now = new Date().toISOString();
     let nextDueDate = existing.due_date;
 
+    // Nếu đánh dấu hoàn thành: Kiểm tra việc con (subtasks) chưa xong thì chặn
+    if (newStatus === 1) {
+      let subtasks: any[] = [];
+      try {
+        subtasks = typeof existing.subtasks === 'string' ? JSON.parse(existing.subtasks || '[]') : (existing.subtasks || []);
+      } catch {
+        subtasks = [];
+      }
+      const uncompletedSubtasks = subtasks.filter((st: any) => !st.is_completed);
+      if (uncompletedSubtasks.length > 0) {
+        return c.json({ error: `Chưa thể hoàn thành: còn ${uncompletedSubtasks.length} việc con chưa xong!` }, 400);
+      }
+    }
+
     // Nếu công việc là hàng ngày hoặc hàng tuần và đang được đánh dấu hoàn thành:
     // Tự động đẩy due_date sang chu kỳ kế tiếp (+1 ngày hoặc +7 ngày)
     if (newStatus === 1 && existing.repeat_mode && existing.repeat_mode !== 'none' && existing.due_date) {
