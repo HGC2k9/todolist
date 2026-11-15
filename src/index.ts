@@ -333,6 +333,9 @@ async function ensureDbColumns(db: D1Database) {
     await db.prepare('ALTER TABLE todos ADD COLUMN actual_minutes INTEGER DEFAULT 0').run();
   } catch { }
   try {
+    await db.prepare('ALTER TABLE todos ADD COLUMN pomodoro_mode INTEGER DEFAULT 0').run();
+  } catch { }
+  try {
     await db.prepare(`
       CREATE TABLE IF NOT EXISTS todo_images (
         id TEXT PRIMARY KEY,
@@ -616,6 +619,8 @@ app.get('/api/todos', async (c) => {
     query += ' AND is_completed = 0';
   } else if (status === 'recurring') {
     query += " AND repeat_mode IN ('daily', 'weekly')";
+  } else if (status === 'pomodoro') {
+    query += ' AND pomodoro_mode = 1';
   } else if (status === 'overdue') {
     query += ' AND is_completed = 0 AND due_date IS NOT NULL AND due_date < ?';
     params.push(new Date().toISOString());
@@ -690,10 +695,11 @@ app.post('/api/todos', async (c) => {
     const position = typeof body.position === 'number' ? body.position : 0;
     const estimatedMinutes = typeof body.estimated_minutes === 'number' ? body.estimated_minutes : 0;
     const actualMinutes = typeof body.actual_minutes === 'number' ? body.actual_minutes : 0;
+    const pomodoroMode = body.pomodoro_mode ? 1 : 0;
 
     await c.env.DB.prepare(
-      `INSERT INTO todos (id, user_id, title, description, category, priority, due_date, is_completed, is_pinned, repeat_mode, subtasks, tags, reminder_offset, status, position, estimated_minutes, actual_minutes, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO todos (id, user_id, title, description, category, priority, due_date, is_completed, is_pinned, repeat_mode, subtasks, tags, reminder_offset, status, position, estimated_minutes, actual_minutes, pomodoro_mode, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       id,
       user.sub,
@@ -711,6 +717,7 @@ app.post('/api/todos', async (c) => {
       position,
       estimatedMinutes,
       actualMinutes,
+      pomodoroMode,
       now,
       now
     ).run();
@@ -800,6 +807,7 @@ app.put('/api/todos/:id', async (c) => {
     const position = body.position !== undefined ? body.position : (existing.position || 0);
     const estimatedMinutes = body.estimated_minutes !== undefined ? body.estimated_minutes : (existing.estimated_minutes || 0);
     const actualMinutes = body.actual_minutes !== undefined ? body.actual_minutes : (existing.actual_minutes || 0);
+    const pomodoroMode = body.pomodoro_mode !== undefined ? (body.pomodoro_mode ? 1 : 0) : ((existing as any).pomodoro_mode || 0);
 
     await c.env.DB.prepare(
       `UPDATE todos SET
@@ -818,6 +826,7 @@ app.put('/api/todos/:id', async (c) => {
         position = ?,
         estimated_minutes = ?,
         actual_minutes = ?,
+        pomodoro_mode = ?,
         telegram_message_id = ?,
         updated_at = ?
        WHERE id = ? AND user_id = ?`
@@ -837,6 +846,7 @@ app.put('/api/todos/:id', async (c) => {
       position,
       estimatedMinutes,
       actualMinutes,
+      pomodoroMode,
       newTelegramMessageId,
       now,
       todoId,

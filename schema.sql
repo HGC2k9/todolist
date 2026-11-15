@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS todos (
   tags         TEXT DEFAULT '[]',
   status       TEXT DEFAULT 'todo',
   position     INTEGER DEFAULT 0,
+  pomodoro_mode INTEGER DEFAULT 0,
   deleted_at   TEXT DEFAULT NULL,
   estimated_minutes INTEGER DEFAULT 0,
   actual_minutes INTEGER DEFAULT 0,

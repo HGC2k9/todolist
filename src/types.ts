@@ -43,6 +43,7 @@ export interface Todo {
   reminder_offset?: number;
   status?: 'todo' | 'in_progress' | 'completed';
   position?: number;
+  pomodoro_mode?: number | boolean;
   deleted_at?: string | null;
   estimated_minutes?: number;
   actual_minutes?: number;

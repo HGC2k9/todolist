@@ -11,6 +11,14 @@ const config: CapacitorConfig = {
   plugins: {
     CapacitorCookies: {
       enabled: true
+    },
+    SplashScreen: {
+      launchShowDuration: 0,
+      launchAutoHide: true
+    },
+    CapacitorUpdater: {
+      autoUpdate: false,
+      resetWhenUpdate: false
     }
   }
 };

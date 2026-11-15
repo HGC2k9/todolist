@@ -24,10 +24,11 @@ export function renderHTML(): string {
   <link rel="icon" type="image/png" href="/icon-192.png">
   <link rel="apple-touch-icon" href="/icon-192.png">
 
-  <!-- Font chữ Plus Jakarta Sans hiện đại, tinh gọn -->
+  <!-- Font chữ Plus Jakarta Sans hiện đại, tinh gọn (Non-blocking cho app offline iOS) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"></noscript>
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -728,6 +729,15 @@ export function renderHTML(): string {
                 </div>
 
                 <div class="flex-shrink-0 flex items-center gap-0.5 sm:gap-1">
+                  <!-- Bật/Tắt Pomodoro cho riêng việc này -->
+                  <button @click="togglePomodoroMode(todo, $event)"
+                          :aria-label="todo.pomodoro_mode ? ('Tắt Pomodoro: ' + todo.title) : ('Bật Pomodoro: ' + todo.title)"
+                          class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl inline-flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-90"
+                          :class="todo.pomodoro_mode ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-500 shadow-xs' : 'text-slate-300 dark:text-slate-600 hover:text-rose-500'"
+                          :title="todo.pomodoro_mode ? 'Đang bật Pomodoro Focus (Bấm để tắt)' : 'Bật chế độ Pomodoro cho việc này'">
+                    <span class="text-xs">🍅</span>
+                  </button>
+
                   <!-- Ghim (Pushpin Solid) -->
                   <button @click="togglePin(todo, $event)"
                           :aria-label="todo.is_pinned ? ('Bỏ ghim: ' + todo.title) : ('Ghim lên đầu: ' + todo.title)"
@@ -822,8 +832,9 @@ export function renderHTML(): string {
                     <svg class="w-3 h-3 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     <span x-text="(todo.actual_minutes || 0) + '/' + (todo.estimated_minutes || 0) + 'm'"></span>
                   </span>
-                  <button type="button" @click="openPomodoro(todo)"
-                          class="h-6 px-1.5 rounded-lg text-[10px] font-bold bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 inline-flex items-center gap-1 transition active:scale-95"
+                  <!-- Nút Pomodoro Focus: CHỈ hiển thị cho việc được bật chế độ Pomodoro -->
+                  <button x-show="Boolean(todo.pomodoro_mode)" type="button" @click="openPomodoro(todo)"
+                          class="h-6 px-1.5 rounded-lg text-[10px] font-bold bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 inline-flex items-center gap-1 transition active:scale-95 shadow-xs"
                           title="Tập trung Pomodoro cho việc này">
                     <span>🍅</span>
                     <span>Focus</span>
@@ -1567,6 +1578,18 @@ export function renderHTML(): string {
         </label>
       </div>
 
+      <!-- Bật chế độ Pomodoro (Focus Mode) cho riêng việc này -->
+      <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 mt-1">
+        <div class="flex items-center gap-2">
+          <span class="text-base flex-shrink-0">🍅</span>
+          <div>
+            <label for="pomodoroModeCheck" class="text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer select-none">Bật chế độ Pomodoro (Focus Mode)</label>
+            <div class="text-[10px] text-slate-500 dark:text-slate-400">Chỉ bật nút bấm tập trung đếm ngược Pomodoro 25p cho riêng việc này</div>
+          </div>
+        </div>
+        <input type="checkbox" id="pomodoroModeCheck" x-model="todoForm.pomodoro_mode" class="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 cursor-pointer" />
+      </div>
+
       <div class="flex gap-2.5 pt-2">
         <button type="button" @click="showModal=false"
                 class="flex-1 h-11 px-4 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition text-sm active:scale-95 inline-flex items-center justify-center">
@@ -2116,6 +2139,11 @@ function app() {
         value: 'overdue',
         label: 'Quá hạn',
         icon: '<svg class="w-3.5 h-3.5 text-rose-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>'
+      },
+      {
+        value: 'pomodoro',
+        label: 'Pomodoro',
+        icon: '<span class="text-xs">🍅</span>'
       }
     ],
 
@@ -2145,6 +2173,7 @@ function app() {
       weekly_day: new Date().getDay(),
       weekly_time: String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0'),
       is_pinned: false,
+      pomodoro_mode: false,
       subtasks: [],
       tags: [],
       reminder_offset: 0,
@@ -2240,12 +2269,16 @@ function app() {
       if (value === 'recurring') return this.stats.recurring;
       if (value === 'completed') return this.stats.completed;
       if (value === 'overdue') return this.stats.overdue;
+      if (value === 'pomodoro') return this.todos.filter(t => Boolean(t.pomodoro_mode) && !t.is_completed).length;
       return 0;
     },
 
     get sortedTodos() {
       if (!this.todos || this.todos.length === 0) return [];
-      const list = [...this.todos];
+      let list = [...this.todos];
+      if (this.filterStatus === 'pomodoro') {
+        list = list.filter(t => Boolean(t.pomodoro_mode));
+      }
       return list.sort((a, b) => {
         const aCompleted = a.is_completed ? 1 : 0;
         const bCompleted = b.is_completed ? 1 : 0;
@@ -2335,6 +2368,7 @@ function app() {
     get filteredSortedTodos() {
       const list = this.sortedTodos;
       if (this.filterTag === 'all') return list;
+      if (this.filterTag === 'pomodoro') return list.filter(t => Boolean(t.pomodoro_mode));
       return list.filter(t => {
         const tags = this.getTags(t);
         return tags.includes(this.filterTag);
@@ -2469,7 +2503,17 @@ function app() {
       window.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
       window.addEventListener('click', unlockAudio, { once: true, passive: true });
 
-      // 1b. Khởi tạo Native Capacitor Settings (StatusBar, Preferences, Maintenance & OTA)
+      // 1b. Khởi tạo Native Capacitor Settings (StatusBar, SplashScreen, Preferences, Maintenance & OTA)
+      if (window.Capacitor?.Plugins?.SplashScreen) {
+        try {
+          await window.Capacitor.Plugins.SplashScreen.hide();
+        } catch {}
+      }
+      setTimeout(() => {
+        // An toàn: Gỡ bỏ x-cloak sau 300ms nếu có bất kỳ trục trặc render nào để màn hình không bao giờ bị trắng
+        document.querySelectorAll('[x-cloak]').forEach(el => el.removeAttribute('x-cloak'));
+      }, 300);
+
       if (window.Capacitor?.Plugins?.Preferences) {
         try {
           const prefToken = await window.Capacitor.Plugins.Preferences.get({ key: 'todo_auth_token' });
@@ -3731,6 +3775,7 @@ function app() {
         weekly_day: now.getDay(),
         weekly_time: currentTime,
         is_pinned: false,
+        pomodoro_mode: false,
         subtasks: [],
         tags: [],
         reminder_offset: 0,
@@ -3766,6 +3811,7 @@ function app() {
         weekly_day: dayVal,
         weekly_time: timeStr,
         is_pinned: Boolean(todo.is_pinned),
+        pomodoro_mode: Boolean(todo.pomodoro_mode),
         subtasks: this.getSubtasks(todo).map(st => ({ ...st })),
         tags: [...this.getTags(todo)],
         reminder_offset: todo.reminder_offset || 0,
@@ -3822,6 +3868,7 @@ function app() {
           repeat_mode: mode,
           due_date: dueDateISO,
           is_pinned: this.todoForm.is_pinned ? 1 : 0,
+          pomodoro_mode: this.todoForm.pomodoro_mode ? 1 : 0,
           subtasks: this.todoForm.subtasks || [],
           tags: this.todoForm.tags || [],
           reminder_offset: this.todoForm.reminder_offset || 0,
@@ -4295,6 +4342,23 @@ function app() {
     },
 
     // ─── POMODORO FOCUS TIMER ───
+    async togglePomodoroMode(todo, e) {
+      if (e?.stopPropagation) e.stopPropagation();
+      if (e?.currentTarget?.blur) e.currentTarget.blur();
+      const newMode = !Boolean(todo.pomodoro_mode);
+      todo.pomodoro_mode = newMode ? 1 : 0;
+      this.saveCachedTodos();
+      try {
+        await this.api('/api/todos/' + todo.id, {
+          method: 'PUT',
+          body: JSON.stringify({ pomodoro_mode: newMode ? 1 : 0 })
+        });
+        this.showToast(newMode ? '🍅 Đã bật Pomodoro cho: ' + todo.title : 'Đã tắt Pomodoro: ' + todo.title, 'info');
+      } catch (err) {
+        this.showToast('Lỗi cập nhật Pomodoro: ' + (err?.message || err), 'error');
+      }
+    },
+
     openPomodoro(todo) {
       this.pomodoroActiveTodo = todo || null;
       this.setPomodoroMode('focus');
@@ -4663,6 +4727,12 @@ function app() {
     }
   };
 }
+window.app = app;
+document.addEventListener('alpine:init', () => {
+  if (window.Alpine && window.Alpine.data) {
+    window.Alpine.data('app', app);
+  }
+});
 </script>
 
 </body>
