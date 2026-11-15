@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import vm from 'node:vm';
 import { renderHTML } from '../src/frontend';
 import { renderServiceWorker } from '../src/sw';
 
@@ -73,8 +74,20 @@ async function build() {
     'src="./vendor/sortable.min.js" onerror="this.onerror=null;this.src=\'https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js\'"'
   );
 
+  // Kiểm tra cú pháp an toàn cho toàn bộ embedded script để tránh lỗi trắng màn hình
+  const scriptMatches = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)];
+  for (let i = 0; i < scriptMatches.length; i++) {
+    const scriptBody = scriptMatches[i][1].trim();
+    if (!scriptBody) continue;
+    try {
+      new vm.Script(scriptBody);
+    } catch (syntaxErr: any) {
+      throw new Error(`Phát hiện lỗi cú pháp JavaScript nhúng trong HTML (Script #${i}): ${syntaxErr.message}`);
+    }
+  }
+
   fs.writeFileSync(path.join(distDir, 'index.html'), html, 'utf8');
-  console.log(`   ✓ Đã tạo dist/index.html (${Math.round(html.length / 1024)} KB)`);
+  console.log(`   ✓ Đã tạo dist/index.html (${Math.round(html.length / 1024)} KB) - Cú pháp JavaScript 100% hợp lệ`);
 
   // 3. Sinh Service Worker dist/sw.js
   console.log('⚙️ Đang sinh dist/sw.js...');

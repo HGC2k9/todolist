@@ -2032,6 +2032,11 @@ const API_BASE = (
   (IS_CAPACITOR_NATIVE ? DEFAULT_API_BASE_URL : '')
 );
 
+function cleanBaseUrl(base) {
+  if (!base) return '';
+  return base.endsWith('/') ? base.slice(0, -1) : base;
+}
+
 function app() {
   return {
     authToken: localStorage.getItem('todo_auth_token') || '',
@@ -2583,7 +2588,7 @@ function app() {
       this.liveSyncInterval = setInterval(async () => {
         if (!this.authenticated || !navigator.onLine || this.isSyncing) return;
         try {
-          const syncUrl = (API_BASE ? API_BASE.replace(/\/$/, '') : '') + '/api/sync/version';
+          const syncUrl = cleanBaseUrl(API_BASE) + '/api/sync/version';
           const res = await fetch(syncUrl, {
             credentials: 'include',
             headers: this.authToken ? { 'Authorization': 'Bearer ' + this.authToken } : {}
@@ -3003,7 +3008,7 @@ function app() {
 
     async checkAppVersion(manual = false) {
       try {
-        const versionUrl = (API_BASE ? API_BASE.replace(/\/$/, '') : '') + '/api/version';
+        const versionUrl = cleanBaseUrl(API_BASE) + '/api/version';
         const res = await fetch(versionUrl, { cache: 'no-store' });
         if (!res.ok) return;
         const data = await res.json();
@@ -3077,7 +3082,8 @@ function app() {
     },
 
     async api(url, options = {}) {
-      const fullUrl = url.startsWith('http') ? url : (API_BASE ? (API_BASE.replace(/\/$/, '') + url) : url);
+      const base = cleanBaseUrl(API_BASE);
+      const fullUrl = url.startsWith('http') ? url : (base ? (base + (url.startsWith('/') ? url : '/' + url)) : url);
       const token = this.authToken || localStorage.getItem('todo_auth_token');
       const headers = {
         'Content-Type': 'application/json',
@@ -3528,7 +3534,7 @@ function app() {
           try {
             const formData = new FormData();
             formData.append('file', audioBlob, 'voice.webm');
-            const transcribeUrl = (API_BASE ? API_BASE.replace(/\/$/, '') : '') + '/api/ai/transcribe';
+            const transcribeUrl = cleanBaseUrl(API_BASE) + '/api/ai/transcribe';
             const res = await fetch(transcribeUrl, {
               method: 'POST',
               body: formData,
@@ -3587,7 +3593,7 @@ function app() {
 
             const formData = new FormData();
             formData.append('file', blob, 'voice.aac');
-            const transcribeUrl = (API_BASE ? API_BASE.replace(/\/$/, '') : '') + '/api/ai/transcribe';
+            const transcribeUrl = cleanBaseUrl(API_BASE) + '/api/ai/transcribe';
             const res = await fetch(transcribeUrl, {
               method: 'POST',
               body: formData,
