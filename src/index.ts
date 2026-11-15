@@ -156,12 +156,12 @@ export async function checkAndSendReminders(env: Env): Promise<{ checked: number
       const dueTime = new Date(normalizedDate).getTime();
       if (isNaN(dueTime)) continue;
 
-      const offsetMin = task.reminder_offset || 0;
-      let windowMin = offsetMin > 0 ? offsetMin : (task.priority === 'High' ? 30 : (task.priority === 'Medium' ? 15 : 10));
+      const offsetMin = (task.reminder_offset !== undefined && task.reminder_offset !== null) ? task.reminder_offset : 0;
+      const windowMin = offsetMin;
       const minLeft = Math.ceil((dueTime - now) / 60000);
 
-      // Nằm trong khung thông báo: từ lúc đến mốc windowMin và chưa trễ quá 5 phút
-      const isDueForReminder = minLeft <= windowMin && minLeft >= -5;
+      // Bắt đầu thông báo khi chạm đúng mốc nhắc trước (minLeft <= windowMin) và chưa trễ quá 10 phút
+      const isDueForReminder = minLeft <= windowMin && minLeft >= -10;
       if (isDueForReminder) {
         // Kiểm tra xem đã gửi nhắc nhở gần đây chưa
         const logRes = await env.DB.prepare(
@@ -172,23 +172,24 @@ export async function checkAndSendReminders(env: Env): Promise<{ checked: number
         const totalCount = logRes?.total_count || 0;
 
         // Quy tắc chuông thông báo (Notification with Sound):
-        // 1. Nhắc lần đầu tiên khi vừa đến mốc nhắc ("khi đến lúc nhắc")
-        // 2. Low: nhắc 1 lần lúc công việc còn 5 phút (tối đa 2 lần nhắc)
-        // 3. Medium: nhắc lặp lại mỗi 5 phút
-        // 4. High: nhắc lặp lại mỗi 3 phút
+        // Mức độ ưu tiên chỉ quyết định tần suất nhắc lặp lại:
+        // 1. Luôn nhắc chuông lần đầu tiên khi vừa chạm mốc nhắc trước (totalCount === 0)
+        // 2. High: phát chuông nhắc lặp lại mỗi 3 phút
+        // 3. Medium: phát chuông nhắc lặp lại mỗi 5 phút
+        // 4. Low: nhắc 1 lần lúc bắt đầu và 1 lần khi còn 5 phút (nếu mốc nhắc trước > 5p)
         let shouldNotifyWithSound = false;
         if (totalCount === 0) {
           shouldNotifyWithSound = true;
-        } else if (task.priority === 'Low') {
-          if (minLeft <= 5 && totalCount < 2) {
+        } else if (task.priority === 'High') {
+          if (now - lastNotified >= THREE_MINUTES_MS) {
             shouldNotifyWithSound = true;
           }
         } else if (task.priority === 'Medium') {
           if (now - lastNotified >= FIVE_MINUTES_MS) {
             shouldNotifyWithSound = true;
           }
-        } else if (task.priority === 'High') {
-          if (now - lastNotified >= THREE_MINUTES_MS) {
+        } else if (task.priority === 'Low') {
+          if (windowMin > 5 && minLeft <= 5 && totalCount < 2) {
             shouldNotifyWithSound = true;
           }
         }
@@ -679,10 +680,10 @@ app.get('/api/app-status', async (c) => {
     status: 'online',
     maintenance: false,
     maintenance_message: '',
-    app_version: '2.0.0',
+    app_version: '2.1.0',
     min_supported_version: '1.0.0',
     latest_bundle: {
-      version: '2.0.0',
+      version: '2.1.0',
       url: 'https://app.todolists.workers.dev/dist.zip',
     },
     server_time: new Date().toISOString()
@@ -2141,7 +2142,7 @@ app.get('/api/setup-telegram-webhook', async (c) => {
 });
 
 // GET /api/version — Kiểm tra phiên bản mới nhất để App iOS / PWA tự cập nhật ngầm
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.1.0';
 app.get('/api/version', (c) => {
   return c.json({
     version: APP_VERSION,
