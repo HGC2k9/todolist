@@ -140,47 +140,78 @@ export async function answerCallbackQuery(
 }
 
 /**
- * Gửi tin nhắn thông báo nhắc việc sắp đến hạn (Kèm 2 nút bấm: Hoàn thành & Hoãn 15 phút)
+ * Chỉnh sửa trực tiếp tin nhắn Telegram theo thời gian thực (Live Message)
  */
-export async function sendTelegramTaskReminder(
-  env: Env,
-  task: Todo,
-  minutesLeft: number
-): Promise<{ success: boolean; messageId?: number; error?: string }> {
-  if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) {
-    return { success: false, error: 'Chưa thiết lập biến môi trường Telegram' };
+export async function editTelegramMessage(
+  botToken?: string,
+  chatId?: string,
+  messageId?: number | null,
+  htmlText: string = '',
+  replyMarkup?: any
+): Promise<{ success: boolean; error?: string }> {
+  if (!botToken || !chatId || !messageId) {
+    return { success: false, error: 'Thiếu thông tin để sửa tin nhắn' };
   }
-
-  // Tự động xóa tin nhắn nhắc nhở cũ của việc này trước để cuộc trò chuyện luôn gọn gàng
-  if (task.telegram_message_id) {
-    await deleteTelegramMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, task.telegram_message_id);
+  try {
+    const payload: any = {
+      chat_id: chatId.trim(),
+      message_id: messageId,
+      text: htmlText,
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
+    };
+    if (replyMarkup) {
+      payload.reply_markup = replyMarkup;
+    }
+    const url = `https://api.telegram.org/bot${botToken.trim()}/editMessageText`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data: any = await res.json().catch(() => null);
+    if (!res.ok || (data && data.ok === false)) {
+      const errMsg = data?.description || `HTTP ${res.status}`;
+      return { success: false, error: errMsg };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
   }
+}
 
-  const priorityLabel = task.priority === 'High'
+/**
+ * Xây dựng nội dung tin nhắn nhắc nhở súc tích, ngắn gọn, hiển thị số phút trực tiếp
+ */
+export function buildTaskReminderContent(task: Todo, minutesLeft: number): { text: string; replyMarkup: any } {
+  const priorityTag = task.priority === 'High'
     ? '🔴 <b>Cao (High)</b>'
-    : (task.priority === 'Low' ? '🟢 <b>Thấp (Low)</b>' : '🟡 <b>Trung bình (Medium)</b>');
+    : (task.priority === 'Low' ? '🟢 <b>Thấp (Low)</b>' : '🟡 <b>Vừa (Medium)</b>');
 
-  const repeatLabel = task.repeat_mode === 'daily'
-    ? '🔁 Hàng ngày'
-    : (task.repeat_mode === 'weekly' ? '📅 Hàng tuần' : '');
+  const repeatTag = task.repeat_mode === 'weekly'
+    ? ' • <i>Hàng tuần</i>'
+    : (task.repeat_mode === 'daily' ? ' • <i>Hàng ngày</i>' : '');
 
-  const dueTimeStr = task.due_date ? formatVnDateTime(task.due_date) : 'Không xác định';
+  let countdownText = '';
+  if (minutesLeft > 0) {
+    countdownText = `⏳ Còn <b>${minutesLeft} phút</b>`;
+  } else if (minutesLeft === 0) {
+    countdownText = `🚨 <b>ĐẾN HẠN NGAY BÂY GIỜ!</b>`;
+  } else {
+    countdownText = `⚠️ <b>Đã quá hạn ${Math.abs(minutesLeft)} phút</b>`;
+  }
 
-  const message = [
-    `⏰ <b>NHẮC NHỞ CÔNG VIỆC SẮP ĐẾN HẠN</b>`,
-    ``,
-    `📌 <b>Công việc:</b> <b>${escapeHtml(task.title)}</b>`,
-    `⚠️ <b>Mức độ ưu tiên:</b> ${priorityLabel}`,
-    `⏳ <b>Thời gian còn lại:</b> khoảng <b>${minutesLeft} phút</b>`,
-    `🕒 <b>Hạn chót:</b> ${dueTimeStr}`,
-    task.category ? `🏷️ <b>Danh mục:</b> ${escapeHtml(task.category)}` : '',
-    repeatLabel ? `🔄 <b>Chu kỳ:</b> ${repeatLabel}` : '',
-    task.description ? `📝 <b>Ghi chú:</b> ${escapeHtml(task.description)}` : '',
-    ``,
-    `👉 <a href="https://app.todolists.workers.dev">Mở ứng dụng To-Do List</a>`
-  ].filter(line => line !== '').join('\n');
+  const dueTimeStr = task.due_date ? formatVnDateTime(task.due_date).split(' ')[0] : '';
+  const lines = [
+    `⏰ [${priorityTag}${repeatTag}] <b>${escapeHtml(task.title)}</b>`,
+    `${countdownText}${dueTimeStr ? ` • Hạn: <b>${dueTimeStr}</b>` : ''}`,
+  ];
+  if (task.description && task.description.trim()) {
+    const shortDesc = task.description.trim().slice(0, 60);
+    lines.push(`📝 <i>${escapeHtml(shortDesc)}</i>`);
+  }
+  lines.push(`👉 <a href="https://app.todolists.workers.dev">Mở ứng dụng To-Do List</a>`);
 
-  // Đính kèm nút bấm Inline Keyboard 2 chiều
   const replyMarkup = {
     inline_keyboard: [
       [
@@ -190,7 +221,50 @@ export async function sendTelegramTaskReminder(
     ]
   };
 
-  return sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, message, replyMarkup);
+  return { text: lines.join('\n'), replyMarkup };
+}
+
+/**
+ * Gửi mới hoặc cập nhật Live Message theo thời gian thực (tránh spam nhiều tin)
+ */
+export async function sendOrUpdateTelegramTaskReminder(
+  env: Env,
+  task: Todo,
+  minutesLeft: number,
+  forceNewNotification: boolean = false
+): Promise<{ success: boolean; messageId?: number; error?: string }> {
+  if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) {
+    return { success: false, error: 'Chưa thiết lập biến môi trường Telegram' };
+  }
+
+  const { text, replyMarkup } = buildTaskReminderContent(task, minutesLeft);
+
+  // 1. Cập nhật Live Message trên tin nhắn hiện có (không tạo tin mới, không làm phiền)
+  if (!forceNewNotification && task.telegram_message_id) {
+    const editRes = await editTelegramMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, task.telegram_message_id, text, replyMarkup);
+    if (editRes.success || editRes.error?.includes('message is not modified')) {
+      return { success: true, messageId: task.telegram_message_id };
+    }
+  }
+
+  // 2. Nếu đến mốc cần chuông nhắc (forceNewNotification) hoặc tin cũ không tồn tại:
+  // Luôn xóa tin nhắn cũ của việc này trước để bot tuyệt đối không bao giờ bị rối mắt/nhiều tin
+  if (task.telegram_message_id) {
+    await deleteTelegramMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, task.telegram_message_id);
+  }
+
+  return sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, text, replyMarkup);
+}
+
+/**
+ * Gửi tin nhắn thông báo nhắc việc sắp đến hạn (Kèm 2 nút bấm: Hoàn thành & Hoãn 15 phút)
+ */
+export async function sendTelegramTaskReminder(
+  env: Env,
+  task: Todo,
+  minutesLeft: number
+): Promise<{ success: boolean; messageId?: number; error?: string }> {
+  return sendOrUpdateTelegramTaskReminder(env, task, minutesLeft, true);
 }
 
 /**
@@ -524,12 +598,23 @@ export async function buildStatsResponse(env: Env, userId: string) {
   const nowIso = new Date().toISOString();
   const overdue = (await env.DB.prepare('SELECT COUNT(*) as count FROM todos WHERE user_id = ? AND is_completed = 0 AND deleted_at IS NULL AND due_date IS NOT NULL AND due_date < ?').bind(userId, nowIso).first<{ count: number }>())?.count || 0;
 
+  // Lấy lịch sử hoàn thành bảo toàn (kể cả khi đã xóa công việc)
+  let historyTimestamps: number[] = [];
+  let historyTotal = 0;
+  try {
+    const histRows = (await env.DB.prepare(
+      'SELECT completed_at FROM completion_history WHERE user_id = ?'
+    ).bind(userId).all<{ completed_at: string }>()).results || [];
+    historyTotal = histRows.length;
+    historyTimestamps = histRows.map(r => new Date(r.completed_at).getTime()).filter(t => !isNaN(t));
+  } catch {}
+
   // Lấy các mốc hoàn thành để tính Streak
   const completedRows = (await env.DB.prepare(
-    'SELECT updated_at FROM todos WHERE user_id = ? AND is_completed = 1 AND deleted_at IS NULL'
+    'SELECT updated_at FROM todos WHERE user_id = ? AND is_completed = 1'
   ).bind(userId).all<{ updated_at: string }>()).results || [];
 
-  const timestamps = completedRows.map(r => new Date(r.updated_at).getTime()).filter(t => !isNaN(t));
+  const timestamps = [...historyTimestamps, ...completedRows.map(r => new Date(r.updated_at).getTime()).filter(t => !isNaN(t))];
   const streak = calculateStreak(timestamps);
 
   const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -637,11 +722,16 @@ export async function buildEveningBriefing(env: Env, userId: string) {
     `SELECT * FROM todos WHERE user_id = ? AND is_completed = 0 AND deleted_at IS NULL AND due_date IS NOT NULL AND due_date <= ? ORDER BY due_date ASC`
   ).bind(userId, endOfDayUtc).all<Todo>()).results || [];
 
-  // Streak
+  // Streak kết hợp lịch sử (không bị mất khi xóa việc)
+  let histTimestamps: number[] = [];
+  try {
+    const histRows = (await env.DB.prepare('SELECT completed_at FROM completion_history WHERE user_id = ?').bind(userId).all<{ completed_at: string }>()).results || [];
+    histTimestamps = histRows.map(r => new Date(r.completed_at).getTime()).filter(t => !isNaN(t));
+  } catch {}
   const completedRows = (await env.DB.prepare(
-    'SELECT updated_at FROM todos WHERE user_id = ? AND is_completed = 1 AND deleted_at IS NULL'
+    'SELECT updated_at FROM todos WHERE user_id = ? AND is_completed = 1'
   ).bind(userId).all<{ updated_at: string }>()).results || [];
-  const streak = calculateStreak(completedRows.map(r => new Date(r.updated_at).getTime()).filter(t => !isNaN(t)));
+  const streak = calculateStreak([...histTimestamps, ...completedRows.map(r => new Date(r.updated_at).getTime()).filter(t => !isNaN(t))]);
 
   const todayStr = `${String(vnNow.getUTCDate()).padStart(2, '0')}/${String(vnNow.getUTCMonth() + 1).padStart(2, '0')}/${vnNow.getUTCFullYear()}`;
 

@@ -22,6 +22,8 @@ import { renderServiceWorker } from './sw';
 import { generateIOSMobileConfig } from './iosProfile';
 import {
   sendTelegramTaskReminder,
+  sendOrUpdateTelegramTaskReminder,
+  editTelegramMessage,
   sendTelegramTestMessage,
   sendTelegramMessage,
   deleteTelegramMessage,
@@ -35,6 +37,7 @@ import {
   buildStatsResponse,
   buildMorningBriefing,
   buildEveningBriefing,
+  calculateStreak,
   downloadTelegramFile
 } from './telegram';
 import { generateIcs, exportTodosJson, validateAndParseImportJson } from './export';
@@ -135,6 +138,7 @@ export async function checkAndSendReminders(env: Env): Promise<{ checked: number
 
   const now = Date.now();
   const FIVE_MINUTES_MS = 5 * 60 * 1000;
+  const THREE_MINUTES_MS = 3 * 60 * 1000;
 
   try {
     await ensureDbColumns(env.DB);
@@ -153,17 +157,11 @@ export async function checkAndSendReminders(env: Env): Promise<{ checked: number
       if (isNaN(dueTime)) continue;
 
       const offsetMin = task.reminder_offset || 0;
-      const targetReminderTime = dueTime - offsetMin * 60000;
-      const diffToTarget = targetReminderTime - now;
-      const minToTarget = Math.ceil(diffToTarget / 60000);
+      let windowMin = offsetMin > 0 ? offsetMin : (task.priority === 'High' ? 30 : (task.priority === 'Medium' ? 15 : 10));
       const minLeft = Math.ceil((dueTime - now) / 60000);
 
-      let windowMin = 15;
-      if (task.priority === 'High') windowMin = 30;
-      else if (task.priority === 'Low') windowMin = 5;
-
-      // Nằm trong khung thông báo: từ lúc đến mốc targetReminderTime (hoặc trước windowMin phút) và chưa trễ quá 5 phút
-      const isDueForReminder = minToTarget <= windowMin && minLeft >= -5;
+      // Nằm trong khung thông báo: từ lúc đến mốc windowMin và chưa trễ quá 5 phút
+      const isDueForReminder = minLeft <= windowMin && minLeft >= -5;
       if (isDueForReminder) {
         // Kiểm tra xem đã gửi nhắc nhở gần đây chưa
         const logRes = await env.DB.prepare(
@@ -173,27 +171,50 @@ export async function checkAndSendReminders(env: Env): Promise<{ checked: number
         const lastNotified = logRes?.last_notified || 0;
         const totalCount = logRes?.total_count || 0;
 
-        // High và Medium: lặp lại mỗi 5 phút một lần; Low: chỉ thông báo 1 lần duy nhất
-        const isRecurring = (task.priority === 'High' || task.priority === 'Medium');
-        const shouldNotify = isRecurring ? (now - lastNotified >= FIVE_MINUTES_MS) : (totalCount === 0);
+        // Quy tắc chuông thông báo (Notification with Sound):
+        // 1. Nhắc lần đầu tiên khi vừa đến mốc nhắc ("khi đến lúc nhắc")
+        // 2. Low: nhắc 1 lần lúc công việc còn 5 phút (tối đa 2 lần nhắc)
+        // 3. Medium: nhắc lặp lại mỗi 5 phút
+        // 4. High: nhắc lặp lại mỗi 3 phút
+        let shouldNotifyWithSound = false;
+        if (totalCount === 0) {
+          shouldNotifyWithSound = true;
+        } else if (task.priority === 'Low') {
+          if (minLeft <= 5 && totalCount < 2) {
+            shouldNotifyWithSound = true;
+          }
+        } else if (task.priority === 'Medium') {
+          if (now - lastNotified >= FIVE_MINUTES_MS) {
+            shouldNotifyWithSound = true;
+          }
+        } else if (task.priority === 'High') {
+          if (now - lastNotified >= THREE_MINUTES_MS) {
+            shouldNotifyWithSound = true;
+          }
+        }
 
-        if (shouldNotify) {
-          const res = await sendTelegramTaskReminder(env, task, minLeft);
+        if (shouldNotifyWithSound) {
+          // Gửi thông báo kèm chuông (Xóa tin cũ nếu có để giữ duy nhất 1 tin gọn gàng)
+          const res = await sendOrUpdateTelegramTaskReminder(env, task, minLeft, true);
           if (res.success) {
             sentCount++;
-            // Ghi nhật ký vào reminder_logs để không bị gửi lặp lại
+            // Ghi nhật ký vào reminder_logs
             const logId = crypto.randomUUID();
             await env.DB.prepare(
               `INSERT INTO reminder_logs (id, todo_id, notified_at) VALUES (?, ?, ?)`
             ).bind(logId, task.id, now).run();
 
             // Cập nhật ID tin nhắn Telegram mới nhất vào bảng todos để đồng bộ
-            if (res.messageId) {
+            if (res.messageId && res.messageId !== task.telegram_message_id) {
+              task.telegram_message_id = res.messageId;
               await env.DB.prepare(
                 `UPDATE todos SET telegram_message_id = ? WHERE id = ?`
               ).bind(res.messageId, task.id).run();
             }
           }
+        } else if (task.telegram_message_id) {
+          // Cập nhật Live Message theo thời gian thực (đếm lùi số phút trực tiếp, không gửi thêm tin gây rối)
+          await sendOrUpdateTelegramTaskReminder(env, task, minLeft, false);
         }
       }
     }
@@ -356,7 +377,86 @@ async function ensureDbColumns(db: D1Database) {
       )
     `).run();
   } catch { }
+  try {
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS completion_history (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        todo_id TEXT,
+        task_title TEXT NOT NULL,
+        completed_at TEXT NOT NULL,
+        date_str TEXT NOT NULL,
+        category TEXT,
+        priority TEXT,
+        actual_minutes INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `).run();
+    await db.prepare('CREATE INDEX IF NOT EXISTS idx_completion_history_user_date ON completion_history(user_id, date_str)').run();
+  } catch { }
+  try {
+    // Tự động sao lưu các công việc đã hoàn thành vào completion_history (bảo toàn dữ liệu chuỗi & thống kê)
+    await db.prepare(`
+      INSERT OR IGNORE INTO completion_history (id, user_id, todo_id, task_title, completed_at, date_str, category, priority, actual_minutes, created_at)
+      SELECT
+        'hist_' || id,
+        user_id,
+        id,
+        title,
+        updated_at,
+        substr(datetime(updated_at, '+7 hours'), 1, 10),
+        category,
+        priority,
+        actual_minutes,
+        created_at
+      FROM todos
+      WHERE is_completed = 1 AND updated_at IS NOT NULL
+    `).run();
+  } catch { }
   dbMigrated = true;
+}
+
+// ─── Helpers: Ghi nhận và bảo toàn lịch sử hoàn thành (Streak & Stats) ───
+async function recordCompletionHistory(
+  db: D1Database,
+  userId: string,
+  todoId: string,
+  title: string,
+  category?: string,
+  priority?: string,
+  actualMinutes: number = 0
+) {
+  try {
+    const now = new Date();
+    const vnTime = new Date(now.getTime() + 7 * 3600 * 1000);
+    const dateStr = `${vnTime.getUTCFullYear()}-${String(vnTime.getUTCMonth() + 1).padStart(2, '0')}-${String(vnTime.getUTCDate()).padStart(2, '0')}`;
+    const id = 'ch_' + generateId();
+    await db.prepare(`
+      INSERT INTO completion_history (id, user_id, todo_id, task_title, completed_at, date_str, category, priority, actual_minutes, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      id,
+      userId,
+      todoId,
+      title || 'Công việc',
+      now.toISOString(),
+      dateStr,
+      category || 'Khác',
+      priority || 'Medium',
+      actualMinutes || 0,
+      now.toISOString()
+    ).run();
+  } catch (err) {
+    console.warn('[recordCompletionHistory] Error:', err);
+  }
+}
+
+async function removeCompletionHistory(db: D1Database, userId: string, todoId: string) {
+  try {
+    await db.prepare('DELETE FROM completion_history WHERE user_id = ? AND todo_id = ?').bind(userId, todoId).run();
+  } catch (err) {
+    console.warn('[removeCompletionHistory] Error:', err);
+  }
 }
 
 // ─── Helper: Chuẩn hóa ngày ISO ───
@@ -853,6 +953,13 @@ app.put('/api/todos/:id', async (c) => {
       user.sub
     ).run();
 
+    // Đồng bộ lịch sử hoàn thành để bảo toàn Streak & Thống kê
+    if (isCompleted === 1 && existing.is_completed !== 1) {
+      await recordCompletionHistory(c.env.DB, user.sub, todoId, body.title || existing.title, body.category || existing.category, body.priority || existing.priority, actualMinutes);
+    } else if (isCompleted === 0 && existing.is_completed === 1) {
+      await removeCompletionHistory(c.env.DB, user.sub, todoId);
+    }
+
     const updated = await c.env.DB.prepare(
       "SELECT *, COALESCE(is_pinned, 0) as is_pinned, COALESCE(repeat_mode, 'none') as repeat_mode FROM todos WHERE id = ?"
     ).bind(todoId).first<Todo>();
@@ -1064,6 +1171,13 @@ app.patch('/api/todos/:id/toggle', async (c) => {
       'UPDATE todos SET is_completed = ?, due_date = ?, telegram_message_id = CASE WHEN ? = 1 THEN NULL ELSE telegram_message_id END, updated_at = ? WHERE id = ? AND user_id = ?'
     ).bind(newStatus, nextDueDate, newStatus, now, todoId, user.sub).run();
 
+    // Đồng bộ vào completion_history để bảo toàn Chuỗi Streak & Thống kê
+    if (newStatus === 1) {
+      await recordCompletionHistory(c.env.DB, user.sub, todoId, existing.title, existing.category, existing.priority, existing.actual_minutes || 0);
+    } else {
+      await removeCompletionHistory(c.env.DB, user.sub, todoId);
+    }
+
     const updated = await c.env.DB.prepare(
       "SELECT *, COALESCE(is_pinned, 0) as is_pinned, COALESCE(repeat_mode, 'none') as repeat_mode FROM todos WHERE id = ?"
     ).bind(todoId).first<Todo>();
@@ -1243,11 +1357,19 @@ app.get('/api/sync/version', async (c) => {
   });
 });
 
-// GET /api/analytics — Thống kê năng suất sâu (Weekly, on-time ratio, category distribution, time tracking)
+// GET /api/analytics — Thống kê năng suất sâu (Bảo toàn dữ liệu Streak & Thống kê khi xóa việc)
 app.get('/api/analytics', async (c) => {
   const user = c.get('user');
   const now = new Date();
   const vn = getVnDateParts(now);
+
+  // 1. Lấy dữ liệu từ completion_history (bảo toàn lịch sử vĩnh viễn)
+  let histRows: any[] = [];
+  try {
+    histRows = (await c.env.DB.prepare(
+      'SELECT id, todo_id, task_title, completed_at, date_str, category, priority, actual_minutes FROM completion_history WHERE user_id = ?'
+    ).bind(user.sub).all()).results || [];
+  } catch {}
 
   const allRes = await c.env.DB.prepare(
     'SELECT id, category, priority, due_date, is_completed, estimated_minutes, actual_minutes, created_at, updated_at FROM todos WHERE user_id = ? AND deleted_at IS NULL'
@@ -1255,8 +1377,17 @@ app.get('/api/analytics', async (c) => {
 
   const todos = allRes.results || [];
   const total = todos.length;
-  const completed = todos.filter(t => t.is_completed === 1).length;
-  const pending = total - completed;
+  const currentCompleted = todos.filter(t => t.is_completed === 1).length;
+  const pending = total - currentCompleted;
+
+  // Tổng số lần hoàn thành bảo toàn (kể cả khi đã xóa công việc trong danh sách hiện tại)
+  const totalCompletedLifetime = Math.max(histRows.length, currentCompleted);
+  const totalTasksLifetime = totalCompletedLifetime + pending;
+
+  // Tính Streak từ mốc thời gian hoàn thành của cả completion_history và todos
+  const histTimestamps = histRows.map(r => new Date(r.completed_at).getTime()).filter(t => !isNaN(t));
+  const activeTimestamps = todos.filter(t => t.is_completed === 1 && t.updated_at).map(t => new Date(t.updated_at).getTime()).filter(t => !isNaN(t));
+  const streak = calculateStreak([...histTimestamps, ...activeTimestamps]);
 
   let onTime = 0;
   let overdueCompleted = 0;
@@ -1275,13 +1406,34 @@ app.get('/api/analytics', async (c) => {
   const mondayStart = vn.mondayMs;
   const sundayEnd = mondayStart + 7 * 24 * 3600 * 1000;
 
+  // Đếm số công việc hoàn thành trong tuần này từ cả lịch sử và danh sách hiện hành
+  const weeklyTrackedKeys = new Set<string>();
+  for (const h of histRows) {
+    if (h.completed_at) {
+      const uTime = new Date(h.completed_at).getTime() + 7 * 3600 * 1000;
+      if (uTime >= mondayStart && uTime < sundayEnd) {
+        const dIdx = Math.floor((uTime - mondayStart) / (24 * 3600 * 1000));
+        if (dIdx >= 0 && dIdx < 7) {
+          const key = `${h.todo_id || h.id}_${dIdx}`;
+          if (!weeklyTrackedKeys.has(key)) {
+            weeklyTrackedKeys.add(key);
+            weekCounts[dIdx]++;
+          }
+        }
+      }
+    }
+  }
   for (const t of todos) {
     if (t.is_completed === 1 && t.updated_at) {
       const uTime = new Date(t.updated_at).getTime() + 7 * 3600 * 1000;
       if (uTime >= mondayStart && uTime < sundayEnd) {
         const dIdx = Math.floor((uTime - mondayStart) / (24 * 3600 * 1000));
         if (dIdx >= 0 && dIdx < 7) {
-          weekCounts[dIdx]++;
+          const key = `${t.id}_${dIdx}`;
+          if (!weeklyTrackedKeys.has(key)) {
+            weeklyTrackedKeys.add(key);
+            weekCounts[dIdx]++;
+          }
         }
       }
     }
@@ -1302,9 +1454,11 @@ app.get('/api/analytics', async (c) => {
 
   return c.json({
     total,
-    completed,
+    completed: currentCompleted,
     pending,
-    completion_rate: total > 0 ? Math.round((completed / total) * 100) : 0,
+    total_completed_lifetime: totalCompletedLifetime,
+    streak,
+    completion_rate: totalTasksLifetime > 0 ? Math.round((totalCompletedLifetime / totalTasksLifetime) * 100) : 0,
     on_time: onTime,
     overdue_completed: overdueCompleted,
     week_stats: daysOfWeek.map((day, idx) => ({ day, count: weekCounts[idx] })),

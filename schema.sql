@@ -92,3 +92,21 @@ CREATE TABLE IF NOT EXISTS briefing_logs (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(type, date_str)
 );
+
+-- Bảng lưu trữ lịch sử hoàn thành công việc (Bảo toàn dữ liệu tính Chuỗi Streak & Thống kê ngay cả khi xóa việc)
+CREATE TABLE IF NOT EXISTS completion_history (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  todo_id TEXT,
+  task_title TEXT NOT NULL,
+  completed_at TEXT NOT NULL,
+  date_str TEXT NOT NULL, -- YYYY-MM-DD theo giờ VN
+  category TEXT,
+  priority TEXT,
+  actual_minutes INTEGER DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_completion_history_user_date ON completion_history(user_id, date_str);
+CREATE INDEX IF NOT EXISTS idx_completion_history_todo_id ON completion_history(todo_id);
+

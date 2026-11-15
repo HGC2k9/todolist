@@ -58,6 +58,19 @@ export interface TodoImage {
   created_at: string;
 }
 
+export interface CompletionHistory {
+  id: string;
+  user_id: string;
+  todo_id?: string;
+  task_title: string;
+  completed_at: string;
+  date_str: string;
+  category?: string;
+  priority?: string;
+  actual_minutes?: number;
+  created_at: string;
+}
+
 export interface JWTPayload {
   sub: string;       // user id
   email: string;

@@ -839,15 +839,38 @@ export function renderHTML(): string {
                     <span>🍅</span>
                     <span>Focus</span>
                   </button>
+
+                  <!-- Nút Minh chứng hoàn thành (Chụp ảnh/Tải ảnh kết quả, có thể không chụp) -->
+                  <button type="button" @click="chooseOrCapturePhoto(todo.id)"
+                          class="h-6 px-1.5 rounded-lg text-[10px] font-bold border inline-flex items-center gap-1 transition active:scale-95 shadow-xs"
+                          :class="getTodoImages(todo.id).length > 0 ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'"
+                          title="Chụp ảnh hoặc chọn ảnh minh chứng kết quả hoàn thành">
+                    <span>📸</span>
+                    <span x-text="getTodoImages(todo.id).length > 0 ? ('Minh chứng (' + getTodoImages(todo.id).length + ')') : 'Minh chứng'"></span>
+                  </button>
                 </div>
               </div>
 
-              <!-- Ảnh đính kèm (Thumbnails Strip) -->
-              <div x-show="getTodoImages(todo.id).length > 0" class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 overflow-x-auto no-scrollbar">
-                <template x-for="img in getTodoImages(todo.id)" :key="img.id">
-                  <img :src="img.image_data" @click="openLightbox(img.image_data)" alt="Ảnh đính kèm"
-                       class="w-12 h-12 object-cover rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:opacity-80 transition hover:scale-105 flex-shrink-0" />
-                </template>
+              <!-- Khối Ảnh Minh chứng hoàn thành (Evidence Strip) -->
+              <div x-show="getTodoImages(todo.id).length > 0" class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                <div class="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
+                  <span class="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    <span>Ảnh minh chứng kết quả (<span x-text="getTodoImages(todo.id).length"></span>)</span>
+                  </span>
+                  <button type="button" @click="chooseOrCapturePhoto(todo.id)" class="text-[10px] text-brand-600 hover:underline font-bold cursor-pointer">+ Thêm ảnh</button>
+                </div>
+                <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+                  <template x-for="img in getTodoImages(todo.id)" :key="img.id">
+                    <div class="relative group flex-shrink-0">
+                      <img :src="img.image_data" @click="openLightbox(img.image_data)" alt="Ảnh minh chứng"
+                           class="w-12 h-12 sm:w-14 sm:h-14 object-cover rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:opacity-85 transition hover:scale-105 shadow-xs" />
+                      <button type="button" @click.stop="deleteImage(todo.id, img.id)"
+                              class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center text-[9px] font-black shadow-xs hover:bg-rose-600 transition cursor-pointer"
+                              title="Xóa ảnh minh chứng này">✕</button>
+                    </div>
+                  </template>
+                </div>
               </div>
 
               <!-- Việc con / Checklist -->
@@ -1544,28 +1567,36 @@ export function renderHTML(): string {
         </div>
       </div>
 
-      <!-- Ảnh đính kèm (D1 todo_images, Canvas compress <= 40KB & Native Camera/Album) -->
-      <div>
-        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
-          Ảnh đính kèm
-        </label>
-        <div class="flex flex-wrap gap-2 mb-2" x-show="editingTodoImages.length > 0">
+      <!-- Ảnh Minh chứng hoàn thành (Chụp ảnh/Upload kết quả sau khi làm xong, không bắt buộc) -->
+      <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80">
+        <div class="flex items-center justify-between mb-1">
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+            <span>📸</span>
+            <span>Ảnh Minh chứng hoàn thành</span>
+            <span class="text-[10px] lowercase font-normal text-slate-400">(không bắt buộc)</span>
+          </label>
+        </div>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-2.5 leading-relaxed">
+          Chụp ảnh hoặc chọn từ Album minh chứng sau khi hoàn thành công việc (có thể không chụp hoặc bổ sung sau).
+        </p>
+        <div class="flex flex-wrap gap-2 mb-2.5" x-show="editingTodoImages.length > 0">
           <template x-for="img in editingTodoImages" :key="img.id">
             <div class="relative group">
-              <img :src="img.image_data" @click="openLightbox(img.image_data)" alt="Ảnh"
-                   class="w-16 h-16 object-cover rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:opacity-80 transition" />
+              <img :src="img.image_data" @click="openLightbox(img.image_data)" alt="Ảnh minh chứng"
+                   class="w-16 h-16 object-cover rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:opacity-85 transition shadow-xs" />
               <button type="button" @click="deleteImage(editingTodo?.id, img.id)"
-                      class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px] font-black shadow-md hover:bg-rose-600 cursor-pointer">✕</button>
+                      class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px] font-black shadow-md hover:bg-rose-600 cursor-pointer"
+                      title="Xóa ảnh minh chứng">✕</button>
             </div>
           </template>
         </div>
         <div class="flex items-center gap-2">
           <button type="button" @click="chooseOrCapturePhoto(editingTodo?.id)"
-                  class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer transition active:scale-95 shadow-xs">
+                  class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer transition active:scale-95 shadow-xs">
             <svg class="w-4 h-4 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            <span x-text="imageUploading ? 'Đang nén & tải ảnh...' : '📷 Chụp ảnh / Album'"></span>
+            <span x-text="imageUploading ? 'Đang nén & tải ảnh...' : '📷 Chụp / Tải ảnh minh chứng'"></span>
           </button>
-          <input id="todo-image-input" type="file" accept="image/*" class="hidden" @change="handleImageUpload($event, editingTodo?.id)" :disabled="imageUploading" />
+          <input id="todo-image-input" type="file" accept="image/*" class="hidden" @change="handleImageUpload($event, activePhotoTodoId || editingTodo?.id)" :disabled="imageUploading" />
         </div>
       </div>
 
@@ -1677,6 +1708,34 @@ export function renderHTML(): string {
     <div class="flex gap-2.5">
       <button @click="showLogoutModal=false" class="flex-1 h-10 px-3 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 inline-flex items-center justify-center">Huỷ</button>
       <button @click="confirmLogoutAction()" class="flex-1 h-10 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/30 transition active:scale-95 inline-flex items-center justify-center">Đăng xuất ngay</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ UNIVERSAL CONFIRM MODAL ═══════ -->
+<div x-show="confirmDialog.show" x-cloak class="fixed inset-0 z-[125] flex items-center justify-center p-4"
+     role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title">
+  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="closeConfirm(false)"
+       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+  <div class="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 text-center animate-bounce-once"
+       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+       @click.stop>
+    <div class="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center mb-3 text-2xl shadow-xs"
+         :class="confirmDialog.isDanger ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-500' : 'bg-brand-50 dark:bg-brand-950/60 text-brand-500'">
+      <span x-text="confirmDialog.icon || '⚠️'"></span>
+    </div>
+    <h3 id="confirm-dialog-title" class="text-base font-bold text-slate-900 dark:text-white mb-1.5" x-text="confirmDialog.title"></h3>
+    <p class="text-xs text-slate-500 dark:text-slate-400 mb-5 leading-relaxed" x-text="confirmDialog.message"></p>
+    <div class="flex gap-2.5">
+      <button type="button" @click="closeConfirm(false)"
+              class="flex-1 h-10 px-3 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 inline-flex items-center justify-center cursor-pointer"
+              x-text="confirmDialog.cancelText || 'Hủy'"></button>
+      <button type="button" @click="closeConfirm(true)"
+              class="flex-1 h-10 px-3 text-white font-bold rounded-xl text-xs shadow-md transition active:scale-95 inline-flex items-center justify-center cursor-pointer"
+              :class="confirmDialog.isDanger ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/30' : 'bg-brand-600 hover:bg-brand-700 shadow-brand-600/30'"
+              x-text="confirmDialog.confirmText || 'Đồng ý'"></button>
     </div>
   </div>
 </div>
@@ -2219,8 +2278,24 @@ function app() {
     isRecordingVoiceMedia: false,
     mediaRecorder: null,
     audioChunks: [],
+    audioStream: null,
     voiceRecordingSeconds: 0,
     voiceTimerInterval: null,
+    activePhotoTodoId: null,
+
+    // Universal Confirmation Dialog
+    confirmDialog: {
+      show: false,
+      title: 'Xác nhận',
+      message: '',
+      confirmText: 'Đồng ý',
+      cancelText: 'Hủy',
+      icon: '⚠️',
+      isDanger: true,
+      resolve: null
+    },
+    historicalStreak: 0,
+    completedHistoryCount: 0,
 
     showDeleteModal: false,
     deletingTodo: null,
@@ -2385,8 +2460,9 @@ function app() {
     },
 
     get streak() {
+      const baseStreak = this.historicalStreak || 0;
       const completed = this.todos.filter(t => t.is_completed);
-      if (!completed.length) return 0;
+      if (!completed.length) return baseStreak;
       const dateSet = new Set();
       completed.forEach(t => {
         const time = new Date(t.updated_at || t.created_at).getTime();
@@ -2401,7 +2477,7 @@ function app() {
       const yestVn = new Date(Date.now() + 7 * 3600 * 1000 - 86400000);
       const yestStr = yestVn.getUTCFullYear() + '-' + pad(yestVn.getUTCMonth()+1) + '-' + pad(yestVn.getUTCDate());
       let check = dateSet.has(todayStr) ? new Date(nowVn.getTime()) : (dateSet.has(yestStr) ? new Date(yestVn.getTime()) : null);
-      if (!check) return 0;
+      if (!check) return baseStreak;
       let count = 0;
       while (true) {
         const str = check.getUTCFullYear() + '-' + pad(check.getUTCMonth()+1) + '-' + pad(check.getUTCDate());
@@ -2412,7 +2488,7 @@ function app() {
           break;
         }
       }
-      return count;
+      return Math.max(count, baseStreak);
     },
 
     get calendarTitle() {
@@ -3350,6 +3426,7 @@ function app() {
           this.saveCachedTodos();
         }
         this.checkDueReminders();
+        this.fetchAnalyticsSilently();
       } catch (err) {
         if (!isSilent) this.showToast(err.message, 'error');
       } finally {
@@ -3459,6 +3536,7 @@ function app() {
       }
     },
 
+    // ─── TÍCH HỢP MICRO NHẬN DIỆN GIỌNG NÓI TIẾNG VIỆT ───
     async startVoiceInput() {
       // Nếu đang ghi âm thì nhấn lần nữa để dừng và hoàn tất
       if (this.isListeningVoice || this.isRecordingVoiceMedia) {
@@ -3466,28 +3544,18 @@ function app() {
         return;
       }
 
-      // Ưu tiên Native: Capacitor VoiceRecorder (hoạt động tuyệt hảo trong WKWebView iOS)
-      if (window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('VoiceRecorder')) {
-        try {
-          const { VoiceRecorder } = window.Capacitor.Plugins;
-          const perm = await VoiceRecorder.requestAudioRecordingPermission();
-          if (!perm.value) {
-            this.showToast('Vui lòng cấp quyền Micro trong Cài đặt iPhone để nhận diện giọng nói', 'error');
-            return;
-          }
-          await VoiceRecorder.startRecording();
-          this.isRecordingVoiceMedia = true;
-          this.isListeningVoice = true;
-          this.showToast('🔴 Đang ghi âm giọng nói... Bấm lại Micro để dừng và tạo việc', 'info');
-          return;
-        } catch (e) {
-          console.warn('Native VoiceRecorder start error, fallback to Web:', e);
-        }
+      const isNative = !!(window.Capacitor?.isNativePlatform && window.Capacitor.isNativePlatform());
+
+      // 1. Nếu đang chạy trong App Native iOS (.ipa):
+      // Trong iOS WKWebView, Apple chặn/giới hạn Web Speech API mà không hiện thanh địa chỉ.
+      // Do đó, trên App Native luôn kích hoạt trực tiếp micro qua getUserMedia + Whisper AI!
+      if (isNative) {
+        await this.startMediaRecorderVoice();
+        return;
       }
 
+      // 2. Trên trình duyệt Web máy tính / Android Chrome: Thử dùng Web Speech API
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-      // Ưu tiên 1: Web Speech API trực tiếp
       if (SpeechRecognition) {
         try {
           const recognition = new SpeechRecognition();
@@ -3514,12 +3582,13 @@ function app() {
               return;
             }
             if (err.error === 'not-allowed' || err.error === 'service-not-allowed' || err.error === 'permission-denied') {
-              this.showToast('Vui lòng nhấn vào biểu tượng ổ khóa trên thanh địa chỉ để CHO PHÉP quyền Micro!', 'error');
+              this.showToast('Vui lòng cấp quyền Micro trên trình duyệt để ghi âm giọng nói', 'error');
               return;
             }
             if (err.error === 'aborted') {
               return;
             }
+            // Fallback sang Whisper AI
             this.startMediaRecorderVoice();
           };
 
@@ -3530,16 +3599,18 @@ function app() {
           recognition.start();
           return;
         } catch (err) {
-          console.warn('[SpeechRecognition] Start error, fallback to MediaRecorder:', err);
+          console.warn('[SpeechRecognition] Start error, fallback to Whisper AI:', err);
           this.isListeningVoice = false;
         }
       }
 
-      // Ưu tiên 2 / Fallback: MediaRecorder + Cloudflare Workers AI Whisper
+      // 3. Fallback ghi âm và nhận diện qua Cloudflare Workers AI Whisper
       await this.startMediaRecorderVoice();
     },
 
     async startMediaRecorderVoice() {
+      const isNative = !!(window.Capacitor?.isNativePlatform && window.Capacitor.isNativePlatform());
+
       const getUserMedia = (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
         ? (c) => navigator.mediaDevices.getUserMedia(c)
         : (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia)
@@ -3547,16 +3618,26 @@ function app() {
           : null;
 
       if (!getUserMedia) {
-        this.showToast('Micro yêu cầu kết nối bảo mật HTTPS hoặc cấp quyền trong Cài đặt ứng dụng', 'error');
+        const msg = isNative
+          ? 'Vui lòng kiểm tra quyền Micro trong Cài đặt iPhone > ToDoList'
+          : 'Micro yêu cầu kết nối bảo mật HTTPS hoặc cấp quyền trong trình duyệt';
+        this.showToast(msg, 'error');
         return;
       }
 
       try {
         const stream = await getUserMedia({ audio: true });
         this.audioChunks = [];
-        const mimeType = (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm')) 
-          ? 'audio/webm' 
-          : ((typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/mp4')) ? 'audio/mp4' : '');
+        this.audioStream = stream;
+
+        // Ưu tiên các định dạng codec tương thích cao (mp4, webm, aac)
+        let mimeType = '';
+        if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported) {
+          if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
+          else if (MediaRecorder.isTypeSupported('audio/webm')) mimeType = 'audio/webm';
+          else if (MediaRecorder.isTypeSupported('audio/aac')) mimeType = 'audio/aac';
+        }
+
         this.mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
 
         this.mediaRecorder.ondataavailable = (e) => {
@@ -3566,18 +3647,24 @@ function app() {
         };
 
         this.mediaRecorder.onstop = async () => {
-          stream.getTracks().forEach(t => t.stop());
+          if (this.audioStream) {
+            this.audioStream.getTracks().forEach(t => t.stop());
+            this.audioStream = null;
+          }
           this.isRecordingVoiceMedia = false;
           this.isListeningVoice = false;
           clearInterval(this.voiceTimerInterval);
 
           if (this.audioChunks.length === 0) return;
-          const audioBlob = new Blob(this.audioChunks, { type: this.mediaRecorder.mimeType || 'audio/webm' });
-          this.showToast('🔄 Đang nhận diện qua Whisper AI...', 'info');
+          const actualMime = this.mediaRecorder.mimeType || 'audio/mp4';
+          const audioBlob = new Blob(this.audioChunks, { type: actualMime });
+          const fileExt = actualMime.includes('webm') ? 'voice.webm' : (actualMime.includes('mp4') ? 'voice.mp4' : 'voice.aac');
+
+          this.showToast('🔄 Đang nhận diện tiếng Việt qua Whisper AI...', 'info');
 
           try {
             const formData = new FormData();
-            formData.append('file', audioBlob, 'voice.webm');
+            formData.append('file', audioBlob, fileExt);
             const transcribeUrl = cleanBaseUrl(API_BASE) + '/api/ai/transcribe';
             const res = await fetch(transcribeUrl, {
               method: 'POST',
@@ -3591,10 +3678,10 @@ function app() {
               this.todoForm.title = this.todoForm.title ? (this.todoForm.title + ' ' + text) : text;
               this.showToast('🎙️ Whisper AI: "' + text + '"', 'success');
             } else {
-              this.showToast('Không nhận diện được nội dung: ' + (data.error || 'Thử lại'), 'error');
+              this.showToast('Không nhận diện được nội dung: ' + (data.error || 'Vui lòng nói rõ hơn'), 'error');
             }
           } catch (err) {
-            this.showToast('Lỗi nhận diện giọng nói: ' + err.message, 'error');
+            this.showToast('Lỗi nhận diện giọng nói: ' + (err.message || err), 'error');
           }
         };
 
@@ -3602,68 +3689,42 @@ function app() {
         this.isRecordingVoiceMedia = true;
         this.isListeningVoice = true;
         this.voiceRecordingSeconds = 0;
-        this.showToast('🔴 Đang ghi âm (Whisper AI)... Nhấn nút Micro để dừng', 'info');
+        this.showToast('🔴 Đang ghi âm (Whisper AI)... Nhấn lại nút Micro để dừng', 'info');
 
         this.voiceTimerInterval = setInterval(() => {
           this.voiceRecordingSeconds++;
-          if (this.voiceRecordingSeconds >= 15) {
+          if (this.voiceRecordingSeconds >= 20) {
             this.stopVoiceRecording();
           }
         }, 1000);
       } catch (err) {
         this.isListeningVoice = false;
         this.isRecordingVoiceMedia = false;
-        this.showToast('Lỗi micro: ' + err.message, 'error');
+        console.warn('Microphone start error:', err);
+        const isPerm = err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || err.name === 'SecurityError';
+        if (isPerm) {
+          const msg = isNative
+            ? 'Vui lòng vào Cài đặt iPhone > ToDoList > Bật quyền Micro để sử dụng tính năng này.'
+            : 'Vui lòng cho phép quyền truy cập Micro trên trình duyệt để ghi âm giọng nói.';
+          this.showToast(msg, 'error');
+        } else {
+          this.showToast('Không thể mở micro: ' + (err.message || err.name || 'Lỗi thiết bị'), 'error');
+        }
       }
     },
 
     async stopVoiceRecording() {
-      // Native VoiceRecorder stop & transcribe
-      if (window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('VoiceRecorder') && this.isRecordingVoiceMedia) {
-        try {
-          const { VoiceRecorder } = window.Capacitor.Plugins;
-          const recording = await VoiceRecorder.stopRecording();
-          this.isListeningVoice = false;
-          this.isRecordingVoiceMedia = false;
-          if (recording?.value?.recordDataBase64) {
-            this.showToast('🔄 Đang nhận diện qua Whisper AI...', 'info');
-            const byteChars = atob(recording.value.recordDataBase64);
-            const byteNums = new Array(byteChars.length);
-            for (let i = 0; i < byteChars.length; i++) {
-              byteNums[i] = byteChars.charCodeAt(i);
-            }
-            const byteArray = new Uint8Array(byteNums);
-            const blob = new Blob([byteArray], { type: recording.value.mimeType || 'audio/aac' });
-
-            const formData = new FormData();
-            formData.append('file', blob, 'voice.aac');
-            const transcribeUrl = cleanBaseUrl(API_BASE) + '/api/ai/transcribe';
-            const res = await fetch(transcribeUrl, {
-              method: 'POST',
-              body: formData,
-              headers: this.authToken ? { 'Authorization': 'Bearer ' + this.authToken } : {}
-            });
-            const data = await res.json();
-            if (data.success && data.text) {
-              const text = data.text.trim();
-              this.todoForm.title = this.todoForm.title ? (this.todoForm.title + ' ' + text) : text;
-              this.showToast('🎙️ Whisper AI: "' + text + '"', 'success');
-            } else {
-              this.showToast('Không nhận diện được giọng nói: ' + (data.error || 'Thử lại'), 'error');
-            }
-          }
-          return;
-        } catch (err) {
-          console.warn('Native VoiceRecorder stop error:', err);
-        }
-      }
-
-      if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-        this.mediaRecorder.stop();
-      }
-      this.isListeningVoice = false;
-      this.isRecordingVoiceMedia = false;
       clearInterval(this.voiceTimerInterval);
+      if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+        try {
+          this.mediaRecorder.stop();
+        } catch {}
+      } else if (this.audioStream) {
+        this.audioStream.getTracks().forEach(t => t.stop());
+        this.audioStream = null;
+        this.isRecordingVoiceMedia = false;
+        this.isListeningVoice = false;
+      }
     },
 
     async moveKanbanTask(todo, newStatus) {
@@ -4190,9 +4251,41 @@ function app() {
       }
     },
 
+    // ─── HỘP THOẠI XÁC NHẬN CHUẨN (CONFIRMATION DIALOG) ───
+    askConfirm(options = {}) {
+      return new Promise((resolve) => {
+        this.confirmDialog = {
+          show: true,
+          title: options.title || 'Xác nhận',
+          message: options.message || 'Bạn có chắc chắn muốn thực hiện hành động này không?',
+          confirmText: options.confirmText || 'Đồng ý',
+          cancelText: options.cancelText || 'Hủy',
+          icon: options.icon || (options.isDanger !== false ? '⚠️' : '❓'),
+          isDanger: options.isDanger !== false,
+          resolve
+        };
+      });
+    },
+
+    closeConfirm(result) {
+      if (this.confirmDialog && typeof this.confirmDialog.resolve === 'function') {
+        this.confirmDialog.resolve(Boolean(result));
+        this.confirmDialog.resolve = null;
+      }
+      this.confirmDialog.show = false;
+    },
+
     async deletePermanently(todo) {
       if (!todo || !todo.id) return;
-      if (!confirm('Bạn có chắc chắn muốn xóa vĩnh viễn công việc này? Không thể khôi phục!')) return;
+      const ok = await this.askConfirm({
+        title: 'Xóa vĩnh viễn công việc?',
+        message: 'Bạn có chắc chắn muốn xóa vĩnh viễn "' + (todo.title || 'công việc này') + '"? Dữ liệu sẽ không thể khôi phục!',
+        confirmText: 'Xóa vĩnh viễn',
+        isDanger: true,
+        icon: '🗑️'
+      });
+      if (!ok) return;
+
       try {
         await this.api('/api/todos/' + todo.id + '?permanent=true', { method: 'DELETE' });
         this.trashTodos = this.trashTodos.filter(t => t.id !== todo.id);
@@ -4204,7 +4297,15 @@ function app() {
 
     async emptyTrash() {
       if (this.trashTodos.length === 0) return;
-      if (!confirm('Bạn có chắc chắn muốn dọn sạch toàn bộ thùng rác? Toàn bộ công việc sẽ bị xóa vĩnh viễn!')) return;
+      const ok = await this.askConfirm({
+        title: 'Dọn sạch thùng rác?',
+        message: 'Bạn có chắc chắn muốn dọn sạch toàn bộ thùng rác? Toàn bộ công việc trong thùng rác sẽ bị xóa vĩnh viễn!',
+        confirmText: 'Dọn sạch tất cả',
+        isDanger: true,
+        icon: '🗑️'
+      });
+      if (!ok) return;
+
       try {
         await this.api('/api/trash/empty', { method: 'DELETE' });
         this.trashTodos = [];
@@ -4452,13 +4553,19 @@ function app() {
       return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
     },
 
-    // ─── NĂNG SUẤT & THỐNG KÊ (ANALYTICS) ───
+    // ─── NĂNG SUẤT & THỐNG KÊ (ANALYTICS BẢO TOÀN LỊCH SỬ) ───
     async openAnalytics() {
       this.showAnalyticsModal = true;
       this.analyticsLoading = true;
       try {
         const data = await this.api('/api/analytics');
         this.analyticsData = data;
+        if (data && data.streak !== undefined) {
+          this.historicalStreak = data.streak;
+        }
+        if (data && data.total_completed_lifetime !== undefined) {
+          this.completedHistoryCount = data.total_completed_lifetime;
+        }
       } catch (err) {
         this.showToast('Lỗi tải dữ liệu phân tích: ' + err.message, 'error');
       } finally {
@@ -4466,18 +4573,30 @@ function app() {
       }
     },
 
-    // ─── ĐÍNH KÈM HÌNH ẢNH QUA D1 (CANVAS COMPRESSION & LIGHTBOX) ───
+    async fetchAnalyticsSilently() {
+      try {
+        const data = await this.api('/api/analytics');
+        if (data && data.streak !== undefined) {
+          this.historicalStreak = data.streak;
+        }
+        if (data && data.total_completed_lifetime !== undefined) {
+          this.completedHistoryCount = data.total_completed_lifetime;
+        }
+      } catch {}
+    },
+
+    // ─── ĐÍNH KÈM HÌNH ẢNH MINH CHỨNG (CANVAS COMPRESSION <= 40KB & LIGHTBOX) ───
     async handleImageUpload(event, todoId) {
       const files = event?.target?.files;
       if (!files || files.length === 0) return;
-      const targetId = todoId || this.editingTodo?.id;
+      const targetId = todoId || this.activePhotoTodoId || this.editingTodo?.id;
       this.todoImagesMap = this.todoImagesMap || {};
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         if (!file.type.startsWith('image/')) continue;
 
-        this.showToast('📷 Đang xử lý & nén ảnh...', 'info');
+        this.showToast('📷 Đang xử lý & nén ảnh minh chứng...', 'info');
         try {
           const base64Data = await this.compressImageCanvas(file, 640, 0.55);
 
@@ -4494,7 +4613,7 @@ function app() {
               this.todoImagesMap[targetId].push(res.image);
               this.editingTodoImages = this.editingTodoImages || [];
               this.editingTodoImages.push(res.image);
-              this.showToast('Đã tải ảnh lên thành công!', 'success');
+              this.showToast('Đã lưu ảnh minh chứng hoàn thành! 📸', 'success');
             }
           } else {
             const tempImg = {
@@ -4506,7 +4625,7 @@ function app() {
             this.editingTodoImages.push(tempImg);
           }
         } catch (err) {
-          this.showToast('Lỗi xử lý ảnh: ' + err.message, 'error');
+          this.showToast('Lỗi xử lý ảnh: ' + (err?.message || err), 'error');
         }
       }
       if (event.target) event.target.value = '';
@@ -4566,13 +4685,21 @@ function app() {
         this.editingTodoImages = this.editingTodoImages.filter(img => img.id !== imageId);
         return;
       }
+      const confirmed = await this.askConfirm({
+        title: 'Xóa ảnh minh chứng?',
+        message: 'Bạn có chắc chắn muốn xóa ảnh minh chứng này khỏi công việc không?',
+        confirmText: 'Xóa ảnh',
+        isDanger: true
+      });
+      if (!confirmed) return;
+
       try {
         await this.api('/api/todos/' + todoId + '/images/' + imageId, { method: 'DELETE' });
         if (this.todoImagesMap[todoId]) {
           this.todoImagesMap[todoId] = this.todoImagesMap[todoId].filter(img => img.id !== imageId);
         }
         this.editingTodoImages = this.editingTodoImages.filter(img => img.id !== imageId);
-        this.showToast('Đã xóa ảnh đính kèm', 'info');
+        this.showToast('Đã xóa ảnh minh chứng', 'info');
       } catch (err) {
         this.showToast('Lỗi xóa ảnh: ' + err.message, 'error');
       }
@@ -4593,6 +4720,7 @@ function app() {
 
     // ===== BỔ SUNG NATIVE CAPACITOR & OTA UPDATE METHODS =====
     async chooseOrCapturePhoto(todoId) {
+      this.activePhotoTodoId = todoId;
       if (window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('Camera')) {
         try {
           const { Camera, CameraResultType, CameraSource } = window.Capacitor.Plugins;
@@ -4620,7 +4748,7 @@ function app() {
     },
 
     async attachBase64Image(base64Data, todoId, fileName) {
-      const targetId = todoId || this.editingTodo?.id;
+      const targetId = todoId || this.activePhotoTodoId || this.editingTodo?.id;
       this.todoImagesMap = this.todoImagesMap || {};
       this.editingTodoImages = this.editingTodoImages || [];
       const name = fileName || ('photo_' + Date.now() + '.jpg');
@@ -4628,7 +4756,7 @@ function app() {
       if (targetId && !targetId.startsWith('temp_')) {
         try {
           this.imageUploading = true;
-          this.showToast('📷 Đang lưu ảnh vào công việc...', 'info');
+          this.showToast('📷 Đang lưu ảnh minh chứng...', 'info');
           const res = await this.api('/api/todos/' + targetId + '/images', {
             method: 'POST',
             body: JSON.stringify({
@@ -4640,12 +4768,13 @@ function app() {
             if (!this.todoImagesMap[targetId]) this.todoImagesMap[targetId] = [];
             this.todoImagesMap[targetId].push(res.image);
             this.editingTodoImages.push(res.image);
-            this.showToast('Đã tải ảnh lên thành công!', 'success');
+            this.showToast('Đã lưu ảnh minh chứng hoàn thành! 📸', 'success');
           }
         } catch (e) {
           this.showToast('Lỗi tải ảnh: ' + (e?.message || e), 'error');
         } finally {
           this.imageUploading = false;
+          this.activePhotoTodoId = null;
         }
       } else {
         const tempImg = {
@@ -4654,6 +4783,7 @@ function app() {
           file_name: name
         };
         this.editingTodoImages.push(tempImg);
+        this.activePhotoTodoId = null;
         this.showToast('Đã chọn ảnh thành công!', 'success');
       }
     },
