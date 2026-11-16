@@ -37,6 +37,8 @@ import {
   buildStatsResponse,
   buildMorningBriefing,
   buildEveningBriefing,
+  buildNightSummary,
+  clearTelegramChatHistory,
   calculateStreak,
   downloadTelegramFile
 } from './telegram';
@@ -153,12 +155,18 @@ export async function checkAndSendReminders(env: Env): Promise<{ checked: number
     for (const task of todos) {
       if (!task.due_date) continue;
       const normalizedDate = task.due_date.includes('T') ? task.due_date : task.due_date.replace(' ', 'T');
-      const dueTime = new Date(normalizedDate).getTime();
-      if (isNaN(dueTime)) continue;
+      const d = new Date(normalizedDate);
+      if (isNaN(d.getTime())) continue;
+      d.setUTCSeconds(0, 0);
+      const dueTime = d.getTime();
+
+      const nowDate = new Date(now);
+      nowDate.setUTCSeconds(0, 0);
+      const nowMinute = nowDate.getTime();
 
       const offsetMin = (task.reminder_offset !== undefined && task.reminder_offset !== null) ? task.reminder_offset : 0;
       const windowMin = offsetMin;
-      const minLeft = Math.ceil((dueTime - now) / 60000);
+      const minLeft = Math.floor((dueTime - nowMinute) / 60000);
 
       // Bắt đầu thông báo khi chạm đúng mốc nhắc trước (minLeft <= windowMin) và chưa trễ quá 10 phút
       const isDueForReminder = minLeft <= windowMin && minLeft >= -10;
@@ -227,54 +235,89 @@ export async function checkAndSendReminders(env: Env): Promise<{ checked: number
   }
 }
 
-// ─── Helper: Gửi thông báo tổng kết Sáng (07:30) & Tối (21:30) qua Telegram ───
-export async function checkAndSendDailyBriefings(env: Env): Promise<{ morning: boolean; evening: boolean }> {
+// ─── Helper: Gửi thông báo Bản tin Sáng (06:00 - 18:00), Bản tin Tối (18:01 - 23:59) & Tổng kết Đêm (23:59) ───
+export async function checkAndSendDailyBriefings(env: Env): Promise<{ morning: boolean; evening: boolean; nightSummary: boolean }> {
   if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) {
-    return { morning: false, evening: false };
+    return { morning: false, evening: false, nightSummary: false };
   }
 
   const now = new Date();
   const vn = getVnDateParts(now);
   let morningSent = false;
   let eveningSent = false;
+  let nightSummarySent = false;
 
-  const defaultUser = await env.DB.prepare('SELECT id FROM users ORDER BY created_at ASC LIMIT 1').first<{ id: string }>();
-  if (!defaultUser) return { morning: false, evening: false };
-  const userId = defaultUser.id;
+  try {
+    await ensureDbColumns(env.DB);
 
-  // Bản tin Sáng: 07:30 VN (quét trong khoảng 07:25 - 07:35)
-  if (vn.hours === 7 && vn.minutes >= 25 && vn.minutes <= 35) {
-    const existing = await env.DB.prepare(
-      'SELECT id FROM briefing_logs WHERE type = ? AND date_str = ?'
-    ).bind('morning', vn.dateStr).first();
+    const defaultUser = await env.DB.prepare('SELECT id FROM users ORDER BY created_at ASC LIMIT 1').first<{ id: string }>();
+    if (!defaultUser) return { morning: false, evening: false, nightSummary: false };
+    const userId = defaultUser.id;
 
-    if (!existing) {
-      const briefing = await buildMorningBriefing(env, userId);
-      await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, briefing.text, briefing.replyMarkup);
-      await env.DB.prepare(
-        'INSERT INTO briefing_logs (id, type, date_str, sent_at) VALUES (?, ?, ?, ?)'
-      ).bind(generateId(), 'morning', vn.dateStr, now.toISOString()).run();
-      morningSent = true;
+    // 1. Bản tin Sáng: 06:00 VN (quét trong khoảng 06:00 - 06:10)
+    // Thống kê các việc buổi sáng cần làm từ 06:00 - 18:00, không gửi nút bấm
+    if (vn.hours === 6 && vn.minutes <= 10) {
+      const existing = await env.DB.prepare(
+        'SELECT id FROM briefing_logs WHERE type = ? AND date_str = ?'
+      ).bind('morning', vn.dateStr).first();
+
+      if (!existing) {
+        const lockRes = await env.DB.prepare(
+          'INSERT OR IGNORE INTO briefing_logs (id, type, date_str, sent_at) VALUES (?, ?, ?, ?)'
+        ).bind(generateId(), 'morning', vn.dateStr, now.toISOString()).run();
+
+        if (lockRes.success && (lockRes.meta?.changes ?? 1) > 0) {
+          const briefing = await buildMorningBriefing(env, userId);
+          await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, briefing.text, briefing.replyMarkup);
+          morningSent = true;
+        }
+      }
     }
+
+    // 2. Bản tin Tối: 18:01 VN (quét trong khoảng 18:01 - 18:15)
+    // Thống kê các việc buổi tối cần làm từ 18:01 - 23:59, không gửi nút bấm
+    if (vn.hours === 18 && vn.minutes >= 1 && vn.minutes <= 15) {
+      const existing = await env.DB.prepare(
+        'SELECT id FROM briefing_logs WHERE type = ? AND date_str = ?'
+      ).bind('evening', vn.dateStr).first();
+
+      if (!existing) {
+        const lockRes = await env.DB.prepare(
+          'INSERT OR IGNORE INTO briefing_logs (id, type, date_str, sent_at) VALUES (?, ?, ?, ?)'
+        ).bind(generateId(), 'evening', vn.dateStr, now.toISOString()).run();
+
+        if (lockRes.success && (lockRes.meta?.changes ?? 1) > 0) {
+          const briefing = await buildEveningBriefing(env, userId);
+          await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, briefing.text, briefing.replyMarkup);
+          eveningSent = true;
+        }
+      }
+    }
+
+    // 3. Tổng kết Tối: 23:59 VN (quét trong khoảng 23:55 - 23:59)
+    // Gồm Streak, số việc đã xong, số việc quá hạn, danh sách, và duy nhất 1 nút Thống kê ở cuối
+    if (vn.hours === 23 && vn.minutes >= 55 && vn.minutes <= 59) {
+      const existing = await env.DB.prepare(
+        'SELECT id FROM briefing_logs WHERE type = ? AND date_str = ?'
+      ).bind('night_summary', vn.dateStr).first();
+
+      if (!existing) {
+        const lockRes = await env.DB.prepare(
+          'INSERT OR IGNORE INTO briefing_logs (id, type, date_str, sent_at) VALUES (?, ?, ?, ?)'
+        ).bind(generateId(), 'night_summary', vn.dateStr, now.toISOString()).run();
+
+        if (lockRes.success && (lockRes.meta?.changes ?? 1) > 0) {
+          const summary = await buildNightSummary(env, userId);
+          await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, summary.text, summary.replyMarkup);
+          nightSummarySent = true;
+        }
+      }
+    }
+  } catch (briefingErr) {
+    console.error('[checkAndSendDailyBriefings] Error:', briefingErr);
   }
 
-  // Bản tin Tối: 21:30 VN (quét trong khoảng 21:25 - 21:35)
-  if (vn.hours === 21 && vn.minutes >= 25 && vn.minutes <= 35) {
-    const existing = await env.DB.prepare(
-      'SELECT id FROM briefing_logs WHERE type = ? AND date_str = ?'
-    ).bind('evening', vn.dateStr).first();
-
-    if (!existing) {
-      const briefing = await buildEveningBriefing(env, userId);
-      await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, briefing.text, briefing.replyMarkup);
-      await env.DB.prepare(
-        'INSERT INTO briefing_logs (id, type, date_str, sent_at) VALUES (?, ?, ?, ?)'
-      ).bind(generateId(), 'evening', vn.dateStr, now.toISOString()).run();
-      eveningSent = true;
-    }
-  }
-
-  return { morning: morningSent, evening: eveningSent };
+  return { morning: morningSent, evening: eveningSent, nightSummary: nightSummarySent };
 }
 
 // ─── Hono App ───
@@ -460,11 +503,12 @@ async function removeCompletionHistory(db: D1Database, userId: string, todoId: s
   }
 }
 
-// ─── Helper: Chuẩn hóa ngày ISO ───
+// ─── Helper: Chuẩn hóa ngày ISO (Chỉ tính theo HH:mm, không tính theo giây) ───
 function normalizeDate(dateVal: any): string | null {
   if (!dateVal) return null;
   const d = new Date(dateVal);
   if (isNaN(d.getTime())) return null;
+  d.setUTCSeconds(0, 0);
   return d.toISOString();
 }
 
@@ -2077,7 +2121,22 @@ app.post('/api/telegram-webhook', async (c) => {
         return c.json({ ok: true, command: '/stats' });
       }
 
-      // 2.5 Tự động tạo việc: /add <nội dung> hoặc nhập văn bản tự nhiên (Ví dụ: "Họp dự án 15h mai #gap")
+      // 2.5 Lệnh /clear xóa toàn bộ tin nhắn 2 bên của bot Telegram
+      if (lowerText === '/clear' || lowerText.startsWith('/clear')) {
+        const deletedCount = await clearTelegramChatHistory(
+          c.env.TELEGRAM_BOT_TOKEN,
+          chatId,
+          msg.message_id
+        );
+        await sendTelegramMessage(
+          c.env.TELEGRAM_BOT_TOKEN,
+          chatId,
+          `🧹 <b>Đã dọn sạch tin nhắn trong cuộc trò chuyện!</b> (${deletedCount} tin nhắn đã xóa)`
+        );
+        return c.json({ ok: true, command: '/clear', deletedCount });
+      }
+
+      // 2.6 Tự động tạo việc: /add <nội dung> hoặc nhập văn bản tự nhiên (Ví dụ: "Họp dự án 15h mai #gap")
       const parsed = parseTaskFromText(text);
       const newId = generateId();
       const now = new Date().toISOString();
@@ -2156,7 +2215,7 @@ app.get('/api/setup-telegram-webhook', async (c) => {
 });
 
 // GET /api/version — Kiểm tra phiên bản mới nhất để App iOS / PWA tự cập nhật ngầm
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.2.0';
 app.get('/api/version', (c) => {
   return c.json({
     version: APP_VERSION,

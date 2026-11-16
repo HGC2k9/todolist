@@ -95,6 +95,11 @@ export function renderHTML(): string {
       padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
     }
 
+    .ios-scroll-body {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
+    }
+
     .toast-enter { animation: toastIn 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
     @keyframes toastIn { from { opacity:0; transform:translateY(-16px) scale(0.94); } to { opacity:1; transform:translateY(0) scale(1); } }
     @keyframes spin { to { transform:rotate(360deg); } }
@@ -293,8 +298,8 @@ export function renderHTML(): string {
 <!-- ═══════ MAIN APPLICATION INTERFACE ═══════ -->
 <div x-show="authenticated" x-cloak class="h-screen h-[100dvh] flex flex-col overflow-hidden bg-slate-50 dark:bg-[#0b0f19] text-slate-900 dark:text-slate-100 font-sans">
 
-  <!-- ─── HEADER ĐÃ SỬA: ĐỆM AN TOÀN TRÁNH TAI THỎ / DYNAMIC ISLAND ─── -->
-  <header class="shrink-0 z-50 bg-white/95 dark:bg-[#0b0f19]/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 transition-all select-none"
+  <!-- ─── HEADER CỐ ĐỊNH 100% TRÁNH BỊ TREO HOẶC TRÔI KHI VUỐT ─── -->
+  <header class="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-[#0b0f19]/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 select-none shadow-xs"
           style="padding-top: calc(max(14px, env(safe-area-inset-top, 0px)) + 12px); padding-left: max(0.75rem, env(safe-area-inset-left, 0px)); padding-right: max(0.75rem, env(safe-area-inset-right, 0px));">
     <div class="max-w-5xl mx-auto px-2 sm:px-4 pb-3 flex items-center justify-between gap-2">
       
@@ -406,7 +411,7 @@ export function renderHTML(): string {
   </header>
 
   <!-- ═══════ PHẦN 2: BODY CUỘN ĐỘC LẬP ═══════ -->
-  <div class="flex-1 overflow-y-auto overscroll-contain ios-scroll-body" style="padding-bottom: calc(max(1.25rem, env(safe-area-inset-bottom, 0px)) + 4rem);">
+  <div class="flex-1 overflow-y-auto overscroll-contain ios-scroll-body w-full" style="padding-top: calc(max(14px, env(safe-area-inset-top, 0px)) + 60px); padding-bottom: calc(max(1.25rem, env(safe-area-inset-bottom, 0px)) + 4rem);">
 
   <!-- ─── Banner thông báo nhắc nhở theo mức độ ưu tiên ─── -->
   <div x-show="imminentTodos.length > 0" x-cloak
@@ -1269,23 +1274,28 @@ export function renderHTML(): string {
 <div x-show="showModal" x-cloak class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4"
      role="dialog" aria-modal="true" aria-labelledby="todo-modal-title">
   
-  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showModal=false"
+  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showModal=false; modalDragY=0"
        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
 
   <div class="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 h-[88vh] sm:h-auto sm:max-h-[85vh] flex flex-col overflow-hidden ios-safe-bottom"
+       :style="modalDragY > 0 ? ('transform: translateY(' + modalDragY + 'px); transition: ' + (isDraggingModal ? 'none' : 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)')) : ''"
        x-transition:enter="transition ease-out duration-250" x-transition:enter-start="opacity-0 translate-y-6 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-6 sm:translate-y-0 sm:scale-95"
        @click.stop>
     
-    <!-- ─── PHẦN 1: HEADER CỐ ĐỊNH (Thanh kéo + Tiêu đề + Nút đóng) ─── -->
-    <div class="shrink-0 px-5 sm:px-7 pt-4 pb-3 border-b border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900 select-none">
-      <!-- Thanh kéo cửa sổ mobile -->
-      <div class="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-3 sm:hidden cursor-grab active:cursor-grabbing"></div>
+    <!-- ─── PHẦN 1: HEADER CỐ ĐỊNH (Thanh kéo lên kéo xuống để thoát + Tiêu đề + Nút đóng) ─── -->
+    <div class="shrink-0 px-5 sm:px-7 pt-3 pb-3 border-b border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900 select-none cursor-grab active:cursor-grabbing touch-none"
+         @touchstart="onModalDragStart($event)"
+         @touchmove="onModalDragMove($event)"
+         @touchend="onModalDragEnd($event)"
+         @mousedown="onModalDragStart($event)">
+      <!-- Thanh kéo cửa sổ mobile (Kéo xuống để tắt thoát) -->
+      <div class="w-16 h-1.5 bg-slate-300 hover:bg-slate-400 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-full mx-auto mb-2.5 transition"></div>
 
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-between pointer-events-auto">
         <h2 id="todo-modal-title" class="text-lg sm:text-xl font-black text-slate-900 dark:text-white" x-text="editingTodo ? 'Chỉnh sửa công việc' : 'Tạo công việc mới'"></h2>
-        <button @click="showModal=false" type="button" aria-label="Đóng cửa sổ" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 cursor-pointer">
+        <button @click="showModal=false; modalDragY=0" type="button" aria-label="Đóng cửa sổ" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 cursor-pointer">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -2176,8 +2186,11 @@ function app() {
     calendarDate: new Date(),
     selectedCalendarDate: null,
 
-    // Modals
+    // Modals & Bottom Sheet Drag-to-Dismiss
     showModal: false,
+    modalDragY: 0,
+    isDraggingModal: false,
+    modalStartY: 0,
     editingTodo: null,
     customCategoryMode: false,
     todoForm: {
@@ -2279,7 +2292,7 @@ function app() {
 
     // Modal About & Version
     showAboutModal: false,
-    appVersion: '2.1.0',
+    appVersion: '2.2.0',
     testingTelegram: false,
 
     // In-App Notifications, Priorities & Auto-Update
@@ -2767,6 +2780,14 @@ function app() {
       window.addEventListener('touchend', handleTouchEndBlur, { passive: true });
       window.addEventListener('mouseup', handleTouchEndBlur, { passive: true });
 
+      // Lắng nghe thao tác kéo chuột toàn cục cho Modal Drag-to-Dismiss
+      window.addEventListener('mousemove', (e) => {
+        if (this.isDraggingModal) this.onModalDragMove(e);
+      });
+      window.addEventListener('mouseup', (e) => {
+        if (this.isDraggingModal) this.onModalDragEnd(e);
+      });
+
       // 9. Lắng nghe phím tắt toàn cục (A11y & Power User: Esc -> Đóng modal, N -> Tạo việc mới, / -> Tìm kiếm)
       window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
@@ -2794,6 +2815,8 @@ function app() {
 
     closeAllModals() {
       this.showModal = false;
+      this.modalDragY = 0;
+      this.isDraggingModal = false;
       this.showDeleteModal = false;
       this.showClearCompletedModal = false;
       this.showLogoutModal = false;
@@ -2803,6 +2826,34 @@ function app() {
       this.showPomodoroModal = false;
       this.showAnalyticsModal = false;
       this.showLightbox = false;
+    },
+
+    onModalDragStart(e) {
+      this.isDraggingModal = true;
+      this.modalStartY = e.touches ? e.touches[0].clientY : e.clientY;
+      this.modalDragY = 0;
+    },
+
+    onModalDragMove(e) {
+      if (!this.isDraggingModal) return;
+      const currentY = e.touches ? e.touches[0].clientY : e.clientY;
+      const deltaY = currentY - this.modalStartY;
+      if (deltaY > 0) {
+        this.modalDragY = deltaY;
+      } else {
+        this.modalDragY = 0;
+      }
+    },
+
+    onModalDragEnd(e) {
+      if (!this.isDraggingModal) return;
+      this.isDraggingModal = false;
+      if (this.modalDragY > 100) {
+        this.showModal = false;
+        this.modalDragY = 0;
+      } else {
+        this.modalDragY = 0;
+      }
     },
 
     async refreshDataManual(e) {
@@ -3245,14 +3296,18 @@ function app() {
         s = s + 'Z';
       }
       const d = new Date(s);
-      return isNaN(d.getTime()) ? null : d;
+      if (isNaN(d.getTime())) return null;
+      d.setSeconds(0, 0);
+      return d;
     },
 
     isOverdue(todo) {
       if (!todo.due_date || todo.is_completed) return false;
       const d = this.parseDateSafe(todo.due_date);
       if (!d) return false;
-      return d.getTime() < Date.now();
+      const now = new Date();
+      now.setSeconds(0, 0);
+      return d.getTime() < now.getTime();
     },
 
     formatDateDisplay(dateStr) {

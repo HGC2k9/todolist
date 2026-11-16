@@ -112,6 +112,76 @@ export async function deleteTelegramMessage(
 }
 
 /**
+ * Xóa danh sách tin nhắn theo lô (Bot API 7.0+)
+ */
+export async function deleteTelegramMessages(
+  botToken?: string,
+  chatId?: string | number,
+  messageIds?: number[]
+): Promise<boolean> {
+  if (!botToken || !chatId || !messageIds || messageIds.length === 0) return false;
+  try {
+    const url = `https://api.telegram.org/bot${botToken.trim()}/deleteMessages`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: String(chatId).trim(),
+        message_ids: messageIds,
+      }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('[Telegram] Batch delete error:', err);
+    return false;
+  }
+}
+
+/**
+ * Lệnh /clear: Xóa toàn bộ tin nhắn 2 bên gần đây của bot telegram
+ */
+export async function clearTelegramChatHistory(
+  botToken?: string,
+  chatId?: string | number,
+  lastMessageId?: number
+): Promise<number> {
+  if (!botToken || !chatId) return 0;
+  const startId = lastMessageId || 1000;
+  let deletedCount = 0;
+  const batchSize = 100;
+  const maxMessages = 200;
+
+  for (let offset = 0; offset < maxMessages; offset += batchSize) {
+    const ids: number[] = [];
+    for (let i = 0; i < batchSize; i++) {
+      const msgId = startId - offset - i;
+      if (msgId > 0) ids.push(msgId);
+    }
+    if (ids.length === 0) break;
+
+    const ok = await deleteTelegramMessages(botToken, chatId, ids);
+    if (ok) {
+      deletedCount += ids.length;
+    } else {
+      // Fallback xóa từng tin nhắn nếu phương thức theo lô không khả dụng
+      const fallbackList = ids.slice(0, 30);
+      await Promise.allSettled(fallbackList.map(id => deleteTelegramMessage(botToken, String(chatId), id)));
+      deletedCount += fallbackList.length;
+      break;
+    }
+  }
+
+  // Gửi tin nhắn thông báo xác nhận đã dọn dẹp sạch sẽ
+  await sendTelegramMessage(
+    botToken,
+    String(chatId),
+    '🧹 <b>Đã dọn dẹp sạch sẽ toàn bộ tin nhắn trò chuyện!</b>\n<i>Khung chat của bạn đã được làm mới tinh tươm ✨</i>'
+  );
+
+  return deletedCount;
+}
+
+/**
  * Trả lời Callback Query từ nút bấm inline keyboard của Telegram
  */
 export async function answerCallbackQuery(
@@ -451,6 +521,7 @@ export function buildHelpResponse() {
     `• /today - Danh sách công việc hôm nay`,
     `• /overdue - Danh sách công việc trễ hạn`,
     `• /stats - Thống kê năng suất & Chuỗi ngày (Streak)`,
+    `• /clear - Xóa toàn bộ tin nhắn trò chuyện 2 bên`,
     `• /help - Xem lại hướng dẫn sử dụng`,
     ``,
     `✍️ <b>Tạo việc siêu tốc bằng tin nhắn:</b>`,
@@ -649,19 +720,21 @@ export async function buildStatsResponse(env: Env, userId: string) {
 }
 
 /**
- * Xây dựng bản tin buổi sáng lúc 07:30 (VN)
+ * Xây dựng bản tin buổi sáng (Thống kê công việc cần làm từ 06:00 đến 18:00)
+ * Gửi gọn gàng, không đính kèm nút bấm để tránh spam rối mắt.
  */
 export async function buildMorningBriefing(env: Env, userId: string) {
   const now = Date.now();
   const vnNow = new Date(now + 7 * 3600 * 1000);
-  const startOfDayUtc = new Date(Date.UTC(vnNow.getUTCFullYear(), vnNow.getUTCMonth(), vnNow.getUTCDate(), -7, 0, 0, 0)).toISOString();
-  const endOfDayUtc = new Date(Date.UTC(vnNow.getUTCFullYear(), vnNow.getUTCMonth(), vnNow.getUTCDate(), 16, 59, 59, 999)).toISOString();
+  // Khung giờ sáng VN: 06:00 - 18:00 (tương ứng 23:00 UTC hôm trước đến 11:00 UTC hôm nay)
+  const startMorningUtc = new Date(Date.UTC(vnNow.getUTCFullYear(), vnNow.getUTCMonth(), vnNow.getUTCDate(), 6 - 7, 0, 0, 0)).toISOString();
+  const endMorningUtc = new Date(Date.UTC(vnNow.getUTCFullYear(), vnNow.getUTCMonth(), vnNow.getUTCDate(), 18 - 7, 0, 0, 0)).toISOString();
 
   const todos = (await env.DB.prepare(
     `SELECT * FROM todos WHERE user_id = ? AND is_completed = 0 AND deleted_at IS NULL AND (
       (due_date >= ? AND due_date <= ?) OR repeat_mode = 'daily'
     ) ORDER BY (due_date IS NULL) ASC, due_date ASC`
-  ).bind(userId, startOfDayUtc, endOfDayUtc).all<Todo>()).results || [];
+  ).bind(userId, startMorningUtc, endMorningUtc).all<Todo>()).results || [];
 
   const todayStr = `${String(vnNow.getUTCDate()).padStart(2, '0')}/${String(vnNow.getUTCMonth() + 1).padStart(2, '0')}/${vnNow.getUTCFullYear()}`;
 
@@ -669,60 +742,104 @@ export async function buildMorningBriefing(env: Env, userId: string) {
     `🌅 <b>BẢN TIN SÁNG — ${todayStr}</b>`,
     `<i>Chúc bạn một ngày mới tràn đầy năng lượng & hiệu quả!</i>`,
     ``,
-    `📋 Hôm nay bạn có <b>${todos.length} công việc</b> cần xử lý:`,
+    `📋 <b>Công việc cần làm hôm nay (06:00 - 18:00):</b> <b>${todos.length} việc</b>`,
     ``
   ];
 
-  const inlineKeyboard: any[][] = [];
-
   if (todos.length === 0) {
-    textLines.push(`✨ <i>Hôm nay chưa có lịch việc nào. Hãy đặt mục tiêu mới nhé!</i>`);
+    textLines.push(`✨ <i>Khung giờ ban ngày chưa có lịch việc nào. Chúc bạn có thời gian làm việc thật thảnh thơi!</i>`);
   } else {
-    todos.slice(0, 8).forEach((t, index) => {
+    todos.slice(0, 10).forEach((t, index) => {
       const pIcon = t.priority === 'High' ? '🔴' : (t.priority === 'Low' ? '🟢' : '🟡');
-      const timeStr = t.due_date ? formatVnDateTime(t.due_date).split(' ')[0] : 'Cả ngày';
+      const timeStr = t.due_date ? formatVnDateTime(t.due_date).split(' ')[0] : 'Trong ngày';
       textLines.push(`${index + 1}. ${pIcon} <b>${escapeHtml(t.title)}</b> <i>(${timeStr})</i>`);
-      inlineKeyboard.push([
-        { text: `✅ Xong: ${t.title.slice(0, 16)}`, callback_data: `complete_${t.id}` },
-        { text: `⏰ Hoãn +15p`, callback_data: `snooze_${t.id}` }
-      ]);
     });
+    if (todos.length > 10) {
+      textLines.push(`<i>... và còn ${todos.length - 10} việc nữa trong danh sách.</i>`);
+    }
   }
 
   textLines.push(``);
   textLines.push(`👉 <a href="https://app.todolists.workers.dev">Mở ứng dụng To-Do List</a>`);
 
-  inlineKeyboard.push([
-    { text: '📊 Thống kê năng suất', callback_data: 'cmd_stats' },
-    { text: '⚠️ Việc trễ hạn', callback_data: 'cmd_overdue' }
-  ]);
-
+  // Bản tin không gửi các nút Xong/Hoãn/Thống kê để tránh spam rối mắt
   return {
     text: textLines.join('\n'),
-    replyMarkup: { inline_keyboard: inlineKeyboard }
+    replyMarkup: undefined
   };
 }
 
 /**
- * Xây dựng bản tin tổng kết buổi tối lúc 21:30 (VN)
+ * Xây dựng bản tin buổi tối (Thống kê công việc cần làm từ 18:01 đến 23:59)
+ * Gửi gọn gàng, không đính kèm nút bấm.
  */
 export async function buildEveningBriefing(env: Env, userId: string) {
+  const now = Date.now();
+  const vnNow = new Date(now + 7 * 3600 * 1000);
+  // Khung giờ tối VN: 18:01 - 23:59 (tương ứng 11:01 UTC đến 16:59:59 UTC hôm nay)
+  const startEveningUtc = new Date(Date.UTC(vnNow.getUTCFullYear(), vnNow.getUTCMonth(), vnNow.getUTCDate(), 18 - 7, 1, 0, 0)).toISOString();
+  const endEveningUtc = new Date(Date.UTC(vnNow.getUTCFullYear(), vnNow.getUTCMonth(), vnNow.getUTCDate(), 23 - 7, 59, 59, 999)).toISOString();
+
+  const todos = (await env.DB.prepare(
+    `SELECT * FROM todos WHERE user_id = ? AND is_completed = 0 AND deleted_at IS NULL AND (
+      due_date >= ? AND due_date <= ?
+    ) ORDER BY due_date ASC`
+  ).bind(userId, startEveningUtc, endEveningUtc).all<Todo>()).results || [];
+
+  const todayStr = `${String(vnNow.getUTCDate()).padStart(2, '0')}/${String(vnNow.getUTCMonth() + 1).padStart(2, '0')}/${vnNow.getUTCFullYear()}`;
+
+  const textLines = [
+    `🌆 <b>BẢN TIN TỐI — ${todayStr}</b>`,
+    `<i>Dưới đây là các công việc cần hoàn thành trong tối nay (18:01 - 23:59):</i>`,
+    ``,
+    `📋 <b>Số việc cần xử lý tối nay:</b> <b>${todos.length} việc</b>`,
+    ``
+  ];
+
+  if (todos.length === 0) {
+    textLines.push(`✨ <i>Tối nay bạn không có lịch việc nào cần gấp. Hãy dành thời gian nghỉ ngơi nhé!</i>`);
+  } else {
+    todos.slice(0, 10).forEach((t, index) => {
+      const pIcon = t.priority === 'High' ? '🔴' : (t.priority === 'Low' ? '🟢' : '🟡');
+      const timeStr = t.due_date ? formatVnDateTime(t.due_date).split(' ')[0] : 'Tối nay';
+      textLines.push(`${index + 1}. ${pIcon} <b>${escapeHtml(t.title)}</b> <i>(${timeStr})</i>`);
+    });
+    if (todos.length > 10) {
+      textLines.push(`<i>... và còn ${todos.length - 10} việc nữa trong tối nay.</i>`);
+    }
+  }
+
+  textLines.push(``);
+  textLines.push(`👉 <a href="https://app.todolists.workers.dev">Mở ứng dụng To-Do List</a>`);
+
+  // Bản tin không gửi các nút bấm
+  return {
+    text: textLines.join('\n'),
+    replyMarkup: undefined
+  };
+}
+
+/**
+ * Xây dựng Tổng kết tối lúc 23:59 (VN)
+ * Gồm chuỗi ngày (Streak), số công việc đã xong, số việc quá hạn, danh sách, và duy nhất nút Thống kê ở cuối.
+ */
+export async function buildNightSummary(env: Env, userId: string) {
   const now = Date.now();
   const vnNow = new Date(now + 7 * 3600 * 1000);
   const startOfDayUtc = new Date(Date.UTC(vnNow.getUTCFullYear(), vnNow.getUTCMonth(), vnNow.getUTCDate(), -7, 0, 0, 0)).toISOString();
   const endOfDayUtc = new Date(Date.UTC(vnNow.getUTCFullYear(), vnNow.getUTCMonth(), vnNow.getUTCDate(), 16, 59, 59, 999)).toISOString();
 
-  // Việc hôm nay đã xong
-  const completedToday = (await env.DB.prepare(
-    `SELECT COUNT(*) as count FROM todos WHERE user_id = ? AND is_completed = 1 AND deleted_at IS NULL AND updated_at >= ?`
-  ).bind(userId, startOfDayUtc).first<{ count: number }>())?.count || 0;
+  // 1. Việc hôm nay đã xong
+  const completedTodayList = (await env.DB.prepare(
+    `SELECT id, title FROM todos WHERE user_id = ? AND is_completed = 1 AND deleted_at IS NULL AND updated_at >= ? ORDER BY updated_at DESC`
+  ).bind(userId, startOfDayUtc).all<{ id: string; title: string }>()).results || [];
 
-  // Việc tồn đọng (hôm nay hoặc trước đó chưa xong)
-  const pendingOverdue = (await env.DB.prepare(
-    `SELECT * FROM todos WHERE user_id = ? AND is_completed = 0 AND deleted_at IS NULL AND due_date IS NOT NULL AND due_date <= ? ORDER BY due_date ASC`
-  ).bind(userId, endOfDayUtc).all<Todo>()).results || [];
+  // 2. Việc quá hạn / chưa xong hôm nay
+  const pendingOverdueList = (await env.DB.prepare(
+    `SELECT id, title, due_date FROM todos WHERE user_id = ? AND is_completed = 0 AND deleted_at IS NULL AND due_date IS NOT NULL AND due_date <= ? ORDER BY due_date ASC`
+  ).bind(userId, endOfDayUtc).all<{ id: string; title: string; due_date: string }>()).results || [];
 
-  // Streak kết hợp lịch sử (không bị mất khi xóa việc)
+  // 3. Tính streak bảo toàn vĩnh viễn
   let histTimestamps: number[] = [];
   try {
     const histRows = (await env.DB.prepare('SELECT completed_at FROM completion_history WHERE user_id = ?').bind(userId).all<{ completed_at: string }>()).results || [];
@@ -736,41 +853,56 @@ export async function buildEveningBriefing(env: Env, userId: string) {
   const todayStr = `${String(vnNow.getUTCDate()).padStart(2, '0')}/${String(vnNow.getUTCMonth() + 1).padStart(2, '0')}/${vnNow.getUTCFullYear()}`;
 
   const textLines = [
-    `🌙 <b>TỔNG KẾT NĂNG SUẤT TỐI — ${todayStr}</b>`,
-    `<i>(Trợ lý Quản gia To-Do List)</i>`,
+    `🌙 <b>TỔNG KẾT TỐI — ${todayStr}</b>`,
+    `<i>(Báo cáo kết quả ngày lúc 23:59)</i>`,
     ``,
     `🔥 <b>Chuỗi ngày Streak:</b> <b>${streak} ngày liên tục</b> ${streak > 0 ? '🔥' : '🌱'}`,
-    `✅ <b>Đã hoàn thành hôm nay:</b> <b>${completedToday} việc</b>`,
-    `⏳ <b>Việc còn tồn đọng:</b> <b>${pendingOverdue.length} việc</b>`,
+    `✅ <b>Đã hoàn thành hôm nay:</b> <b>${completedTodayList.length} việc</b>`,
+    `⚠️ <b>Số việc quá hạn / chưa xong:</b> <b>${pendingOverdueList.length} việc</b>`,
     ``
   ];
 
-  const inlineKeyboard: any[][] = [];
-
-  if (pendingOverdue.length > 0) {
-    textLines.push(`📌 <b>Danh sách tồn đọng:</b>`);
-    pendingOverdue.slice(0, 5).forEach((t) => {
-      textLines.push(`• ${escapeHtml(t.title)}`);
+  // Danh sách công việc
+  if (completedTodayList.length > 0) {
+    textLines.push(`<b>Các việc đã hoàn thành:</b>`);
+    completedTodayList.slice(0, 5).forEach((t) => {
+      textLines.push(`• ✅ ${escapeHtml(t.title)}`);
     });
+    if (completedTodayList.length > 5) {
+      textLines.push(`<i>... và ${completedTodayList.length - 5} việc khác đã xong.</i>`);
+    }
     textLines.push(``);
-    textLines.push(`Bấm nút dưới đây để dời nhanh các việc này sang ngày mai:`);
-    inlineKeyboard.push([
-      { text: '🌙 Dời tất cả sang ngày mai (+1 ngày)', callback_data: 'snooze_all_tomorrow' }
-    ]);
-  } else {
-    textLines.push(`🎉 <b>Tuyệt vời! Bạn không còn việc tồn đọng nào. Chúc bạn có một giấc ngủ thật ngon! 🌟</b>`);
   }
 
-  textLines.push(``);
+  if (pendingOverdueList.length > 0) {
+    textLines.push(`<b>Các việc chưa hoàn thành:</b>`);
+    pendingOverdueList.slice(0, 5).forEach((t) => {
+      textLines.push(`• ⏳ ${escapeHtml(t.title)}`);
+    });
+    if (pendingOverdueList.length > 5) {
+      textLines.push(`<i>... và ${pendingOverdueList.length - 5} việc chưa xong.</i>`);
+    }
+    textLines.push(``);
+  }
+
+  if (completedTodayList.length === 0 && pendingOverdueList.length === 0) {
+    textLines.push(`✨ <i>Hôm nay bạn không có lịch việc nào. Chúc bạn ngủ ngon!</i>\n`);
+  }
+
   textLines.push(`👉 <a href="https://app.todolists.workers.dev">Mở ứng dụng To-Do List</a>`);
 
-  inlineKeyboard.push([
-    { text: '📊 Thống kê năng suất', callback_data: 'cmd_stats' }
-  ]);
+  // Cuối cùng chỉ cần duy nhất 1 nút Thống kê là được (theo đúng yêu cầu 2)
+  const replyMarkup = {
+    inline_keyboard: [
+      [
+        { text: '📊 Thống kê', callback_data: 'cmd_stats' }
+      ]
+    ]
+  };
 
   return {
     text: textLines.join('\n'),
-    replyMarkup: { inline_keyboard: inlineKeyboard }
+    replyMarkup
   };
 }
 
