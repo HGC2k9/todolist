@@ -428,7 +428,7 @@ export function renderHTML(): string {
         </span>
       </div>
       <div class="flex items-center gap-2 flex-shrink-0">
-        <button @click="filterStatus='pending'; fetchTodos()"
+        <button @click="filterStatus='pending'"
                 class="px-2.5 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-bold transition active:scale-95">
           Xem ngay
         </button>
@@ -443,7 +443,7 @@ export function renderHTML(): string {
     <div class="bg-white dark:bg-slate-900/90 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-slate-800 px-4 py-3 sm:px-5 sm:py-3.5 mb-3.5 shadow-xs transition-all">
       <div class="flex items-center justify-between text-xs font-semibold gap-3 flex-wrap">
         <div class="flex items-center gap-2 sm:gap-2.5 flex-wrap">
-          <button type="button" @click="filterStatus='pending'; fetchTodos()"
+          <button type="button" @click="filterStatus='pending'"
                   class="h-7.5 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95"
                   :class="filterStatus==='pending' && 'ring-1 ring-amber-500/50 bg-amber-50/50 dark:bg-amber-950/30'"
                   title="Bấm để lọc việc cần làm hôm nay">
@@ -454,7 +454,7 @@ export function renderHTML(): string {
           
           <span class="text-slate-200 dark:text-slate-700">•</span>
           
-          <button type="button" x-show="stats.overdue > 0" @click="filterStatus='overdue'; fetchTodos()"
+          <button type="button" x-show="stats.overdue > 0" @click="filterStatus='overdue'"
                   class="h-7.5 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition active:scale-95"
                   :class="filterStatus==='overdue' && 'ring-1 ring-rose-500/50 bg-rose-50/70 dark:bg-rose-950/40'"
                   title="Bấm để lọc việc quá hạn">
@@ -465,7 +465,7 @@ export function renderHTML(): string {
           
           <span x-show="stats.overdue > 0" class="text-slate-200 dark:text-slate-700">•</span>
           
-          <button type="button" @click="filterStatus='completed'; fetchTodos()"
+          <button type="button" @click="filterStatus='completed'"
                   class="h-7.5 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95"
                   :class="filterStatus==='completed' && 'ring-1 ring-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/30'"
                   title="Bấm để lọc việc đã xong">
@@ -506,11 +506,11 @@ export function renderHTML(): string {
         <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </span>
-        <input x-model="searchQuery" @input.debounce.300ms="fetchTodos()" type="text" placeholder="Tìm kiếm công việc nhanh (phím / để tìm)..."
+        <input x-model="searchQuery" type="text" placeholder="Tìm kiếm công việc nhanh (phím / để tìm)..."
                aria-label="Tìm kiếm công việc"
                class="w-full pl-9 pr-14 py-2 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/50 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-xs sm:text-sm font-medium" />
         <div class="absolute inset-y-0 right-0 pr-2.5 flex items-center gap-1">
-          <button x-show="searchQuery" @click="searchQuery=''; fetchTodos()" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition" aria-label="Xóa nội dung tìm kiếm">
+          <button x-show="searchQuery" @click="searchQuery=''" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition" aria-label="Xóa nội dung tìm kiếm">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
           <kbd class="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">/</kbd>
@@ -520,7 +520,7 @@ export function renderHTML(): string {
       <!-- Quick Filter Chips với số lượng đếm trực tiếp (Căn chỉnh đối xứng h-8) -->
       <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 -mx-0.5 px-0.5" role="group" aria-label="Bộ lọc trạng thái công việc">
         <template x-for="s in statusFilters" :key="s.value">
-          <button @click="filterStatus = s.value; fetchTodos()"
+          <button @click="filterStatus = s.value"
                   role="button"
                   :aria-pressed="filterStatus === s.value"
                   class="flex-shrink-0 h-8 px-3 text-xs font-bold rounded-xl border transition-all duration-150 inline-flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
@@ -536,7 +536,7 @@ export function renderHTML(): string {
         </template>
       </div>
 
-      <!-- Chế độ xem Đa năng: Danh sách / Kanban / Lịch -->
+      <!-- Chế độ xem: Danh sách / Lịch -->
       <div class="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800 gap-2 flex-wrap">
         <div class="inline-flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-bold border border-slate-200/80 dark:border-slate-700/80 h-8">
           <button type="button" @click="setViewMode('list')"
@@ -544,12 +544,6 @@ export function renderHTML(): string {
                   :class="viewMode === 'list' ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'">
             <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
             <span>Danh sách</span>
-          </button>
-          <button type="button" @click="setViewMode('kanban')"
-                  class="h-7 px-2.5 rounded-lg transition inline-flex items-center justify-center gap-1.5 active:scale-95"
-                  :class="viewMode === 'kanban' ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'">
-            <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="15" rx="1"/></svg>
-            <span>Kanban</span>
           </button>
           <button type="button" @click="setViewMode('calendar')"
                   class="h-7 px-2.5 rounded-lg transition inline-flex items-center justify-center gap-1.5 active:scale-95"
@@ -579,7 +573,7 @@ export function renderHTML(): string {
 
       <!-- Secondary Filters (Danh mục, Ưu tiên, Sắp xếp) & Dọn dẹp -->
       <div class="flex items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800 overflow-x-auto no-scrollbar text-xs">
-        <select x-model="filterCategory" @change="fetchTodos()"
+        <select x-model="filterCategory"
                 aria-label="Lọc theo danh mục"
                 class="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
           <option value="all">📁 Danh mục (Tất cả)</option>
@@ -588,7 +582,7 @@ export function renderHTML(): string {
           </template>
         </select>
 
-        <select x-model="filterPriority" @change="fetchTodos()"
+        <select x-model="filterPriority"
                 aria-label="Lọc theo mức độ ưu tiên"
                 class="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
           <option value="all">⚡ Ưu tiên (Tất cả)</option>
@@ -597,7 +591,7 @@ export function renderHTML(): string {
           <option value="Low">🟢 Thấp (Low)</option>
         </select>
 
-        <select x-model="sortBy" @change="fetchTodos()"
+        <select x-model="sortBy"
                 aria-label="Sắp xếp danh sách công việc"
                 class="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
           <option value="due_date-asc">📅 Hạn: Gần → Xa</option>
@@ -892,124 +886,6 @@ export function renderHTML(): string {
           </div>
         </div>
       </template>
-    </div>
-
-    <!-- ═══════ KANBAN BOARD VIEW ═══════ -->
-    <div x-show="viewMode === 'kanban' && !todosLoading" x-cloak class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-      <!-- Cột 1: Cần làm (To-Do) -->
-      <div class="bg-slate-50/80 dark:bg-slate-900/60 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 flex flex-col min-h-[400px]">
-        <div class="flex items-center justify-between mb-3 px-1">
-          <div class="flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-            <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100">Cần làm</h3>
-          </div>
-          <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300"
-                x-text="kanbanTodos.todo.length"></span>
-        </div>
-        <div class="space-y-2.5 flex-1"
-             @dragover.prevent
-             @drop="handleKanbanDrop('todo')">
-          <template x-for="todo in kanbanTodos.todo" :key="todo.id">
-            <div class="p-3.5 bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-xs hover:shadow-md transition group cursor-grab active:cursor-grabbing"
-                 draggable="true"
-                 @dragstart="draggedTodoId = todo.id">
-              <div class="flex items-start justify-between gap-1 mb-1.5">
-                <h4 class="font-bold text-xs sm:text-sm text-slate-900 dark:text-white line-clamp-2" x-text="todo.title"></h4>
-                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                      :class="todo.priority==='High' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' : (todo.priority==='Low' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300')"
-                      x-text="todo.priority"></span>
-              </div>
-              <p x-show="todo.description" class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mb-2" x-text="todo.description"></p>
-              <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700/60 text-[10px] text-slate-400">
-                <span x-text="todo.due_date ? formatTodoDueDate(todo) : 'Không hạn'"></span>
-                <button type="button" @click="moveKanbanTask(todo, 'in_progress')"
-                        class="h-6 px-2 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-bold transition active:scale-95 inline-flex items-center justify-center">
-                  Bắt đầu →
-                </button>
-              </div>
-            </div>
-          </template>
-          <div x-show="kanbanTodos.todo.length === 0" class="text-center py-8 text-xs text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
-            Kéo việc vào đây
-          </div>
-        </div>
-      </div>
-
-      <!-- Cột 2: Đang làm (In Progress) -->
-      <div class="bg-amber-50/40 dark:bg-amber-950/20 rounded-3xl p-4 border border-amber-200/60 dark:border-amber-900/40 flex flex-col min-h-[400px]">
-        <div class="flex items-center justify-between mb-3 px-1">
-          <div class="flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
-            <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100">Đang làm</h3>
-          </div>
-          <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300"
-                x-text="kanbanTodos.in_progress.length"></span>
-        </div>
-        <div class="space-y-2.5 flex-1"
-             @dragover.prevent
-             @drop="handleKanbanDrop('in_progress')">
-          <template x-for="todo in kanbanTodos.in_progress" :key="todo.id">
-            <div class="p-3.5 bg-white dark:bg-slate-800/90 rounded-2xl border border-amber-200/80 dark:border-amber-800/60 shadow-xs hover:shadow-md transition group cursor-grab active:cursor-grabbing"
-                 draggable="true"
-                 @dragstart="draggedTodoId = todo.id">
-              <div class="flex items-start justify-between gap-1 mb-1.5">
-                <h4 class="font-bold text-xs sm:text-sm text-slate-900 dark:text-white line-clamp-2" x-text="todo.title"></h4>
-                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                      :class="todo.priority==='High' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' : (todo.priority==='Low' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300')"
-                      x-text="todo.priority"></span>
-              </div>
-              <p x-show="todo.description" class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mb-2" x-text="todo.description"></p>
-              <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700/60 text-[10px] text-slate-400">
-                <button type="button" @click="moveKanbanTask(todo, 'todo')" class="h-6 px-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-semibold inline-flex items-center justify-center transition active:scale-95">
-                  ← Cần làm
-                </button>
-                <button type="button" @click="moveKanbanTask(todo, 'completed')"
-                        class="h-6 px-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold transition active:scale-95 inline-flex items-center justify-center">
-                  Xong ✓
-                </button>
-              </div>
-            </div>
-          </template>
-          <div x-show="kanbanTodos.in_progress.length === 0" class="text-center py-8 text-xs text-slate-400 border border-dashed border-amber-200 dark:border-amber-900/60 rounded-2xl">
-            Kéo việc vào đây
-          </div>
-        </div>
-      </div>
-
-      <!-- Cột 3: Đã xong (Done) -->
-      <div class="bg-emerald-50/40 dark:bg-emerald-950/20 rounded-3xl p-4 border border-emerald-200/60 dark:border-emerald-900/40 flex flex-col min-h-[400px]">
-        <div class="flex items-center justify-between mb-3 px-1">
-          <div class="flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-            <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100">Đã xong</h3>
-          </div>
-          <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300"
-                x-text="kanbanTodos.completed.length"></span>
-        </div>
-        <div class="space-y-2.5 flex-1"
-             @dragover.prevent
-             @drop="handleKanbanDrop('completed')">
-          <template x-for="todo in kanbanTodos.completed" :key="todo.id">
-            <div class="p-3.5 bg-white dark:bg-slate-800/90 rounded-2xl border border-emerald-200/60 dark:border-emerald-800/40 opacity-75 shadow-xs transition group cursor-grab active:cursor-grabbing"
-                 draggable="true"
-                 @dragstart="draggedTodoId = todo.id">
-              <div class="flex items-start justify-between gap-1 mb-1.5">
-                <h4 class="font-bold text-xs sm:text-sm text-slate-600 dark:text-slate-300 line-through line-clamp-2" x-text="todo.title"></h4>
-                <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              </div>
-              <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700/60 text-[10px]">
-                <button type="button" @click="moveKanbanTask(todo, 'todo')"
-                        class="h-6 px-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-semibold inline-flex items-center justify-center transition active:scale-95">
-                  ↩️ Mở lại việc
-                </button>
-              </div>
-            </div>
-          </template>
-          <div x-show="kanbanTodos.completed.length === 0" class="text-center py-8 text-xs text-slate-400 border border-dashed border-emerald-200 dark:border-emerald-900/60 rounded-2xl">
-            Chưa có việc hoàn thành
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- ═══════ CALENDAR VIEW ═══════ -->
@@ -2176,13 +2052,12 @@ function app() {
     ],
 
     // Multi-view mode & Filters
-    viewMode: localStorage.getItem('viewMode') || 'list',
+    viewMode: (localStorage.getItem('viewMode') === 'calendar' ? 'calendar' : 'list'),
     filterTag: 'all',
     showBackupModal: false,
     isListeningVoice: false,
     newSubtaskInput: '',
     newTagInput: '',
-    draggedTodoId: null,
     calendarDate: new Date(),
     selectedCalendarDate: null,
 
@@ -2466,22 +2341,51 @@ function app() {
     },
 
     get filteredSortedTodos() {
-      const list = this.sortedTodos;
-      if (this.filterTag === 'all') return list;
-      if (this.filterTag === 'pomodoro') return list.filter(t => Boolean(t.pomodoro_mode));
-      return list.filter(t => {
-        const tags = this.getTags(t);
-        return tags.includes(this.filterTag);
-      });
-    },
+      let list = this.sortedTodos;
 
-    get kanbanTodos() {
-      const list = this.filteredSortedTodos;
-      return {
-        todo: list.filter(t => !t.is_completed && t.status !== 'in_progress'),
-        in_progress: list.filter(t => !t.is_completed && t.status === 'in_progress'),
-        completed: list.filter(t => t.is_completed || t.status === 'completed'),
-      };
+      // 1. Lọc theo trạng thái công việc (Status Filter)
+      if (this.filterStatus === 'pending') {
+        list = list.filter(t => !t.is_completed);
+      } else if (this.filterStatus === 'completed') {
+        list = list.filter(t => t.is_completed);
+      } else if (this.filterStatus === 'overdue') {
+        list = list.filter(t => this.isOverdue(t));
+      } else if (this.filterStatus === 'recurring') {
+        list = list.filter(t => t.repeat_mode && t.repeat_mode !== 'none');
+      }
+
+      // 2. Lọc theo danh mục (Category Filter)
+      if (this.filterCategory && this.filterCategory !== 'all') {
+        list = list.filter(t => t.category === this.filterCategory);
+      }
+
+      // 3. Lọc theo mức độ ưu tiên (Priority Filter)
+      if (this.filterPriority && this.filterPriority !== 'all') {
+        list = list.filter(t => t.priority === this.filterPriority);
+      }
+
+      // 4. Lọc theo từ khóa tìm kiếm (Search Query)
+      if (this.searchQuery && this.searchQuery.trim()) {
+        const q = this.searchQuery.toLowerCase().trim();
+        list = list.filter(t =>
+          (t.title && t.title.toLowerCase().includes(q)) ||
+          (t.description && t.description.toLowerCase().includes(q))
+        );
+      }
+
+      // 5. Lọc theo Thẻ (#tags)
+      if (this.filterTag && this.filterTag !== 'all') {
+        if (this.filterTag === 'pomodoro') {
+          list = list.filter(t => Boolean(t.pomodoro_mode));
+        } else {
+          list = list.filter(t => {
+            const tags = this.getTags(t);
+            return tags.includes(this.filterTag);
+          });
+        }
+      }
+
+      return list;
     },
 
     get streak() {
@@ -3502,16 +3406,7 @@ function app() {
       }
       if (!isSilent) this.todosLoading = true;
       try {
-        const [sort, order] = this.sortBy.split('-');
-        const params = new URLSearchParams();
-        if (this.filterStatus !== 'all') params.set('status', this.filterStatus);
-        if (this.filterCategory !== 'all') params.set('category', this.filterCategory);
-        if (this.filterPriority !== 'all') params.set('priority', this.filterPriority);
-        if (this.searchQuery) params.set('search', this.searchQuery);
-        params.set('sort', sort);
-        params.set('order', order);
-
-        const data = await this.api('/api/todos?' + params.toString());
+        const data = await this.api('/api/todos');
         if (this.offlineQueue.length === 0) {
           this.todos = data.todos;
           this.saveCachedTodos();
@@ -3958,43 +3853,6 @@ function app() {
         this.isRecordingVoiceMedia = false;
         this.isListeningVoice = false;
       }
-    },
-
-    async moveKanbanTask(todo, newStatus) {
-      const prevStatus = todo.status || (todo.is_completed ? 'completed' : 'todo');
-      todo.status = newStatus;
-      todo.is_completed = (newStatus === 'completed' ? 1 : 0);
-      this.saveCachedTodos();
-
-      if (!navigator.onLine) {
-        this.showToast('Đang ngoại tuyến - đã lưu tạm Kanban', 'info');
-        return;
-      }
-
-      try {
-        await this.api('/api/todos/' + todo.id, {
-          method: 'PUT',
-          body: JSON.stringify({
-            status: newStatus,
-            is_completed: todo.is_completed
-          })
-        });
-        this.showToast('Đã chuyển sang "' + (newStatus === 'todo' ? 'Cần làm' : (newStatus === 'in_progress' ? 'Đang làm' : 'Đã xong')) + '"');
-      } catch (err) {
-        todo.status = prevStatus;
-        todo.is_completed = (prevStatus === 'completed' ? 1 : 0);
-        this.saveCachedTodos();
-        this.showToast('Lỗi cập nhật Kanban: ' + err.message, 'error');
-      }
-    },
-
-    handleKanbanDrop(targetStatus) {
-      if (!this.draggedTodoId) return;
-      const todo = this.todos.find(t => t.id === this.draggedTodoId);
-      if (todo) {
-        this.moveKanbanTask(todo, targetStatus);
-      }
-      this.draggedTodoId = null;
     },
 
     prevCalendarMonth() {
