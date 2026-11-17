@@ -17,6 +17,7 @@ export interface User {
   username: string;
   password_hash: string;
   salt: string;
+  telegram_chat_id?: string | null;
   created_at: string;
 }
 

@@ -213,6 +213,81 @@ test('GET /api/setup-telegram-webhook gọi đúng API setWebhook của Telegram
   }
 });
 
+// 5. Kiểm thử lệnh /link <code> kết nối Telegram đa người dùng
+test('Webhook xử lý /link <code> liên kết tài khoản user thành công', async () => {
+  let updatedChatId = '';
+  let updatedUserId = '';
+  let deletedCode = '';
+  let sentMessage = '';
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url: any, opts: any) => {
+    if (String(url).includes('sendMessage')) {
+      const body = JSON.parse(opts.body);
+      sentMessage = body.text;
+      return new Response(JSON.stringify({ ok: true, result: { message_id: 999 } }));
+    }
+    return originalFetch(url, opts);
+  };
+
+  const mockDb = {
+    prepare: (sql: string) => ({
+      bind: (...args: any[]) => ({
+        run: async () => {
+          if (sql.includes('UPDATE users SET telegram_chat_id')) {
+            updatedChatId = args[0];
+            updatedUserId = args[1];
+          }
+          if (sql.includes('DELETE FROM telegram_link_codes')) {
+            deletedCode = args[0];
+          }
+          return { success: true };
+        },
+        first: async () => {
+          if (sql.includes('SELECT user_id FROM telegram_link_codes')) {
+            return { user_id: 'user-chung-123' };
+          }
+          if (sql.includes('SELECT username FROM users')) {
+            return { username: 'Chung' };
+          }
+          return null;
+        }
+      })
+    })
+  };
+
+  try {
+    const req = new Request('http://localhost/api/telegram-webhook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: {
+          chat: { id: 777888999 },
+          text: '/link 849201'
+        }
+      })
+    });
+
+    const res = await app.fetch(req, {
+      DB: mockDb as any,
+      JWT_SECRET: 'test',
+      COOKIE_NAME: 'test',
+      TELEGRAM_BOT_TOKEN: 'mock_token',
+      TELEGRAM_CHAT_ID: 'admin_id'
+    });
+
+    assert.strictEqual(res.status, 200);
+    const data: any = await res.json();
+    assert.strictEqual(data.linked, true);
+    assert.strictEqual(updatedChatId, '777888999');
+    assert.strictEqual(updatedUserId, 'user-chung-123');
+    assert.strictEqual(deletedCode, '849201');
+    assert.ok(sentMessage.includes('Liên kết thành công'));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
   for (const t of tests) {
     try {
       await t.fn();

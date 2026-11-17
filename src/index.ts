@@ -4,7 +4,7 @@
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import type { Env, JWTPayload, Todo } from './types';
+import type { Env, JWTPayload, Todo, User } from './types';
 import {
   generateSalt,
   hashPassword,
@@ -43,6 +43,15 @@ import {
   downloadTelegramFile
 } from './telegram';
 import { generateIcs, exportTodosJson, validateAndParseImportJson } from './export';
+
+// ─── Helper: Đọc khóa bảo mật JWT an toàn ───
+export function getJwtSecret(env: Env): string {
+  if (!env.JWT_SECRET) {
+    console.error('[AUTH ERROR] Biến bí mật JWT_SECRET chưa được thiết lập! Vui lòng nạp bằng lệnh: npx wrangler secret put JWT_SECRET');
+    throw new Error('Chưa thiết lập biến bí mật JWT_SECRET trên server. Hãy chạy: npx wrangler secret put JWT_SECRET');
+  }
+  return env.JWT_SECRET;
+}
 
 // ─── Helper: Lấy thông tin thời gian theo múi giờ Việt Nam (UTC+7) ───
 export function getVnDateParts(date: Date) {
@@ -171,6 +180,11 @@ export async function checkAndSendReminders(env: Env): Promise<{ checked: number
       // Bắt đầu thông báo khi chạm đúng mốc nhắc trước (minLeft <= windowMin) và chưa trễ quá 10 phút
       const isDueForReminder = minLeft <= windowMin && minLeft >= -10;
       if (isDueForReminder) {
+        // Lấy thông tin người dùng sở hữu công việc để gửi đúng chat_id của họ
+        const taskOwner = await env.DB.prepare('SELECT telegram_chat_id FROM users WHERE id = ?').bind(task.user_id).first<{ telegram_chat_id: string | null }>();
+        const targetChatId = taskOwner?.telegram_chat_id || env.TELEGRAM_CHAT_ID;
+        if (!targetChatId) continue;
+
         // Kiểm tra xem đã gửi nhắc nhở gần đây chưa
         const logRes = await env.DB.prepare(
           `SELECT MAX(notified_at) as last_notified, COUNT(*) as total_count FROM reminder_logs WHERE todo_id = ?`
@@ -204,7 +218,7 @@ export async function checkAndSendReminders(env: Env): Promise<{ checked: number
 
         if (shouldNotifyWithSound) {
           // Gửi thông báo kèm chuông (Xóa tin cũ nếu có để giữ duy nhất 1 tin gọn gàng)
-          const res = await sendOrUpdateTelegramTaskReminder(env, task, minLeft, true);
+          const res = await sendOrUpdateTelegramTaskReminder(env, task, minLeft, true, targetChatId);
           if (res.success) {
             sentCount++;
             // Ghi nhật ký vào reminder_logs
@@ -223,7 +237,7 @@ export async function checkAndSendReminders(env: Env): Promise<{ checked: number
           }
         } else if (task.telegram_message_id) {
           // Cập nhật Live Message theo thời gian thực (đếm lùi số phút trực tiếp, không gửi thêm tin gây rối)
-          await sendOrUpdateTelegramTaskReminder(env, task, minLeft, false);
+          await sendOrUpdateTelegramTaskReminder(env, task, minLeft, false, targetChatId);
         }
       }
     }
@@ -250,66 +264,77 @@ export async function checkAndSendDailyBriefings(env: Env): Promise<{ morning: b
   try {
     await ensureDbColumns(env.DB);
 
-    const defaultUser = await env.DB.prepare('SELECT id FROM users ORDER BY created_at ASC LIMIT 1').first<{ id: string }>();
-    if (!defaultUser) return { morning: false, evening: false, nightSummary: false };
-    const userId = defaultUser.id;
-
-    // 1. Bản tin Sáng: 06:00 VN (quét trong khoảng 06:00 - 06:10)
-    // Thống kê các việc buổi sáng cần làm từ 06:00 - 18:00, không gửi nút bấm
-    if (vn.hours === 6 && vn.minutes <= 10) {
-      const existing = await env.DB.prepare(
-        'SELECT id FROM briefing_logs WHERE type = ? AND date_str = ?'
-      ).bind('morning', vn.dateStr).first();
-
-      if (!existing) {
-        const lockRes = await env.DB.prepare(
-          'INSERT OR IGNORE INTO briefing_logs (id, type, date_str, sent_at) VALUES (?, ?, ?, ?)'
-        ).bind(generateId(), 'morning', vn.dateStr, now.toISOString()).run();
-
-        if (lockRes.success && (lockRes.meta?.changes ?? 1) > 0) {
-          const briefing = await buildMorningBriefing(env, userId);
-          await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, briefing.text, briefing.replyMarkup);
-          morningSent = true;
-        }
+    const userListRes = await env.DB.prepare('SELECT id, telegram_chat_id FROM users WHERE telegram_chat_id IS NOT NULL').all<{ id: string; telegram_chat_id: string }>();
+    let targetUsers = userListRes.results || [];
+    if (targetUsers.length === 0 && env.TELEGRAM_CHAT_ID) {
+      const defaultUser = await env.DB.prepare('SELECT id FROM users ORDER BY created_at ASC LIMIT 1').first<{ id: string }>();
+      if (defaultUser) {
+        targetUsers = [{ id: defaultUser.id, telegram_chat_id: env.TELEGRAM_CHAT_ID }];
       }
     }
+    if (targetUsers.length === 0) return { morning: false, evening: false, nightSummary: false };
 
-    // 2. Bản tin Tối: 18:01 VN (quét trong khoảng 18:01 - 18:15)
-    // Thống kê các việc buổi tối cần làm từ 18:01 - 23:59, không gửi nút bấm
-    if (vn.hours === 18 && vn.minutes >= 1 && vn.minutes <= 15) {
-      const existing = await env.DB.prepare(
-        'SELECT id FROM briefing_logs WHERE type = ? AND date_str = ?'
-      ).bind('evening', vn.dateStr).first();
+    for (const u of targetUsers) {
+      const userId = u.id;
+      const userChatId = u.telegram_chat_id;
 
-      if (!existing) {
-        const lockRes = await env.DB.prepare(
-          'INSERT OR IGNORE INTO briefing_logs (id, type, date_str, sent_at) VALUES (?, ?, ?, ?)'
-        ).bind(generateId(), 'evening', vn.dateStr, now.toISOString()).run();
+      // 1. Bản tin Sáng: 06:00 VN (quét trong khoảng 06:00 - 06:10)
+      if (vn.hours === 6 && vn.minutes <= 10) {
+        const logKey = `morning_${userId}`;
+        const existing = await env.DB.prepare(
+          'SELECT id FROM briefing_logs WHERE type = ? AND date_str = ?'
+        ).bind(logKey, vn.dateStr).first();
 
-        if (lockRes.success && (lockRes.meta?.changes ?? 1) > 0) {
-          const briefing = await buildEveningBriefing(env, userId);
-          await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, briefing.text, briefing.replyMarkup);
-          eveningSent = true;
+        if (!existing) {
+          const lockRes = await env.DB.prepare(
+            'INSERT OR IGNORE INTO briefing_logs (id, type, date_str, sent_at) VALUES (?, ?, ?, ?)'
+          ).bind(generateId(), logKey, vn.dateStr, now.toISOString()).run();
+
+          if (lockRes.success && (lockRes.meta?.changes ?? 1) > 0) {
+            const briefing = await buildMorningBriefing(env, userId);
+            await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, userChatId, briefing.text, briefing.replyMarkup);
+            morningSent = true;
+          }
         }
       }
-    }
 
-    // 3. Tổng kết Tối: 23:59 VN (quét trong khoảng 23:55 - 23:59)
-    // Gồm Streak, số việc đã xong, số việc quá hạn, danh sách, và duy nhất 1 nút Thống kê ở cuối
-    if (vn.hours === 23 && vn.minutes >= 55 && vn.minutes <= 59) {
-      const existing = await env.DB.prepare(
-        'SELECT id FROM briefing_logs WHERE type = ? AND date_str = ?'
-      ).bind('night_summary', vn.dateStr).first();
+      // 2. Bản tin Tối: 18:01 VN (quét trong khoảng 18:01 - 18:15)
+      if (vn.hours === 18 && vn.minutes >= 1 && vn.minutes <= 15) {
+        const logKey = `evening_${userId}`;
+        const existing = await env.DB.prepare(
+          'SELECT id FROM briefing_logs WHERE type = ? AND date_str = ?'
+        ).bind(logKey, vn.dateStr).first();
 
-      if (!existing) {
-        const lockRes = await env.DB.prepare(
-          'INSERT OR IGNORE INTO briefing_logs (id, type, date_str, sent_at) VALUES (?, ?, ?, ?)'
-        ).bind(generateId(), 'night_summary', vn.dateStr, now.toISOString()).run();
+        if (!existing) {
+          const lockRes = await env.DB.prepare(
+            'INSERT OR IGNORE INTO briefing_logs (id, type, date_str, sent_at) VALUES (?, ?, ?, ?)'
+          ).bind(generateId(), logKey, vn.dateStr, now.toISOString()).run();
 
-        if (lockRes.success && (lockRes.meta?.changes ?? 1) > 0) {
-          const summary = await buildNightSummary(env, userId);
-          await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, summary.text, summary.replyMarkup);
-          nightSummarySent = true;
+          if (lockRes.success && (lockRes.meta?.changes ?? 1) > 0) {
+            const briefing = await buildEveningBriefing(env, userId);
+            await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, userChatId, briefing.text, briefing.replyMarkup);
+            eveningSent = true;
+          }
+        }
+      }
+
+      // 3. Tổng kết Tối: 23:59 VN (quét trong khoảng 23:55 - 23:59)
+      if (vn.hours === 23 && vn.minutes >= 55 && vn.minutes <= 59) {
+        const logKey = `night_${userId}`;
+        const existing = await env.DB.prepare(
+          'SELECT id FROM briefing_logs WHERE type = ? AND date_str = ?'
+        ).bind(logKey, vn.dateStr).first();
+
+        if (!existing) {
+          const lockRes = await env.DB.prepare(
+            'INSERT OR IGNORE INTO briefing_logs (id, type, date_str, sent_at) VALUES (?, ?, ?, ?)'
+          ).bind(generateId(), logKey, vn.dateStr, now.toISOString()).run();
+
+          if (lockRes.success && (lockRes.meta?.changes ?? 1) > 0) {
+            const summary = await buildNightSummary(env, userId);
+            await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, userChatId, summary.text, summary.replyMarkup);
+            nightSummarySent = true;
+          }
         }
       }
     }
@@ -338,20 +363,24 @@ app.use('*', async (c, next) => {
   c.res.headers.set('Permissions-Policy', 'microphone=(self)');
 });
 
+const ALLOWED_ORIGINS = [
+  'https://app.todolists.workers.dev',
+  'capacitor://localhost',
+  'ionic://localhost',
+  'http://localhost',
+  'http://127.0.0.1'
+];
+
 app.use('/api/*', cors({
   origin: (origin) => {
-    if (!origin) return '*';
-    if (
+    if (!origin) return 'https://app.todolists.workers.dev';
+    const isAllowed =
+      ALLOWED_ORIGINS.includes(origin) ||
       origin.startsWith('capacitor://') ||
       origin.startsWith('ionic://') ||
-      origin.includes('localhost') ||
-      origin.includes('127.0.0.1') ||
-      origin.includes('todolists.workers.dev') ||
-      origin.includes('todolists')
-    ) {
-      return origin;
-    }
-    return origin;
+      /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
+      origin === 'https://app.todolists.workers.dev';
+    return isAllowed ? origin : 'https://app.todolists.workers.dev';
   },
   credentials: true,
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -399,6 +428,18 @@ async function ensureDbColumns(db: D1Database) {
   } catch { }
   try {
     await db.prepare('ALTER TABLE todos ADD COLUMN pomodoro_mode INTEGER DEFAULT 0').run();
+  } catch { }
+  try {
+    await db.prepare('ALTER TABLE users ADD COLUMN telegram_chat_id TEXT DEFAULT NULL').run();
+  } catch { }
+  try {
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS telegram_link_codes (
+        code TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        expires_at INTEGER NOT NULL
+      )
+    `).run();
   } catch { }
   try {
     await db.prepare(`
@@ -527,7 +568,8 @@ const requireAuth = async (c: any, next: any) => {
     return c.json({ error: 'Chưa đăng nhập. Vui lòng đăng nhập.' }, 401);
   }
 
-  const payload = await verifyJWT(token, c.env.JWT_SECRET);
+  const secret = getJwtSecret(c.env);
+  const payload = await verifyJWT(token, secret);
   if (!payload) {
     return c.json({ error: 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.' }, 401);
   }
@@ -547,6 +589,7 @@ app.use('/api/trash/*', requireAuth);
 app.use('/api/sync/*', requireAuth);
 app.use('/api/analytics', requireAuth);
 app.use('/api/ai/*', requireAuth);
+app.use('/api/telegram/*', requireAuth);
 
 // ════════════════════════════════════════════════════════════
 //  AUTH ROUTES
@@ -595,7 +638,7 @@ app.post('/api/auth/register', async (c) => {
     // Auto-login after register
     const token = await createJWT(
       { sub: id, email: email.toLowerCase(), username: username.trim() },
-      c.env.JWT_SECRET
+      getJwtSecret(c.env)
     );
 
     return new Response(
@@ -651,7 +694,7 @@ app.post('/api/auth/login', async (c) => {
 
     const token = await createJWT(
       { sub: user.id, email: user.email, username: user.username },
-      c.env.JWT_SECRET
+      getJwtSecret(c.env)
     );
 
     return new Response(
@@ -703,10 +746,12 @@ app.get('/api/auth/me', async (c) => {
     return c.json({ authenticated: false }, 200);
   }
 
-  const payload = await verifyJWT(token, c.env.JWT_SECRET);
+  const payload = await verifyJWT(token, getJwtSecret(c.env));
   if (!payload) {
     return c.json({ authenticated: false }, 200);
   }
+
+  const userInfo = await c.env.DB.prepare('SELECT telegram_chat_id FROM users WHERE id = ?').bind(payload.sub).first<{ telegram_chat_id: string | null }>();
 
   return c.json({
     authenticated: true,
@@ -714,7 +759,26 @@ app.get('/api/auth/me', async (c) => {
       id: payload.sub,
       email: payload.email,
       username: payload.username,
+      telegram_linked: Boolean(userInfo?.telegram_chat_id),
     },
+  });
+});
+
+// POST /api/telegram/link-code — Tạo mã 6 số liên kết tài khoản với bot Telegram
+app.post('/api/telegram/link-code', async (c) => {
+  const user = c.get('user');
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = Date.now() + 10 * 60 * 1000; // 10 phút
+  await c.env.DB.prepare('DELETE FROM telegram_link_codes WHERE user_id = ?').bind(user.sub).run();
+  await c.env.DB.prepare('INSERT INTO telegram_link_codes (code, user_id, expires_at) VALUES (?, ?, ?)').bind(code, user.sub, expiresAt).run();
+
+  const userInfo = await c.env.DB.prepare('SELECT telegram_chat_id FROM users WHERE id = ?').bind(user.sub).first<{ telegram_chat_id: string | null }>();
+
+  return c.json({
+    code,
+    expires_in_minutes: 10,
+    linked: Boolean(userInfo?.telegram_chat_id),
+    bot_username: 'hgc_todolist_bot'
   });
 });
 
@@ -823,6 +887,7 @@ app.post('/api/todos', async (c) => {
       position?: number;
       estimated_minutes?: number;
       actual_minutes?: number;
+      pomodoro_mode?: number | boolean;
     }>();
 
     if (!body.title || !body.title.trim()) {
@@ -909,6 +974,7 @@ app.put('/api/todos/:id', async (c) => {
       position: number;
       estimated_minutes: number;
       actual_minutes: number;
+      pomodoro_mode: number | boolean;
     }>>();
 
     const now = new Date().toISOString();
@@ -1428,7 +1494,7 @@ app.get('/api/analytics', async (c) => {
     histRows = (await c.env.DB.prepare(
       'SELECT id, todo_id, task_title, completed_at, date_str, category, priority, actual_minutes FROM completion_history WHERE user_id = ?'
     ).bind(user.sub).all()).results || [];
-  } catch {}
+  } catch { }
 
   const allRes = await c.env.DB.prepare(
     'SELECT id, category, priority, due_date, is_completed, estimated_minutes, actual_minutes, created_at, updated_at FROM todos WHERE user_id = ? AND deleted_at IS NULL'
@@ -1779,7 +1845,7 @@ app.post('/api/test-telegram', async (c) => {
         try {
           c.executionCtx.waitUntil(autoDeletePromise);
         } catch {
-          autoDeletePromise.catch(() => {});
+          autoDeletePromise.catch(() => { });
         }
       }
       return c.json({
@@ -1817,7 +1883,7 @@ app.get('/api/test-telegram', async (c) => {
     try {
       c.executionCtx.waitUntil(autoDeletePromise);
     } catch {
-      autoDeletePromise.catch(() => {});
+      autoDeletePromise.catch(() => { });
     }
   }
   return c.json(res);
@@ -1850,17 +1916,20 @@ app.post('/api/telegram-webhook', async (c) => {
       const chatId = String(callbackQuery.message?.chat?.id || '');
       const data = String(callbackQuery.data || '');
 
-      // Xác thực chat.id khớp với env.TELEGRAM_CHAT_ID để bảo mật
-      if (c.env.TELEGRAM_CHAT_ID && chatId !== String(c.env.TELEGRAM_CHAT_ID).trim()) {
-        console.warn('[Telegram Webhook] Unauthorized chat ID:', chatId);
-        if (c.env.TELEGRAM_BOT_TOKEN) {
-          await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Bạn không có quyền thực hiện thao tác này!', true);
-        }
-        return c.json({ ok: false, error: 'Unauthorized chat ID' }, 403);
+      if (c.env.DB && typeof c.env.DB.prepare === 'function') {
+        await ensureDbColumns(c.env.DB);
       }
 
-      if (c.env.DB) {
-        await ensureDbColumns(c.env.DB);
+      // Xác thực chat.id: Cho phép nếu khớp TELEGRAM_CHAT_ID hoặc đã liên kết với một user trong hệ thống
+      const hasDb = Boolean(c.env.DB && typeof c.env.DB.prepare === 'function');
+      const linkedUser = hasDb ? await c.env.DB.prepare('SELECT id FROM users WHERE telegram_chat_id = ?').bind(chatId).first<{ id: string }>() : null;
+      const isAdminChat = c.env.TELEGRAM_CHAT_ID && chatId === String(c.env.TELEGRAM_CHAT_ID).trim();
+      if (!linkedUser && !isAdminChat) {
+        console.warn('[Telegram Webhook] Unauthorized callback from chat ID:', chatId);
+        if (c.env.TELEGRAM_BOT_TOKEN) {
+          await answerCallbackQuery(c.env.TELEGRAM_BOT_TOKEN, callbackQueryId, 'Vui lòng liên kết tài khoản trước bằng lệnh /link <mã>!', true);
+        }
+        return c.json({ ok: false, error: 'Unauthorized chat ID' }, 403);
       }
 
       // 1.1 Hoàn thành công việc: complete_<task_id>
@@ -2039,11 +2108,62 @@ app.post('/api/telegram-webhook', async (c) => {
       const chatId = String(msg.chat?.id || '');
       let text = String(msg.text || '').trim();
 
-      // Xác thực chat.id
-      if (c.env.TELEGRAM_CHAT_ID && chatId !== String(c.env.TELEGRAM_CHAT_ID).trim()) {
-        console.warn('[Telegram Webhook] Unauthorized message from chat ID:', chatId);
+      // 2.0 Lệnh liên kết tài khoản: /link <mã 6 số>
+      if (text.toLowerCase().startsWith('/link')) {
+        const parts = text.split(/\s+/);
+        const code = parts[1]?.trim();
+        if (!code) {
+          await sendTelegramMessage(
+            c.env.TELEGRAM_BOT_TOKEN,
+            chatId,
+            '⚠️ <b>Cú pháp liên kết:</b> <code>/link &lt;mã 6 số&gt;</code>\n<i>(Vui lòng mở web To-Do List > biểu tượng Telegram để lấy mã kết nối 6 số)</i>'
+          );
+          return c.json({ ok: true });
+        }
+        const nowMs = Date.now();
+        const linkRecord = await c.env.DB.prepare(
+          'SELECT user_id FROM telegram_link_codes WHERE code = ? AND expires_at > ?'
+        ).bind(code, nowMs).first<{ user_id: string }>();
+
+        if (!linkRecord) {
+          await sendTelegramMessage(
+            c.env.TELEGRAM_BOT_TOKEN,
+            chatId,
+            '❌ <b>Mã kết nối không hợp lệ hoặc đã hết hạn!</b>\nVui lòng mở web To-Do List để lấy mã mới.'
+          );
+          return c.json({ ok: true });
+        }
+
+        await c.env.DB.prepare('UPDATE users SET telegram_chat_id = ? WHERE id = ?').bind(chatId, linkRecord.user_id).run();
+        await c.env.DB.prepare('DELETE FROM telegram_link_codes WHERE code = ?').bind(code).run();
+        const targetUser = await c.env.DB.prepare('SELECT username FROM users WHERE id = ?').bind(linkRecord.user_id).first<{ username: string }>();
+        await sendTelegramMessage(
+          c.env.TELEGRAM_BOT_TOKEN,
+          chatId,
+          `🎉 <b>Liên kết thành công!</b>\nChào <b>${escapeHtml(targetUser?.username || 'bạn')}</b>, tài khoản của bạn đã được kết nối với Telegram bot. Các nhắc nhở, thông báo và việc tạo nhanh sẽ được đồng bộ trực tiếp với tài khoản này.`
+        );
+        return c.json({ ok: true, linked: true });
+      }
+
+      // Xác thực chat.id: Cho phép nếu đã liên kết hoặc khớp admin TELEGRAM_CHAT_ID
+      const hasDbMsg = Boolean(c.env.DB && typeof c.env.DB.prepare === 'function');
+      let user = hasDbMsg ? await c.env.DB.prepare('SELECT * FROM users WHERE telegram_chat_id = ?').bind(chatId).first<User>() : null;
+      const isAdmin = c.env.TELEGRAM_CHAT_ID && chatId === String(c.env.TELEGRAM_CHAT_ID).trim();
+      if (!user && isAdmin && hasDbMsg) {
+        user = await c.env.DB.prepare('SELECT * FROM users ORDER BY created_at ASC LIMIT 1').first<User>();
+      }
+
+      if (!user) {
+        console.warn('[Telegram Webhook] Unauthorized message from unlinked chat ID:', chatId);
+        await sendTelegramMessage(
+          c.env.TELEGRAM_BOT_TOKEN,
+          chatId,
+          '⚠️ <b>Bạn chưa liên kết tài khoản To-Do List!</b>\nVui lòng đăng nhập trên <a href="https://app.todolists.workers.dev">web app</a>, lấy mã kết nối 6 số và gửi cú pháp:\n👉 <code>/link &lt;mã_kết_nối&gt;</code>'
+        );
         return c.json({ ok: false, error: 'Unauthorized chat ID' }, 403);
       }
+
+      const userId = user.id;
 
       // Xử lý Voice Note hoặc Audio message bằng Workers AI Whisper
       let isVoiceNote = false;
@@ -2079,16 +2199,6 @@ app.post('/api/telegram-webhook', async (c) => {
 
       if (!text) {
         return c.json({ ok: true, message: 'No text or voice message' });
-      }
-
-      const userId = await getDefaultUserId(c.env.DB);
-      if (!userId) {
-        await sendTelegramMessage(
-          c.env.TELEGRAM_BOT_TOKEN,
-          chatId,
-          '⚠️ <b>Hệ thống chưa có tài khoản nào.</b>\nVui lòng đăng nhập hoặc đăng ký tài khoản trên web app trước:\n👉 <a href="https://app.todolists.workers.dev">Mở ứng dụng</a>'
-        );
-        return c.json({ ok: true, error: 'No user registered' });
       }
 
       const lowerText = text.toLowerCase();
@@ -2141,14 +2251,16 @@ app.post('/api/telegram-webhook', async (c) => {
       const newId = generateId();
       const now = new Date().toISOString();
       const tagsJson = JSON.stringify(parsed.tags || []);
+      const category = parsed.category || 'Personal';
 
       await c.env.DB.prepare(
         `INSERT INTO todos (id, user_id, title, description, category, priority, due_date, is_completed, is_pinned, repeat_mode, subtasks, tags, reminder_offset, status, position, created_at, updated_at)
-         VALUES (?, ?, ?, '', 'Personal', ?, ?, 0, 0, 'none', '[]', ?, 0, 'todo', 0, ?, ?)`
+         VALUES (?, ?, ?, '', ?, ?, ?, 0, 0, 'none', '[]', ?, 0, 'todo', 0, ?, ?)`
       ).bind(
         newId,
         userId,
         parsed.title,
+        category,
         parsed.priority,
         parsed.dueDate,
         tagsJson,
@@ -2164,6 +2276,7 @@ app.post('/api/telegram-webhook', async (c) => {
         isVoiceNote ? `🎙️ <b>ĐÃ NHẬN DIỆN TỪ TIN NHẮN THOẠI & TẠO VIỆC THÀNH CÔNG!</b>` : `✅ <b>ĐÃ TẠO CÔNG VIỆC MỚI THÀNH CÔNG!</b>`,
         ``,
         `📌 <b>Tiêu đề:</b> <b>${escapeHtml(parsed.title)}</b>`,
+        `📁 <b>Danh mục:</b> <b>${escapeHtml(category)}</b>`,
         `🕒 <b>Hạn chót:</b> ${dueStr}`,
         `⚠️ <b>Mức độ ưu tiên:</b> ${pLabel}`,
         tagsStr ? `🏷️ <b>Thẻ:</b> <code>${escapeHtml(tagsStr)}</code>` : '',
@@ -2215,7 +2328,7 @@ app.get('/api/setup-telegram-webhook', async (c) => {
 });
 
 // GET /api/version — Kiểm tra phiên bản mới nhất để App iOS / PWA tự cập nhật ngầm
-const APP_VERSION = '2.2.0';
+const APP_VERSION = '2.3.0';
 app.get('/api/version', (c) => {
   return c.json({
     version: APP_VERSION,

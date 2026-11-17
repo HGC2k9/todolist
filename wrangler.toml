@@ -15,12 +15,12 @@ binding = "AI"
 
 # ─── Biến môi trường ───
 [vars]
-JWT_SECRET = "72d442fc9a03bdc47f4bd4e4e4e1e174ea11f3f81a49fe3eab9c82563075ee0a"
 COOKIE_NAME = "todo_session"
 
-# Thiết lập Secrets cho Telegram Bot (bằng lệnh wrangler secret put):
-# 1. npx wrangler secret put TELEGRAM_BOT_TOKEN
-# 2. npx wrangler secret put TELEGRAM_CHAT_ID
+# Thiết lập Secrets an toàn qua Cloudflare CLI (bằng lệnh npx wrangler secret put):
+# 1. npx wrangler secret put JWT_SECRET
+# 2. npx wrangler secret put TELEGRAM_BOT_TOKEN
+# 3. npx wrangler secret put TELEGRAM_CHAT_ID
 
 # ─── Cron Triggers: Quét tự động reset việc Hàng ngày/Hàng tuần & gửi thông báo Telegram ───
 [triggers]

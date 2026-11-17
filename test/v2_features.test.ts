@@ -81,14 +81,29 @@ async function run() {
   // Test 5: parseTaskFromText
   const parsed1 = parseTaskFromText('Họp chiến lược 15h mai #gap #congty');
   assert.strictEqual(parsed1.priority, 'High');
+  assert.strictEqual(parsed1.category, 'Work');
   assert.deepStrictEqual(parsed1.tags, ['gap', 'congty']);
   assert.ok(parsed1.dueDate !== null);
 
   const parsed2 = parseTaskFromText('/add Đi dạo công viên thong thả');
   assert.strictEqual(parsed2.title, 'Đi dạo công viên thong thả');
   assert.strictEqual(parsed2.priority, 'Low');
+  assert.strictEqual(parsed2.category, 'Personal');
   assert.strictEqual(parsed2.dueDate, null);
-  console.log('  ✅ PASS: parseTaskFromText bóc tách tiếng Việt, #tags, giờ, mức độ ưu tiên');
+
+  const parsedStudy = parseTaskFromText('Làm bài tập tiếng anh');
+  assert.strictEqual(parsedStudy.category, 'Study');
+
+  const parsedShopping = parseTaskFromText('Đi siêu thị mua sắm đồ ăn');
+  assert.strictEqual(parsedShopping.category, 'Shopping');
+
+  const parsedHealth = parseTaskFromText('Uống thuốc và đi khám bác sĩ');
+  assert.strictEqual(parsedHealth.category, 'Health');
+
+  const parsedFinance = parseTaskFromText('Thanh toán hóa đơn tiền điện');
+  assert.strictEqual(parsedFinance.category, 'Finance');
+
+  console.log('  ✅ PASS: parseTaskFromText bóc tách tiếng Việt, #tags, giờ, mức độ ưu tiên & danh mục thông minh');
 
   console.log('🎉 Toàn bộ kiểm thử tính năng V2 đã hoàn thành xuất sắc!');
 }

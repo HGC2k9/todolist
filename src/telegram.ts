@@ -301,9 +301,11 @@ export async function sendOrUpdateTelegramTaskReminder(
   env: Env,
   task: Todo,
   minutesLeft: number,
-  forceNewNotification: boolean = false
+  forceNewNotification: boolean = false,
+  customChatId?: string
 ): Promise<{ success: boolean; messageId?: number; error?: string }> {
-  if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) {
+  const chatId = customChatId || env.TELEGRAM_CHAT_ID;
+  if (!env.TELEGRAM_BOT_TOKEN || !chatId) {
     return { success: false, error: 'Chưa thiết lập biến môi trường Telegram' };
   }
 
@@ -311,7 +313,7 @@ export async function sendOrUpdateTelegramTaskReminder(
 
   // 1. Cập nhật Live Message trên tin nhắn hiện có (không tạo tin mới, không làm phiền)
   if (!forceNewNotification && task.telegram_message_id) {
-    const editRes = await editTelegramMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, task.telegram_message_id, text, replyMarkup);
+    const editRes = await editTelegramMessage(env.TELEGRAM_BOT_TOKEN, chatId, task.telegram_message_id, text, replyMarkup);
     if (editRes.success || editRes.error?.includes('message is not modified')) {
       return { success: true, messageId: task.telegram_message_id };
     }
@@ -320,10 +322,10 @@ export async function sendOrUpdateTelegramTaskReminder(
   // 2. Nếu đến mốc cần chuông nhắc (forceNewNotification) hoặc tin cũ không tồn tại:
   // Luôn xóa tin nhắn cũ của việc này trước để bot tuyệt đối không bao giờ bị rối mắt/nhiều tin
   if (task.telegram_message_id) {
-    await deleteTelegramMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, task.telegram_message_id);
+    await deleteTelegramMessage(env.TELEGRAM_BOT_TOKEN, chatId, task.telegram_message_id);
   }
 
-  return sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, text, replyMarkup);
+  return sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, chatId, text, replyMarkup);
 }
 
 /**
@@ -372,6 +374,7 @@ export interface ParsedTask {
   dueDate: string | null;
   priority: 'Low' | 'Medium' | 'High';
   tags: string[];
+  category: string;
 }
 
 /**
@@ -402,7 +405,21 @@ export function parseTaskFromText(rawText: string): ParsedTask {
     priority = 'Low';
   }
 
-  // 3. Thời gian & Hạn chót
+  // 3. Phân loại Danh mục thông minh theo ý nghĩa
+  let category = 'Personal';
+  if (/họp|báo\s*cáo|dự\s*án|khách|hợp\s*đồng|công\s*việc|task|code|deadline|email|mail|sếp|công\s*ty|văn\s*phòng/i.test(cleanText)) {
+    category = 'Work';
+  } else if (/học|bài\s*tập|thi|ôn\s*tập|đọc\s*sách|sách|khóa\s*học|nghiên\s*cứu|tiếng\s*anh/i.test(cleanText)) {
+    category = 'Study';
+  } else if (/thuốc|khám|bác\s*sĩ|bệnh|chạy\s*bộ|gym|thể\s*dục|yoga|sức\s*khỏe|uống\s*nước/i.test(cleanText)) {
+    category = 'Health';
+  } else if (/mua|sắm|chợ|siêu\s*thị|order|đặt\s*hàng|shopping/i.test(cleanText)) {
+    category = 'Shopping';
+  } else if (/tiền|lương|hóa\s*đơn|thanh\s*toán|chuyển\s*khoản|ngân\s*hàng|nợ/i.test(cleanText)) {
+    category = 'Finance';
+  }
+
+  // 4. Thời gian & Hạn chót
   let dueDate: string | null = null;
   const now = new Date();
   // Giờ VN hiện tại (UTC+7)
@@ -458,7 +475,8 @@ export function parseTaskFromText(rawText: string): ParsedTask {
     title,
     dueDate,
     priority,
-    tags
+    tags,
+    category
   };
 }
 

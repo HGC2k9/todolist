@@ -3,6 +3,7 @@ node_modules/
 .agents/
 .env
 .env.*
+.dev.vars
 *.log
 graphify-out/cache/
 .DS_Store
