@@ -5,6 +5,8 @@ const config: CapacitorConfig = {
   appName: 'ToDoList',
   webDir: 'dist',
   server: {
+    url: 'https://app.todolists.workers.dev',
+    allowNavigation: ['app.todolists.workers.dev'],
     androidScheme: 'https',
     iosScheme: 'capacitor'
   },

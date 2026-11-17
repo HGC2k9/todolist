@@ -2631,6 +2631,22 @@ function app() {
         } catch {}
       }
 
+      // 1c. Lắng nghe sự kiện chuyển đổi trạng thái ứng dụng Capacitor (Resume từ nền -> đồng bộ dữ liệu)
+      if (window.Capacitor?.Plugins?.App) {
+        try {
+          window.Capacitor.Plugins.App.addListener('appStateChange', (state) => {
+            if (state && state.isActive) {
+              if (this.authenticated) {
+                this.fetchTodos(true);
+              }
+            }
+          });
+        } catch {}
+      }
+
+      // 1d. Khởi tạo & Xin quyền Local Notifications cho App Native
+      this.initNativeLocalNotifications().catch(() => {});
+
       // 2. Đăng ký Service Worker & Tự động cập nhật phiên bản mới nhất ngay trên iOS/PWA
       if ('serviceWorker' in navigator) {
         try {
@@ -3371,6 +3387,125 @@ function app() {
       });
     },
 
+    getNotificationId(idStr) {
+      if (!idStr) return 1;
+      let hash = 0;
+      const s = String(idStr);
+      for (let i = 0; i < s.length; i++) {
+        hash = ((hash << 5) - hash) + s.charCodeAt(i);
+        hash |= 0;
+      }
+      return (Math.abs(hash) % 2147483647) || 1;
+    },
+
+    async initNativeLocalNotifications() {
+      if (!window.Capacitor?.isPluginAvailable?.('LocalNotifications')) return;
+      try {
+        const LN = window.Capacitor.Plugins.LocalNotifications;
+        const perm = await LN.checkPermissions();
+        if (perm.display !== 'granted') {
+          await LN.requestPermissions();
+        }
+        LN.addListener('localNotificationActionPerformed', () => {
+          if (this.authenticated) {
+            this.fetchTodos(true);
+          }
+        });
+      } catch (e) {
+        console.warn('Native LocalNotifications init error:', e);
+      }
+    },
+
+    async scheduleNativeLocalNotification(todo) {
+      if (!window.Capacitor?.isPluginAvailable?.('LocalNotifications')) return;
+      if (!todo || !todo.due_date || todo.is_completed) return;
+      const d = this.parseDateSafe(todo.due_date);
+      if (!d) return;
+
+      const offsetMinutes = Number(todo.reminder_offset) || 0;
+      const dueTime = d.getTime();
+      let notifyTime = dueTime - (offsetMinutes * 60 * 1000);
+      const now = Date.now();
+
+      if (notifyTime <= now && dueTime > now) {
+        notifyTime = dueTime;
+      }
+      if (notifyTime <= now) return;
+
+      try {
+        const LN = window.Capacitor.Plugins.LocalNotifications;
+        const notifId = this.getNotificationId(todo.id);
+        await LN.cancel({ notifications: [{ id: notifId }] }).catch(() => {});
+        await LN.schedule({
+          notifications: [
+            {
+              id: notifId,
+              title: '⏰ Nhắc việc: ' + (todo.title || 'Công việc cần làm'),
+              body: 'Hạn: ' + (todo.due_date ? todo.due_date.substring(11, 16) : '') + (todo.category ? ' • ' + todo.category : ''),
+              schedule: { at: new Date(notifyTime) },
+              sound: 'beep.caf',
+              extra: { todoId: todo.id }
+            }
+          ]
+        });
+      } catch (e) {
+        console.warn('scheduleNativeLocalNotification error:', e);
+      }
+    },
+
+    async cancelNativeLocalNotification(todoId) {
+      if (!window.Capacitor?.isPluginAvailable?.('LocalNotifications')) return;
+      if (!todoId) return;
+      try {
+        const LN = window.Capacitor.Plugins.LocalNotifications;
+        const notifId = this.getNotificationId(todoId);
+        await LN.cancel({ notifications: [{ id: notifId }] });
+      } catch (e) {
+        console.warn('cancelNativeLocalNotification error:', e);
+      }
+    },
+
+    async syncAllNativeLocalNotifications() {
+      if (!window.Capacitor?.isPluginAvailable?.('LocalNotifications')) return;
+      if (!Array.isArray(this.todos)) return;
+      try {
+        const LN = window.Capacitor.Plugins.LocalNotifications;
+        const pending = await LN.getPending();
+        if (pending && pending.notifications && pending.notifications.length > 0) {
+          await LN.cancel({ notifications: pending.notifications.map(n => ({ id: n.id })) });
+        }
+        const now = Date.now();
+        const validTodos = this.todos.filter(t => !t.is_completed && t.due_date);
+        const toSchedule = [];
+        for (const t of validTodos) {
+          const d = this.parseDateSafe(t.due_date);
+          if (!d) continue;
+          const offsetMinutes = Number(t.reminder_offset) || 0;
+          const dueTime = d.getTime();
+          let notifyTime = dueTime - (offsetMinutes * 60 * 1000);
+          if (notifyTime <= now && dueTime > now) {
+            notifyTime = dueTime;
+          }
+          if (notifyTime > now) {
+            toSchedule.push({
+              id: this.getNotificationId(t.id),
+              title: '⏰ Nhắc việc: ' + (t.title || 'Công việc cần làm'),
+              body: 'Hạn: ' + (t.due_date ? t.due_date.substring(11, 16) : '') + (t.category ? ' • ' + t.category : ''),
+              schedule: { at: new Date(notifyTime) },
+              sound: 'beep.caf',
+              extra: { todoId: t.id }
+            });
+          }
+        }
+        if (toSchedule.length > 0) {
+          toSchedule.sort((a, b) => a.schedule.at.getTime() - b.schedule.at.getTime());
+          await LN.schedule({ notifications: toSchedule.slice(0, 50) });
+        }
+      } catch (e) {
+        console.warn('syncAllNativeLocalNotifications error:', e);
+      }
+    },
+
     async api(url, options = {}) {
       const base = cleanBaseUrl(API_BASE);
       const fullUrl = url.startsWith('http') ? url : (base ? (base + (url.startsWith('/') ? url : '/' + url)) : url);
@@ -3616,6 +3751,7 @@ function app() {
         }
         this.checkDueReminders();
         this.fetchAnalyticsSilently();
+        this.syncAllNativeLocalNotifications();
       } catch (err) {
         if (!isSilent) this.showToast(err.message, 'error');
       } finally {
@@ -4233,6 +4369,7 @@ function app() {
           if (idx !== -1) {
             Object.assign(this.todos[idx], body, { updated_at: new Date().toISOString() });
             this.saveCachedTodos();
+            this.scheduleNativeLocalNotification(this.todos[idx]);
           }
 
           if (!navigator.onLine) {
@@ -4272,6 +4409,7 @@ function app() {
           };
           this.todos.unshift(newTodo);
           this.saveCachedTodos();
+          this.scheduleNativeLocalNotification(newTodo);
 
           if (!navigator.onLine) {
             this.addToOfflineQueue({ type: 'CREATE', tempId, body });
@@ -4283,6 +4421,8 @@ function app() {
                 const idx = this.todos.findIndex(t => t.id === tempId);
                 if (idx !== -1) this.todos[idx] = res.todo;
                 this.saveCachedTodos();
+                this.cancelNativeLocalNotification(tempId);
+                this.scheduleNativeLocalNotification(res.todo);
 
                 if (this.editingTodoImages && this.editingTodoImages.length > 0) {
                   for (const img of this.editingTodoImages) {
@@ -4411,6 +4551,12 @@ function app() {
     async executeToggleTodo(todo, targetStatus) {
       const prevStatus = todo.is_completed;
       todo.is_completed = targetStatus;
+
+      if (targetStatus === 1) {
+        this.cancelNativeLocalNotification(todo.id);
+      } else {
+        this.scheduleNativeLocalNotification(todo);
+      }
 
       if (targetStatus === 1 && todo.repeat_mode && todo.repeat_mode !== 'none' && todo.due_date) {
         const d = new Date(todo.due_date);
@@ -4544,6 +4690,7 @@ function app() {
       this.lastDeletedTodo = { ...targetTodo };
       this.todos = this.todos.filter(t => t.id !== targetId);
       this.saveCachedTodos();
+      this.cancelNativeLocalNotification(targetId);
       this.showDeleteModal = false;
       this.deletingTodo = null;
 
