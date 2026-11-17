@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - test/capacitor-live-url
+      - main
 
 jobs:
   build-ipa:
