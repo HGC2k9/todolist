@@ -319,10 +319,37 @@ async function removeCompletionHistory(db: D1Database, userId: string, todoId: s
   }
 }
 
-// ─── Helper: Chuẩn hóa ngày ISO (Chỉ tính theo HH:mm, không tính theo giây) ───
+// ─── Helper: Chuẩn hóa ngày ISO theo múi giờ Việt Nam (UTC+7) ───
 function normalizeDate(dateVal: any): string | null {
   if (!dateVal) return null;
-  const d = new Date(dateVal);
+  const s = String(dateVal).trim();
+  if (!s) return null;
+
+  // Nếu chuỗi đã có hậu tố Z hoặc offset múi giờ (+07:00, -05:00)
+  if (s.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(s)) {
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return null;
+    d.setUTCSeconds(0, 0);
+    return d.toISOString();
+  }
+
+  // Nếu chuỗi ngày giờ không có múi giờ (ví dụ YYYY-MM-DDTHH:mm),
+  // mặc định hiểu theo giờ Việt Nam (UTC+7) -> trừ 7 tiếng để lưu UTC chuẩn vào D1
+  const match = s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (match) {
+    const year = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10) - 1;
+    const day = parseInt(match[3], 10);
+    const hour = parseInt(match[4], 10);
+    const minute = parseInt(match[5], 10);
+    const utcMs = Date.UTC(year, month, day, hour, minute, 0, 0) - (7 * 3600 * 1000);
+    const d = new Date(utcMs);
+    if (!isNaN(d.getTime())) {
+      return d.toISOString();
+    }
+  }
+
+  const d = new Date(s);
   if (isNaN(d.getTime())) return null;
   d.setUTCSeconds(0, 0);
   return d.toISOString();
@@ -1540,13 +1567,14 @@ app.get('/sw.js', async () => {
 });
 
 // GET /api/version — Kiểm tra phiên bản mới nhất để App iOS / PWA tự cập nhật ngầm
-const APP_VERSION = '2.4.0';
+const APP_VERSION = '2.5.0';
 app.get('/api/version', (c) => {
   return c.json({
     version: APP_VERSION,
     name: 'To-Do List',
     author: 'Designed by Chung',
-    updated_at: '2026-11-13T12:00:00Z',
+    updated_at: '2026-11-18T15:00:00Z',
+    timestamp: Date.now()
   }, 200, {
     'Cache-Control': 'no-cache, no-store, must-revalidate',
   });

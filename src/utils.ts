@@ -30,10 +30,45 @@ export function formatVnDateTime(dateInput: string | Date | number): string {
 }
 
 /**
+ * Chuẩn hóa phát âm, nói ngọng, phương ngữ và từ lóng tiếng Việt phổ biến
+ */
+export function normalizeVietnameseVoice(rawText: string): string {
+  if (!rawText) return '';
+  let s = String(rawText).trim();
+
+  // 1. Chuẩn hóa nhầm lẫn l/n
+  s = s.replace(/\bnàm\b/gi, 'làm')
+       .replace(/\blói\b/gi, 'nói')
+       .replace(/\blấu\b/gi, 'nấu')
+       .replace(/\blấy\b/gi, 'lấy')
+       .replace(/\blên\b/gi, 'lên')
+       .replace(/\bnên\b/gi, 'nên');
+
+  // 2. Chuẩn hóa nhầm lẫn s/x
+  s = s.replace(/\bxắp\s*xếp\b/gi, 'sắp xếp')
+       .replace(/\bxáng\b/gi, 'sáng')
+       .replace(/\bbuổi\s*xáng\b/gi, 'buổi sáng')
+       .replace(/\bđọc\s*xách\b/gi, 'đọc sách');
+
+  // 3. Chuẩn hóa tr/ch
+  s = s.replace(/\bchực\b/gi, 'trực')
+       .replace(/\bchực\s*nhật\b/gi, 'trực nhật');
+
+  // 4. Chuẩn hóa giọng địa phương, nói tắt & ký tự gõ sai
+  s = s.replace(/\b(chìu|chều)\b/gi, 'chiều')
+       .replace(/\brưởi\b/gi, 'rưỡi')
+       .replace(/\bkơm\b/gi, 'cơm')
+       .replace(/\bbuổi\s*chìu\b/gi, 'buổi chiều')
+       .replace(/\bbuổi\s*chều\b/gi, 'buổi chiều');
+
+  return s;
+}
+
+/**
  * Phân tích cú pháp văn bản tiếng Việt để tự động nhận diện Tiêu đề, Hạn chót, Mức độ ưu tiên và Thẻ #tag
  */
 export function parseTaskFromText(rawText: string): ParsedTask {
-  let text = (rawText || '').trim();
+  let text = normalizeVietnameseVoice(rawText || '').trim();
   if (text.startsWith('/add')) {
     text = text.substring(4).trim();
   }
@@ -93,8 +128,33 @@ export function parseTaskFromText(rawText: string): ParsedTask {
   const isAfternoonOrEvening = /\b(tối|chiều)\b/i.test(cleanText);
   cleanText = cleanText.replace(/\b(tối nay|chiều nay|sáng nay|tối|chiều|sáng)\b/gi, '').trim();
 
+  // Nhận diện giờ dạng "7h kém 15" hoặc "7 giờ kém 15"
+  const kemMatch = cleanText.match(/(\d{1,2})\s*(?:h|:|giờ)\s*kém\s*(\d{1,2})/i);
+  // Nhận diện giờ dạng "6h rưỡi" hoặc "6 giờ rưỡi"
+  const ruoiMatch = cleanText.match(/(\d{1,2})\s*(?:h|:|giờ)?\s*rưỡi/i);
+  // Nhận diện giờ tiêu chuẩn "6h", "18:00", "6 giờ", "6h30"
   const timeMatch = cleanText.match(/(\d{1,2})(?:h|:)(\d{2})?/i) || cleanText.match(/(\d{1,2})\s*(?:giờ|g)/i);
-  if (timeMatch) {
+
+  if (kemMatch) {
+    let h = parseInt(kemMatch[1], 10) - 1;
+    let m = 60 - parseInt(kemMatch[2], 10);
+    if (h < 0) h = 23;
+    if (isAfternoonOrEvening && h < 12) h += 12;
+    if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+      targetHour = h;
+      targetMinute = m;
+      cleanText = cleanText.replace(kemMatch[0], '').trim();
+    }
+  } else if (ruoiMatch) {
+    let h = parseInt(ruoiMatch[1], 10);
+    let m = 30;
+    if (isAfternoonOrEvening && h < 12) h += 12;
+    if (h >= 0 && h <= 23) {
+      targetHour = h;
+      targetMinute = m;
+      cleanText = cleanText.replace(ruoiMatch[0], '').trim();
+    }
+  } else if (timeMatch) {
     let h = parseInt(timeMatch[1], 10);
     let m = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
     if (isAfternoonOrEvening && h < 12) {
@@ -107,13 +167,24 @@ export function parseTaskFromText(rawText: string): ParsedTask {
     }
   }
 
+  // Loại bỏ các từ thừa như "lúc", "vào lúc", "vào", "nhắc tôi", "hãy"
+  cleanText = cleanText
+    .replace(/\b(vào\s*lúc|lúc|vào)\b/gi, ' ')
+    .replace(/^(?:hãy|tạo\s*việc|thêm\s*việc|nhắc\s*tôi|nhắc)\s+/gi, ' ')
+    .replace(/\b(?:rưỡi|kém)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
   if (targetHour !== null) {
     const targetUtc = new Date(Date.UTC(targetYear, targetMonth, targetDate, targetHour - 7, targetMinute, 0, 0));
     dueDate = targetUtc.toISOString();
   }
 
   cleanText = cleanText.replace(/\s+/g, ' ').trim();
-  const title = cleanText || text || 'Công việc mới';
+  let title = cleanText || text || 'Công việc mới';
+  if (title) {
+    title = title.charAt(0).toUpperCase() + title.slice(1);
+  }
 
   return {
     title,

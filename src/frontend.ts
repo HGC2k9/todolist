@@ -88,6 +88,11 @@ export function renderHTML(): string {
       --sar: env(safe-area-inset-right, 0px);
     }
 
+    [x-cloak] {
+      display: none !important;
+      pointer-events: none !important;
+    }
+
     /* Padding an toàn cho iOS Dynamic Island & Tai thỏ */
     .ios-safe-top {
       padding-top: calc(max(14px, env(safe-area-inset-top, 0px)) + 12px);
@@ -184,7 +189,7 @@ export function renderHTML(): string {
     }
   </style>
 </head>
-<body class="bg-slate-50 dark:bg-[#0b0f19] text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-200 ios-safe-bottom pb-24 sm:pb-8 selection:bg-brand-500 selection:text-white max-w-full overflow-x-hidden">
+<body class="bg-slate-50 dark:bg-[#0b0f19] text-slate-900 dark:text-slate-100 min-h-[100dvh] h-[100dvh] overflow-hidden flex flex-col font-sans transition-colors duration-200 selection:bg-brand-500 selection:text-white max-w-full">
 
 <!-- ═══════ TOAST NOTIFICATIONS (Vuốt lên/sang để tắt, xếp chồng, 3s tự tắt) ═══════ -->
 <div class="fixed right-4 left-4 sm:left-auto z-[120] space-y-2 pointer-events-none"
@@ -222,7 +227,7 @@ export function renderHTML(): string {
 </div>
 
 <!-- ═══════ AUTH SCREEN (Đăng nhập / Đăng ký) ═══════ -->
-<div x-show="!authenticated" x-cloak class="min-h-screen flex items-center justify-center p-4 ios-safe-top">
+<div x-show="!authenticated" x-cloak class="min-h-[100dvh] h-[100dvh] overflow-y-auto flex items-center justify-center p-4 ios-safe-top">
   <div class="w-full max-w-md">
     <div class="text-center mb-8">
       <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand-600 to-blue-400 text-white shadow-lg shadow-brand-500/30 mb-4 ring-4 ring-brand-100 dark:ring-brand-950">
@@ -1255,9 +1260,9 @@ export function renderHTML(): string {
           <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">5. Ưu tiên</label>
           <select x-model="todoForm.priority" aria-label="Mức độ ưu tiên"
                   class="w-full px-3 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold outline-none cursor-pointer">
-            <option value="High">🔴 High (Nhắc mỗi 3p)</option>
-            <option value="Medium">🟡 Medium (Nhắc mỗi 5p)</option>
-            <option value="Low">🟢 Low (Nhắc 1 lần)</option>
+            <option value="High">🔴 High</option>
+            <option value="Medium">🟡 Medium</option>
+            <option value="Low">🟢 Low</option>
           </select>
         </div>
 
@@ -1484,7 +1489,7 @@ export function renderHTML(): string {
 </div>
 
 <!-- ═══════ CONFIRM DELETE MODAL ═══════ -->
-<div x-show="showDeleteModal" x-cloak class="fixed inset-0 z-[110] flex items-center justify-center p-4"
+<div x-show="showDeleteModal" x-cloak class="fixed inset-0 z-[200] flex items-center justify-center p-4"
      role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
   <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showDeleteModal=false"
        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
@@ -1508,7 +1513,7 @@ export function renderHTML(): string {
 </div>
 
 <!-- ═══════ CONFIRM CLEAR COMPLETED MODAL ═══════ -->
-<div x-show="showClearCompletedModal" x-cloak class="fixed inset-0 z-[110] flex items-center justify-center p-4"
+<div x-show="showClearCompletedModal" x-cloak class="fixed inset-0 z-[200] flex items-center justify-center p-4"
      role="dialog" aria-modal="true" aria-labelledby="clear-modal-title">
   <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showClearCompletedModal=false"
        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
@@ -1532,7 +1537,7 @@ export function renderHTML(): string {
 </div>
 
 <!-- ═══════ CONFIRM LOGOUT MODAL ═══════ -->
-<div x-show="showLogoutModal" x-cloak class="fixed inset-0 z-[115] flex items-center justify-center p-4"
+<div x-show="showLogoutModal" x-cloak class="fixed inset-0 z-[200] flex items-center justify-center p-4"
      role="dialog" aria-modal="true" aria-labelledby="logout-modal-title">
   <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showLogoutModal=false"
        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
@@ -1560,7 +1565,7 @@ export function renderHTML(): string {
 </div>
 
 <!-- ═══════ UNIVERSAL CONFIRM MODAL ═══════ -->
-<div x-show="confirmDialog.show" x-cloak class="fixed inset-0 z-[125] flex items-center justify-center p-4"
+<div x-show="confirmDialog.show" x-cloak class="fixed inset-0 z-[200] flex items-center justify-center p-4"
      role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title">
   <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="closeConfirm(false)"
        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
@@ -1583,6 +1588,37 @@ export function renderHTML(): string {
               class="flex-1 h-10 px-3 text-white font-bold rounded-xl text-xs shadow-md transition active:scale-95 inline-flex items-center justify-center cursor-pointer"
               :class="confirmDialog.isDanger ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/30' : 'bg-brand-600 hover:bg-brand-700 shadow-brand-600/30'"
               x-text="confirmDialog.confirmText || 'Đồng ý'"></button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ APP VERSION UPDATE NOTIFICATION MODAL ═══════ -->
+<div x-show="showUpdateModal" x-cloak class="fixed inset-0 z-[210] flex items-center justify-center p-4"
+     role="dialog" aria-modal="true" aria-labelledby="update-modal-title">
+  <div class="fixed inset-0 bg-slate-950/70 backdrop-blur-md" @click="showUpdateModal=false"
+       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+  <div class="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-brand-200 dark:border-brand-800/60 p-6 text-center animate-bounce-once"
+       x-transition:enter="transition ease-out duration-250" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+       @click.stop>
+    <div class="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center mb-3 text-3xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 shadow-sm animate-pulse">
+      🚀
+    </div>
+    <h3 id="update-modal-title" class="text-base font-extrabold text-slate-900 dark:text-white mb-2">Đang cập nhật phiên bản mới</h3>
+    <p class="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+      Hệ thống vừa có bản cập nhật mới <span class="font-bold text-brand-600 dark:text-brand-400" x-text="newVersionInfo ? ('v' + newVersionInfo) : ''"></span>. Vui lòng tải lại ứng dụng để áp dụng!
+    </p>
+    <div class="flex gap-3">
+      <button type="button" @click="showUpdateModal = false"
+              class="flex-1 h-11 px-4 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold rounded-2xl text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 cursor-pointer">
+        Để sau
+      </button>
+      <button type="button" @click="window.location.reload()"
+              class="flex-1 h-11 px-4 bg-brand-600 hover:bg-brand-700 active:scale-95 text-white font-bold rounded-2xl text-xs shadow-lg shadow-brand-500/30 transition cursor-pointer inline-flex items-center justify-center gap-1.5">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        <span>Đồng ý</span>
+      </button>
     </div>
   </div>
 </div>
@@ -1724,97 +1760,190 @@ export function renderHTML(): string {
   </div>
 </div>
 
-<!-- ═══════ POMODORO FOCUS MODE & AMBIENT SOUND MODAL ═══════ -->
+<!-- ═══════ FOCUS TOOLS: POMODORO, STOPWATCH, COUNTDOWN TIMER & AMBIENT SOUND ═══════ -->
 <div x-show="showPomodoroModal" x-cloak class="fixed inset-0 z-[130] flex items-center justify-center p-4"
-     role="dialog" aria-modal="true" aria-labelledby="pomodoro-modal-title">
+     role="dialog" aria-modal="true" aria-labelledby="focus-tools-modal-title">
   <div class="fixed inset-0 bg-slate-950/70 backdrop-blur-md" @click="showPomodoroModal=false"
        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
-  <div class="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 text-center"
+  <div class="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 text-center max-h-[90vh] flex flex-col"
        x-transition:enter="transition ease-out duration-250" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
        @click.stop>
-    <div class="flex items-center justify-between mb-4">
-      <div class="flex items-center gap-2">
-        <span class="text-2xl">🍅</span>
-        <h3 id="pomodoro-modal-title" class="text-lg font-black text-slate-900 dark:text-white">Chế độ Tập trung</h3>
+    <!-- Header with 3 Tabs -->
+    <div class="flex items-center justify-between mb-4 flex-shrink-0">
+      <div class="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl text-xs font-bold">
+        <button type="button" @click="focusToolTab='pomodoro'"
+                class="px-2.5 sm:px-3 py-1.5 rounded-xl transition cursor-pointer"
+                :class="focusToolTab === 'pomodoro' ? 'bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'">
+          🍅 Pomodoro
+        </button>
+        <button type="button" @click="focusToolTab='stopwatch'"
+                class="px-2.5 sm:px-3 py-1.5 rounded-xl transition cursor-pointer"
+                :class="focusToolTab === 'stopwatch' ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'">
+          ⏱️ Bấm giờ
+        </button>
+        <button type="button" @click="focusToolTab='timer'"
+                class="px-2.5 sm:px-3 py-1.5 rounded-xl transition cursor-pointer"
+                :class="focusToolTab === 'timer' ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'">
+          ⏳ Hẹn giờ
+        </button>
       </div>
       <button @click="showPomodoroModal=false" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">✕</button>
     </div>
 
-    <!-- Mode Selector -->
-    <div class="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-6 text-xs font-bold">
-      <button type="button" @click="setPomodoroMode('focus')"
-              class="py-2 rounded-xl transition cursor-pointer"
-              :class="pomodoroMode === 'focus' ? 'bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
-        Tập trung (25p)
-      </button>
-      <button type="button" @click="setPomodoroMode('shortBreak')"
-              class="py-2 rounded-xl transition cursor-pointer"
-              :class="pomodoroMode === 'shortBreak' ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
-        Nghỉ ngắn (5p)
-      </button>
-      <button type="button" @click="setPomodoroMode('longBreak')"
-              class="py-2 rounded-xl transition cursor-pointer"
-              :class="pomodoroMode === 'longBreak' ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
-        Nghỉ dài (15p)
-      </button>
-    </div>
+    <div class="flex-1 overflow-y-auto no-scrollbar">
+      <!-- ─── TAB 1: POMODORO ─── -->
+      <div x-show="focusToolTab==='pomodoro'">
+        <!-- Mode Selector -->
+        <div class="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-5 text-xs font-bold">
+          <button type="button" @click="setPomodoroMode('focus')"
+                  class="py-2 rounded-xl transition cursor-pointer"
+                  :class="pomodoroMode === 'focus' ? 'bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
+            Tập trung (25p)
+          </button>
+          <button type="button" @click="setPomodoroMode('shortBreak')"
+                  class="py-2 rounded-xl transition cursor-pointer"
+                  :class="pomodoroMode === 'shortBreak' ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
+            Nghỉ ngắn (5p)
+          </button>
+          <button type="button" @click="setPomodoroMode('longBreak')"
+                  class="py-2 rounded-xl transition cursor-pointer"
+                  :class="pomodoroMode === 'longBreak' ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
+            Nghỉ dài (15p)
+          </button>
+        </div>
 
-    <!-- Timer Display -->
-    <div class="my-6">
-      <div class="text-6xl sm:text-7xl font-black font-mono tracking-tighter text-slate-900 dark:text-white select-none"
-           x-text="formatTimer(pomodoroTimeLeft)"></div>
-      <div class="text-xs font-bold text-slate-400 mt-2 uppercase tracking-widest"
-           x-text="pomodoroRunning ? 'Đang đếm ngược...' : 'Tạm dừng'"></div>
-    </div>
+        <!-- Timer Display -->
+        <div class="my-5">
+          <div class="text-6xl sm:text-7xl font-black font-mono tracking-tighter text-slate-900 dark:text-white select-none"
+               x-text="formatTimer(pomodoroTimeLeft)"></div>
+          <div class="text-xs font-bold text-slate-400 mt-2 uppercase tracking-widest"
+               x-text="pomodoroRunning ? 'Đang đếm ngược...' : 'Tạm dừng'"></div>
+        </div>
 
-    <!-- Timer Controls -->
-    <div class="flex items-center justify-center gap-3 mb-6">
-      <button type="button" @click="pomodoroRunning ? pausePomodoro() : startPomodoro()"
-              class="h-12 px-6 rounded-2xl font-bold text-sm text-white shadow-lg transition active:scale-95 inline-flex items-center gap-2 cursor-pointer"
-              :class="pomodoroRunning ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/30' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/30'">
-        <span x-text="pomodoroRunning ? '⏸️ Tạm dừng' : '▶️ Bắt đầu tập trung'"></span>
-      </button>
-      <button type="button" @click="resetPomodoro()"
-              class="h-12 w-12 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold inline-flex items-center justify-center transition active:scale-95 cursor-pointer"
-              title="Đặt lại đồng hồ">
-        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-      </button>
-    </div>
-
-    <!-- Ambient Sound Generator (Web Audio API - 0KB) -->
-    <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 text-left">
-      <div class="flex items-center justify-between mb-2.5">
-        <span class="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-          <span>🎧</span>
-          <span>Âm thanh nền (Web Audio API - 0KB)</span>
-        </span>
-        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-brand-100 dark:bg-brand-950 text-brand-700 dark:text-brand-300">Tổng hợp trực tiếp</span>
+        <!-- Timer Controls -->
+        <div class="flex items-center justify-center gap-3 mb-5">
+          <button type="button" @click="pomodoroRunning ? pausePomodoro() : startPomodoro()"
+                  class="h-11 px-5 rounded-2xl font-bold text-sm text-white shadow-lg transition active:scale-95 inline-flex items-center gap-2 cursor-pointer"
+                  :class="pomodoroRunning ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/30' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/30'">
+            <span x-text="pomodoroRunning ? '⏸️ Tạm dừng' : '▶️ Bắt đầu'"></span>
+          </button>
+          <button type="button" @click="resetPomodoro()"
+                  class="h-11 w-11 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold inline-flex items-center justify-center transition active:scale-95 cursor-pointer"
+                  title="Đặt lại đồng hồ">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          </button>
+        </div>
       </div>
 
-      <div class="grid grid-cols-3 gap-1.5 mb-3 text-xs font-bold">
-        <button type="button" @click="playAmbientSound('none')"
-                class="py-2 px-1 rounded-xl text-center border transition cursor-pointer"
-                :class="ambientSound === 'none' ? 'bg-white dark:bg-slate-900 border-brand-500 text-brand-600 shadow-xs' : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900'">
-          🔇 Tắt tiếng
-        </button>
-        <button type="button" @click="playAmbientSound('rain')"
-                class="py-2 px-1 rounded-xl text-center border transition cursor-pointer"
-                :class="ambientSound === 'rain' ? 'bg-sky-50 dark:bg-sky-950/80 border-sky-500 text-sky-700 dark:text-sky-300 shadow-xs' : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900'">
-          🌧️ Mưa rào
-        </button>
-        <button type="button" @click="playAmbientSound('white')"
-                class="py-2 px-1 rounded-xl text-center border transition cursor-pointer"
-                :class="ambientSound === 'white' ? 'bg-indigo-50 dark:bg-indigo-950/80 border-indigo-500 text-indigo-700 dark:text-indigo-300 shadow-xs' : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900'">
-          💨 Ồn trắng
-        </button>
+      <!-- ─── TAB 2: STOPWATCH (BẤM GIỜ) ─── -->
+      <div x-show="focusToolTab==='stopwatch'">
+        <div class="my-5">
+          <div class="text-5xl sm:text-6xl font-black font-mono tracking-tighter text-slate-900 dark:text-white select-none"
+               x-text="formatStopwatch(stopwatchTime)"></div>
+          <div class="text-xs font-bold text-slate-400 mt-2 uppercase tracking-widest"
+               x-text="stopwatchRunning ? 'Đang tính giờ...' : (stopwatchTime > 0 ? 'Tạm dừng' : 'Sẵn sàng')"></div>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex items-center justify-center gap-2.5 mb-4">
+          <button type="button" @click="stopwatchRunning ? pauseStopwatch() : startStopwatch()"
+                  class="h-11 px-5 rounded-2xl font-bold text-sm text-white shadow-lg transition active:scale-95 inline-flex items-center gap-2 cursor-pointer"
+                  :class="stopwatchRunning ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/30' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/30'">
+            <span x-text="stopwatchRunning ? '⏸️ Tạm dừng' : '▶️ Bắt đầu'"></span>
+          </button>
+          <button type="button" @click="lapStopwatch()" :disabled="!stopwatchRunning"
+                  class="h-11 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs inline-flex items-center justify-center transition active:scale-95 disabled:opacity-40 cursor-pointer">
+            🏁 Vòng
+          </button>
+          <button type="button" @click="resetStopwatch()"
+                  class="h-11 w-11 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold inline-flex items-center justify-center transition active:scale-95 cursor-pointer"
+                  title="Đặt lại">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          </button>
+        </div>
+
+        <!-- Laps List -->
+        <div x-show="stopwatchLaps.length > 0" class="max-h-36 overflow-y-auto mb-4 border border-slate-100 dark:border-slate-800 rounded-2xl p-2 bg-slate-50/50 dark:bg-slate-800/30 text-xs">
+          <template x-for="lap in stopwatchLaps" :key="lap.lapNumber">
+            <div class="flex items-center justify-between py-1 px-2 border-b border-slate-100 dark:border-slate-800/60 last:border-b-0 font-mono">
+              <span class="font-bold text-slate-500" x-text="'Vòng ' + lap.lapNumber"></span>
+              <span class="text-slate-400" x-text="'+' + formatStopwatch(lap.splitTime)"></span>
+              <span class="font-bold text-slate-800 dark:text-slate-200" x-text="formatStopwatch(lap.totalTime)"></span>
+            </div>
+          </template>
+        </div>
       </div>
 
-      <div x-show="ambientSound !== 'none'" class="flex items-center gap-3 pt-1">
-        <span class="text-[11px] font-bold text-slate-400">Âm lượng:</span>
-        <input type="range" min="0" max="1" step="0.05" x-model="ambientVolume" @input="setAmbientVolume($event.target.value)"
-               class="flex-1 accent-brand-600 cursor-pointer h-1.5 rounded-lg bg-slate-200 dark:bg-slate-700" />
-        <span class="text-[11px] font-mono text-slate-400 w-8 text-right" x-text="Math.round(ambientVolume * 100) + '%'"></span>
+      <!-- ─── TAB 3: COUNTDOWN TIMER (HẸN GIỜ) ─── -->
+      <div x-show="focusToolTab==='timer'">
+        <!-- Quick Presets -->
+        <div class="flex flex-wrap items-center justify-center gap-1.5 mb-4">
+          <button type="button" @click="setCountdownPreset(60)" class="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 transition cursor-pointer">1p</button>
+          <button type="button" @click="setCountdownPreset(300)" class="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 transition cursor-pointer">5p</button>
+          <button type="button" @click="setCountdownPreset(600)" class="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 transition cursor-pointer">10p</button>
+          <button type="button" @click="setCountdownPreset(900)" class="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 transition cursor-pointer">15p</button>
+          <button type="button" @click="setCountdownPreset(1500)" class="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 transition cursor-pointer">25p</button>
+          <button type="button" @click="setCountdownPreset(3600)" class="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 transition cursor-pointer">60p</button>
+        </div>
+
+        <!-- Timer Display -->
+        <div class="my-4">
+          <div class="text-6xl sm:text-7xl font-black font-mono tracking-tighter text-slate-900 dark:text-white select-none"
+               x-text="formatCountdown(countdownTimeLeft)"></div>
+          <div class="text-xs font-bold text-slate-400 mt-2 uppercase tracking-widest"
+               x-text="countdownRunning ? 'Đang đếm ngược...' : (countdownTimeLeft <= 0 ? 'Đã hết giờ!' : 'Tạm dừng')"></div>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex items-center justify-center gap-3 mb-5">
+          <button type="button" @click="countdownRunning ? pauseCountdown() : startCountdown()"
+                  class="h-11 px-5 rounded-2xl font-bold text-sm text-white shadow-lg transition active:scale-95 inline-flex items-center gap-2 cursor-pointer"
+                  :class="countdownRunning ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/30' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30'">
+            <span x-text="countdownRunning ? '⏸️ Tạm dừng' : '▶️ Bắt đầu'"></span>
+          </button>
+          <button type="button" @click="resetCountdown()"
+                  class="h-11 w-11 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold inline-flex items-center justify-center transition active:scale-95 cursor-pointer"
+                  title="Đặt lại">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Ambient Sound Generator (Web Audio API - 0KB) -->
+      <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 text-left mt-2">
+        <div class="flex items-center justify-between mb-2.5">
+          <span class="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+            <span>🎧</span>
+            <span>Âm thanh nền (Web Audio API - 0KB)</span>
+          </span>
+          <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-brand-100 dark:bg-brand-950 text-brand-700 dark:text-brand-300">Tổng hợp trực tiếp</span>
+        </div>
+
+        <div class="grid grid-cols-3 gap-1.5 mb-3 text-xs font-bold">
+          <button type="button" @click="playAmbientSound('none')"
+                  class="py-2 px-1 rounded-xl text-center border transition cursor-pointer"
+                  :class="ambientSound === 'none' ? 'bg-white dark:bg-slate-900 border-brand-500 text-brand-600 shadow-xs' : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900'">
+            🔇 Tắt tiếng
+          </button>
+          <button type="button" @click="playAmbientSound('rain')"
+                  class="py-2 px-1 rounded-xl text-center border transition cursor-pointer"
+                  :class="ambientSound === 'rain' ? 'bg-sky-50 dark:bg-sky-950/80 border-sky-500 text-sky-700 dark:text-sky-300 shadow-xs' : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900'">
+            🌧️ Mưa rào
+          </button>
+          <button type="button" @click="playAmbientSound('white')"
+                  class="py-2 px-1 rounded-xl text-center border transition cursor-pointer"
+                  :class="ambientSound === 'white' ? 'bg-indigo-50 dark:bg-indigo-950/80 border-indigo-500 text-indigo-700 dark:text-indigo-300 shadow-xs' : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900'">
+            💨 Ồn trắng
+          </button>
+        </div>
+
+        <div x-show="ambientSound !== 'none'" class="flex items-center gap-3 pt-1">
+          <span class="text-[11px] font-bold text-slate-400">Âm lượng:</span>
+          <input type="range" min="0" max="100" step="5" x-model.number="ambientVolume" @input="setAmbientVolume($event.target.value)"
+                 class="flex-1 accent-brand-600 cursor-pointer h-1.5 rounded-lg bg-slate-200 dark:bg-slate-700" />
+          <span class="text-[11px] font-mono text-slate-400 w-10 text-right" x-text="ambientVolume + '%'"></span>
+        </div>
       </div>
     </div>
   </div>
@@ -2095,14 +2224,24 @@ function app() {
     trashLoading: false,
     lastDeletedTodo: null,
 
-    // V3: Pomodoro & Web Audio API
+    // V3: Focus Tools (Pomodoro, Stopwatch, Countdown Timer) & Web Audio API
     showPomodoroModal: false,
+    focusToolTab: 'pomodoro',
     pomodoroRunning: false,
     pomodoroMode: 'focus',
     pomodoroTimeLeft: 25 * 60,
     pomodoroTotalTime: 25 * 60,
     pomodoroActiveTodo: null,
     pomodoroInterval: null,
+    stopwatchTime: 0,
+    stopwatchRunning: false,
+    stopwatchInterval: null,
+    stopwatchStartTime: 0,
+    stopwatchLaps: [],
+    countdownDuration: 300,
+    countdownTimeLeft: 300,
+    countdownRunning: false,
+    countdownInterval: null,
     ambientSound: 'none',
     ambientVolume: 50,
     ambientNodes: null,
@@ -2163,7 +2302,9 @@ function app() {
 
     // Modal About & Version
     showAboutModal: false,
-    appVersion: '2.4.0',
+    appVersion: '2.5.0',
+    showUpdateModal: false,
+    newVersionInfo: '',
 
     // In-App Notifications, Priorities & Auto-Update
     notificationsEnabled: localStorage.getItem('notificationsEnabled') !== 'false',
@@ -2177,31 +2318,28 @@ function app() {
     isTodoForToday(todo) {
       if (!todo) return false;
       const pad = n => String(n).padStart(2, '0');
-      const nowVn = new Date(Date.now() + 7 * 3600 * 1000);
-      const todayStr = nowVn.getUTCFullYear() + '-' + pad(nowVn.getUTCMonth() + 1) + '-' + pad(nowVn.getUTCDate());
+      const now = new Date();
+      const todayStr = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
 
       if (todo.due_date) {
-        const time = new Date(todo.due_date).getTime();
-        if (!isNaN(time)) {
-          const vn = new Date(time + 7 * 3600 * 1000);
-          const dueStr = vn.getUTCFullYear() + '-' + pad(vn.getUTCMonth() + 1) + '-' + pad(vn.getUTCDate());
+        const d = this.parseDateSafe(todo.due_date);
+        if (d) {
+          const dueStr = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
           if (dueStr === todayStr) return true;
         }
       }
       if (todo.repeat_mode === 'daily') return true;
       if (todo.is_completed) {
-        const compTime = new Date(todo.updated_at || todo.created_at).getTime();
-        if (!isNaN(compTime)) {
-          const vn = new Date(compTime + 7 * 3600 * 1000);
-          const compStr = vn.getUTCFullYear() + '-' + pad(vn.getUTCMonth() + 1) + '-' + pad(vn.getUTCDate());
+        const d = this.parseDateSafe(todo.updated_at || todo.created_at);
+        if (d) {
+          const compStr = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
           if (compStr === todayStr) return true;
         }
       }
       if (!todo.due_date && todo.created_at) {
-        const createTime = new Date(todo.created_at).getTime();
-        if (!isNaN(createTime)) {
-          const vn = new Date(createTime + 7 * 3600 * 1000);
-          const createStr = vn.getUTCFullYear() + '-' + pad(vn.getUTCMonth() + 1) + '-' + pad(vn.getUTCDate());
+        const d = this.parseDateSafe(todo.created_at);
+        if (d) {
+          const createStr = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
           if (createStr === todayStr) return true;
         }
       }
@@ -2719,7 +2857,7 @@ function app() {
         }
         const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
         if (!isInput && this.authenticated) {
-          const anyModalOpen = this.showModal || this.showDeleteModal || this.showClearCompletedModal || this.showLogoutModal || this.showAboutModal || this.showDownloadModal || this.showTrashModal || this.showPomodoroModal || this.showAnalyticsModal || this.showLightbox;
+          const anyModalOpen = this.showModal || this.showDeleteModal || this.showClearCompletedModal || this.showLogoutModal || this.showAboutModal || this.showDownloadModal || this.showTrashModal || this.showPomodoroModal || this.showAnalyticsModal || this.showLightbox || this.showUpdateModal;
           if (!anyModalOpen) {
             if (e.key === 'n' || e.key === 'N') {
               e.preventDefault();
@@ -3159,18 +3297,14 @@ function app() {
         const data = await res.json();
         if (data.version && data.version !== this.appVersion) {
           console.log('Phát hiện bản mới:', data.version, 'Bản hiện tại:', this.appVersion);
-          this.showToast('✨ Ứng dụng đã có bản cập nhật mới (' + data.version + '). Đang tự động làm mới...', 'info');
-          if ('caches' in window) {
-            const keys = await caches.keys();
-            await Promise.all(keys.map(k => caches.delete(k)));
-          }
-          setTimeout(() => {
-            window.location.reload();
-          }, 1200);
+          this.newVersionInfo = data.version;
+          this.showUpdateModal = true;
         } else if (manual) {
           this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + this.appVersion + ')! 🎉', 'success');
         }
-      } catch {}
+      } catch (err) {
+        console.warn('checkAppVersion error:', err);
+      }
     },
 
     startBackgroundTimerWorker() {
@@ -3327,7 +3461,8 @@ function app() {
         if (triggerTime > dueTime + (intervalMs * 2)) break;
         if (triggerTime > now) {
           const priorityPrefix = priority === 'High' ? '🚨 [KHẨN CẤP] ' : (priority === 'Medium' ? '⚡ [ƯU TIÊN] ' : '⏰ Nhắc việc: ');
-          const dueTimeStr = todo.due_date ? todo.due_date.substring(11, 16) : '';
+          const pad = (n) => String(n).padStart(2, '0');
+          const dueTimeStr = d ? (pad(d.getHours()) + ':' + pad(d.getMinutes())) : '';
           const repeatSuffix = i > 0 ? (' (Nhắc lặp lần ' + (i + 1) + ')') : '';
           notifications.push({
             id: baseId + i,
@@ -3404,7 +3539,8 @@ function app() {
               if (triggerTime > dueTime + (intervalMs * 2)) break;
               if (triggerTime > now) {
                 const priorityPrefix = priority === 'High' ? '🚨 [KHẨN CẤP] ' : (priority === 'Medium' ? '⚡ [ƯU TIÊN] ' : '⏰ Nhắc việc: ');
-                const dueTimeStr = t.due_date ? t.due_date.substring(11, 16) : '';
+                const pad = (n) => String(n).padStart(2, '0');
+                const dueTimeStr = d ? (pad(d.getHours()) + ':' + pad(d.getMinutes())) : '';
                 const repeatSuffix = i > 0 ? (' (Nhắc lặp lần ' + (i + 1) + ')') : '';
                 taskNotifications.push({
                   id: baseId + i,
@@ -3861,15 +3997,42 @@ function app() {
       }
     },
 
+    normalizeVietnameseVoice(rawText) {
+      if (!rawText) return '';
+      let s = ' ' + String(rawText).trim() + ' ';
+      // 1. Nhầm l/n
+      s = s.replace(/(?:^|[ ])nàm(?:$|[ ])/gi, ' làm ')
+           .replace(/(?:^|[ ])lói(?:$|[ ])/gi, ' nói ')
+           .replace(/(?:^|[ ])lấu(?:$|[ ])/gi, ' nấu ')
+           .replace(/(?:^|[ ])lấy(?:$|[ ])/gi, ' lấy ')
+           .replace(/(?:^|[ ])lên(?:$|[ ])/gi, ' lên ')
+           .replace(/(?:^|[ ])nên(?:$|[ ])/gi, ' nên ');
+      // 2. Nhầm s/x
+      s = s.replace(/(?:^|[ ])xắp[ ]*xếp(?:$|[ ])/gi, ' sắp xếp ')
+           .replace(/(?:^|[ ])xáng(?:$|[ ])/gi, ' sáng ')
+           .replace(/(?:^|[ ])buổi[ ]*xáng(?:$|[ ])/gi, ' buổi sáng ')
+           .replace(/(?:^|[ ])đọc[ ]*xách(?:$|[ ])/gi, ' đọc sách ');
+      // 3. Nhầm tr/ch
+      s = s.replace(/(?:^|[ ])chực[ ]*nhật(?:$|[ ])/gi, ' trực nhật ')
+           .replace(/(?:^|[ ])chực(?:$|[ ])/gi, ' trực ');
+      // 4. Phương ngữ
+      s = s.replace(/(?:^|[ ])(?:chìu|chều)(?:$|[ ])/gi, ' chiều ')
+           .replace(/(?:^|[ ])rưởi(?:$|[ ])/gi, ' rưỡi ')
+           .replace(/(?:^|[ ])kơm(?:$|[ ])/gi, ' cơm ')
+           .replace(/(?:^|[ ])buổi[ ]*chìu(?:$|[ ])/gi, ' buổi chiều ')
+           .replace(/(?:^|[ ])buổi[ ]*chều(?:$|[ ])/gi, ' buổi chiều ');
+      return s.replace(/[ ]+/g, ' ').trim();
+    },
+
     // ─── TÍCH HỢP MICRO NHẬN DIỆN GIỌNG NÓI TIẾNG VIỆT ───
     applyVoiceTranscriptToTodo(rawText) {
       if (!rawText || !rawText.trim()) return;
-      const text = rawText.trim();
+      const text = this.normalizeVietnameseVoice(rawText).trim();
       const lower = text.toLowerCase();
 
       // 1. Mức độ ưu tiên: nếu có chữ gấp, khẩn cấp, khẩn, ngay -> High. Mặc định là Medium
       let priority = 'Medium';
-      if (/gấp|khẩn\\s*cấp|khẩn|ngay\\s*lập\\s*tức|hỏa\\s*tốc|quan\\s*trọng/.test(lower)) {
+      if (/gấp|khẩn\s*cấp|khẩn|ngay\s*lập\s*tức|hỏa\s*tốc|quan\s*trọng/.test(lower)) {
         priority = 'High';
       }
 
@@ -3884,17 +4047,17 @@ function app() {
       const findCat = (keywords) => catList.find(c => keywords.some(k => c.toLowerCase().includes(k.toLowerCase())));
 
       let targetCat = 'Personal';
-      if (/ăn|cơm|uống|ngủ|tắm|dạo|chơi|xem\\s*phim|game|cá\\s*nhân|nhà|gia\\s*đình|bạn\\s*bè|nghỉ\\s*ngơi|nấu/.test(lower)) {
+      if (/ăn|cơm|uống|ngủ|tắm|dạo|chơi|xem\s*phim|game|cá\s*nhân|nhà|gia\s*đình|bạn\s*bè|nghỉ\s*ngơi|nấu/.test(lower)) {
         targetCat = findCat(['Personal', 'Cá nhân', 'Đời sống']) || (catList.includes('Personal') ? 'Personal' : catList[0]);
-      } else if (/họp|báo\\s*cáo|dự\\s*án|khách|hợp\\s*đồng|công\\s*việc|task|code|deadline|email|mail|sếp|công\\s*ty|văn\\s*phòng/.test(lower)) {
+      } else if (/họp|báo\s*cáo|dự\s*án|khách|hợp\s*đồng|công\s*việc|task|code|deadline|email|mail|sếp|công\s*ty|văn\s*phòng/.test(lower)) {
         targetCat = findCat(['Work', 'Công việc', 'Job', 'Dự án']) || (catList.includes('Work') ? 'Work' : catList[0]);
-      } else if (/học|bài\\s*tập|thi|ôn\\s*tập|đọc\\s*sách|sách|khóa\\s*học|nghiên\\s*cứu|tiếng\\s*anh/.test(lower)) {
+      } else if (/học|bài\s*tập|thi|ôn\s*tập|đọc\s*sách|sách|khóa\s*học|nghiên\s*cứu|tiếng\s*anh/.test(lower)) {
         targetCat = findCat(['Study', 'Học tập', 'Education']) || findCat(['Work', 'Công việc']) || catList[0];
-      } else if (/thuốc|khám|bác\\s*sĩ|bệnh|chạy\\s*bộ|gym|thể\\s*dục|yoga|sức\\s*khỏe|uống\\s*nước/.test(lower)) {
+      } else if (/thuốc|khám|bác\s*sĩ|bệnh|chạy\s*bộ|gym|thể\s*dục|yoga|sức\s*khỏe|uống\s*nước/.test(lower)) {
         targetCat = findCat(['Health', 'Sức khỏe']) || findCat(['Personal', 'Cá nhân']) || catList[0];
-      } else if (/mua|sắm|chợ|siêu\\s*thị|order|đặt\\s*hàng|shopping/.test(lower)) {
+      } else if (/mua|sắm|chợ|siêu\s*thị|order|đặt\s*hàng|shopping/.test(lower)) {
         targetCat = findCat(['Shopping', 'Mua sắm']) || findCat(['Personal', 'Cá nhân']) || catList[0];
-      } else if (/tiền|lương|hóa\\s*đơn|thanh\\s*toán|chuyển\\s*khoản|ngân\\s*hàng|nợ/.test(lower)) {
+      } else if (/tiền|lương|hóa\s*đơn|thanh\s*toán|chuyển\s*khoản|ngân\s*hàng|nợ/.test(lower)) {
         targetCat = findCat(['Finance', 'Tài chính']) || findCat(['Personal', 'Cá nhân']) || catList[0];
       } else {
         targetCat = findCat(['Personal', 'Cá nhân']) || catList[0] || 'Personal';
@@ -3903,8 +4066,8 @@ function app() {
       // 4. Nhận diện Ngày & Giờ (Time & Date)
       const now = new Date();
       let targetDate = new Date(now);
-      const isTomorrow = /ngày\\s*mai|mai\\b/.test(lower);
-      const isDayAfter = /ngày\\s*kia/.test(lower);
+      const isTomorrow = /ngày\s*mai|mai\b/.test(lower);
+      const isDayAfter = /ngày[ ]*kia/.test(lower);
       if (isTomorrow) {
         targetDate.setDate(targetDate.getDate() + 1);
       } else if (isDayAfter) {
@@ -3915,20 +4078,30 @@ function app() {
       let minute = 0;
       let hasTime = false;
 
+      // 0. Kém: 7h kém 15 / 7 giờ kém 15
+      const kemMatch = lower.match(/(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ)?[ ]*kém[ ]*([0-9]{1,2})/);
       // 1. Buổi trưa: 10-13h trưa / trưa 10-13h
-      const truaMatch = lower.match(/(?:lúc|vào)?\\s*(\\d{1,2})(?:h|:| giờ )?(\\d{1,2})?\\s*(?:rưỡi)?\\s*trưa|trưa\\s*(?:lúc|vào)?\\s*(\\d{1,2})(?:h|:| giờ )?(\\d{1,2})?/);
+      const truaMatch = lower.match(/(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)?([0-9]{1,2})?[ ]*(?:rưỡi)?[ ]*trưa|trưa[ ]*(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)?([0-9]{1,2})?/);
       // 2. Buổi chiều: 1-6h chiều / chiều 1-6h
-      const chieuMatch = lower.match(/(?:lúc|vào)?\\s*(\\d{1,2})(?:h|:| giờ )?(\\d{1,2})?\\s*(?:rưỡi)?\\s*chiều|chiều\\s*(?:lúc|vào)?\\s*(\\d{1,2})(?:h|:| giờ )?(\\d{1,2})?/);
+      const chieuMatch = lower.match(/(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)?([0-9]{1,2})?[ ]*(?:rưỡi)?[ ]*chiều|chiều[ ]*(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)?([0-9]{1,2})?/);
       // 3. Buổi tối: 6-11h tối / tối 6-11h
-      const toiMatch = lower.match(/(?:lúc|vào)?\\s*(\\d{1,2})(?:h|:| giờ )?(\\d{1,2})?\\s*(?:rưỡi)?\\s*tối|tối\\s*(?:lúc|vào)?\\s*(\\d{1,2})(?:h|:| giờ )?(\\d{1,2})?/);
+      const toiMatch = lower.match(/(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)?([0-9]{1,2})?[ ]*(?:rưỡi)?[ ]*tối|tối[ ]*(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)?([0-9]{1,2})?/);
       // 4. Buổi sáng: 1-11h sáng / sáng 1-11h
-      const sangMatch = lower.match(/(?:lúc|vào)?\\s*(\\d{1,2})(?:h|:| giờ )?(\\d{1,2})?\\s*(?:rưỡi)?\\s*sáng|sáng\\s*(?:lúc|vào)?\\s*(\\d{1,2})(?:h|:| giờ )?(\\d{1,2})?/);
+      const sangMatch = lower.match(/(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)?([0-9]{1,2})?[ ]*(?:rưỡi)?[ ]*sáng|sáng[ ]*(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)?([0-9]{1,2})?/);
       // 5. Buổi đêm: 9-12h đêm / đêm 9-12h
-      const demMatch = lower.match(/(?:lúc|vào)?\\s*(\\d{1,2})(?:h|:| giờ )?(\\d{1,2})?\\s*(?:rưỡi)?\\s*đêm|đêm\\s*(?:lúc|vào)?\\s*(\\d{1,2})(?:h|:| giờ )?(\\d{1,2})?/);
+      const demMatch = lower.match(/(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)?([0-9]{1,2})?[ ]*(?:rưỡi)?[ ]*đêm|đêm[ ]*(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)?([0-9]{1,2})?/);
       // 6. Giờ chung: 14h, 15:30, 9h rưỡi, lúc 9 giờ
-      const generalTimeMatch = lower.match(/(?:lúc|vào)?\\s*(\\d{1,2})(?:h|:|\\s*giờ\\s*)(\\d{1,2})?(?:\\s*phút)?(?:\\s*rưỡi)?/);
+      const generalTimeMatch = lower.match(/(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)([0-9]{1,2})?(?:[ ]*phút)?(?:[ ]*rưỡi)?/);
 
-      if (truaMatch) {
+      if (kemMatch) {
+        hasTime = true;
+        hour = parseInt(kemMatch[1], 10) - 1;
+        minute = 60 - parseInt(kemMatch[2], 10);
+        if (hour < 0) hour = 23;
+        if ((lower.includes('chiều') || lower.includes('tối')) && hour < 12) {
+          hour += 12;
+        }
+      } else if (truaMatch) {
         hasTime = true;
         hour = parseInt(truaMatch[1] || truaMatch[3], 10);
         minute = truaMatch[2] || truaMatch[4] ? parseInt(truaMatch[2] || truaMatch[4], 10) : (lower.includes('rưỡi') ? 30 : 0);
@@ -3959,7 +4132,7 @@ function app() {
         minute = generalTimeMatch[2] ? parseInt(generalTimeMatch[2], 10) : (lower.includes('rưỡi') ? 30 : 0);
       }
 
-      const pad = n => String(n).padStart(2, '0');
+      const pad = (n) => String(n).padStart(2, '0');
       if (hasTime && hour !== null) {
         targetDate.setHours(hour, minute, 0, 0);
         const dueDatetimeStr = targetDate.getFullYear() + '-' + pad(targetDate.getMonth() + 1) + '-' + pad(targetDate.getDate()) + 'T' + pad(hour) + ':' + pad(minute);
@@ -3980,14 +4153,15 @@ function app() {
       }
 
       // 5. Tách lấy Tiêu đề & Mô tả sạch sẽ
-      let cleanTitle = text
-        .replace(/(?:vào\\s*lúc|lúc)\\s*\\d{1,2}(?:\\s*h|\\s*giờ|:)?\\s*\\d{0,2}\\s*(?:trưa|chiều|tối|sáng|đêm)?/gi, ' ')
-        .replace(/\\d{1,2}\\s*(?:h|giờ|:)\\s*\\d{0,2}\\s*(?:trưa|chiều|tối|sáng|đêm)?/gi, ' ')
-        .replace(/(?:sáng|trưa|chiều|tối|đêm)\\s*(?:vào\\s*lúc|lúc)?\\s*\\d{1,2}(?:\\s*h|\\s*giờ|:)?\\s*\\d{0,2}/gi, ' ')
-        .replace(/\\b(?:rưỡi|hôm\\s*nay|ngày\\s*mai|mai|ngày\\s*kia|gấp|khẩn\\s*cấp|khẩn|ngay\\s*lập\\s*tức|hỏa\\s*tốc|quan\\s*trọng)\\b/gi, ' ')
-        .replace(/^(?:hãy|tạo\\s*việc|thêm\\s*việc|nhắc\\s*tôi|nhắc)\\s+/gi, ' ')
-        .replace(/\\s+/g, ' ')
-        .trim();
+      let cleanTitle = text;
+      cleanTitle = cleanTitle.replace(/[0-9]{1,2}(?:[ ]*h|[ ]*giờ|:)?[ ]*kém[ ]*[0-9]{1,2}(?:[ ]*(?:trưa|chiều|tối|sáng|đêm))?/gi, ' ');
+      cleanTitle = cleanTitle.replace(/(?:vào[ ]*lúc|lúc|vào)[ ][0-9]{1,2}(?:[ ]*h|[ ]*giờ|:)?(?:[ ]*[0-9]{1,2})?(?:[ ]*(?:trưa|chiều|tối|sáng|đêm))?/gi, ' ');
+      cleanTitle = cleanTitle.replace(/(?:sáng|trưa|chiều|tối|đêm)(?:[ ]*(?:vào[ ]*lúc|lúc))?[ ][0-9]{1,2}(?:[ ]*h|[ ]*giờ|:)?(?:[ ]*[0-9]{1,2})?/gi, ' ');
+      cleanTitle = cleanTitle.replace(/[0-9]{1,2}(?:[ ]*h|[ ]*giờ|:)(?:[ ]*[0-9]{1,2})?(?:[ ]*(?:trưa|chiều|tối|sáng|đêm))?/gi, ' ');
+      cleanTitle = cleanTitle.replace(/(?:^|[ ])(?:tối|chiều|sáng|trưa|đêm|rưỡi|kém|hôm[ ]*nay|ngày[ ]*mai|mai|ngày[ ]*kia|gấp|khẩn[ ]*cấp|khẩn|ngay[ ]*lập[ ]*tức|hỏa[ ]*tốc|quan[ ]*trọng)(?:$|[ ])/gi, ' ');
+      cleanTitle = cleanTitle.replace(/^(?:hãy|tạo[ ]*việc|thêm[ ]*việc|nhắc[ ]*tôi|nhắc)[ ]+/gi, ' ');
+      cleanTitle = cleanTitle.replace(/(?:^|[ ])(?:vào[ ]*lúc|lúc|vào)(?:$|[ ])/gi, ' ');
+      cleanTitle = cleanTitle.replace(/[ ]+/g, ' ').trim();
 
       if (!cleanTitle) cleanTitle = text;
       cleanTitle = cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1);
@@ -4003,7 +4177,7 @@ function app() {
       this.editingTodo = null;
       this.customCategoryMode = false;
       this.showModal = true;
-      this.showToast('🎤 Đã nhận diện: ' + cleanTitle + ' (' + targetCat + ', ' + priority + ', ' + pad(hour) + ':' + pad(minute) + ')', 'success');
+      this.showToast('🎤 Đã nhận diện: ' + cleanTitle + ' (' + targetCat + ', ' + priority + (hour !== null ? (', ' + pad(hour) + ':' + pad(minute)) : '') + ')', 'success');
     },
 
     async startVoiceInput() {
@@ -4320,8 +4494,8 @@ function app() {
 
         if (mode === 'none') {
           if (this.todoForm.due_datetime) {
-            const d = new Date(this.todoForm.due_datetime);
-            if (!isNaN(d.getTime())) {
+            const d = this.parseDateSafe(this.todoForm.due_datetime);
+            if (d && !isNaN(d.getTime())) {
               dueDateISO = d.toISOString();
             }
           }
@@ -4947,7 +5121,7 @@ function app() {
         filter.Q.value = 1.0;
 
         const gainNode = ctx.createGain();
-        gainNode.gain.setValueAtTime((this.ambientVolume || 50) / 100 * 0.15, ctx.currentTime);
+        gainNode.gain.setValueAtTime((this.ambientVolume || 50) / 100 * 0.25, ctx.currentTime);
 
         whiteNoiseSource.connect(filter);
         filter.connect(gainNode);
@@ -4962,9 +5136,9 @@ function app() {
     },
 
     setAmbientVolume(val) {
-      this.ambientVolume = Number(val);
+      this.ambientVolume = Math.max(0, Math.min(100, Number(val) || 0));
       if (this.ambientNodes && this.ambientNodes.gain && this.audioCtx) {
-        this.ambientNodes.gain.gain.setValueAtTime((this.ambientVolume / 100) * 0.15, this.audioCtx.currentTime);
+        this.ambientNodes.gain.gain.setValueAtTime((this.ambientVolume / 100) * 0.25, this.audioCtx.currentTime);
       }
     },
 
@@ -5072,6 +5246,106 @@ function app() {
       const m = Math.floor(seconds / 60);
       const s = seconds % 60;
       return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    },
+
+    // ─── STOPWATCH (BẤM GIỜ) ───
+    startStopwatch() {
+      if (this.stopwatchRunning) return;
+      this.initAudioContext();
+      this.stopwatchRunning = true;
+      this.stopwatchStartTime = Date.now() - (this.stopwatchTime || 0);
+      this.stopwatchInterval = setInterval(() => {
+        this.stopwatchTime = Date.now() - this.stopwatchStartTime;
+      }, 50);
+    },
+
+    pauseStopwatch() {
+      this.stopwatchRunning = false;
+      if (this.stopwatchInterval) {
+        clearInterval(this.stopwatchInterval);
+        this.stopwatchInterval = null;
+      }
+    },
+
+    resetStopwatch() {
+      this.pauseStopwatch();
+      this.stopwatchTime = 0;
+      this.stopwatchLaps = [];
+    },
+
+    lapStopwatch() {
+      if (!this.stopwatchTime) return;
+      const currentMs = this.stopwatchTime;
+      const prevTotal = this.stopwatchLaps.length > 0 ? this.stopwatchLaps[0].totalTime : 0;
+      this.stopwatchLaps.unshift({
+        lapNumber: this.stopwatchLaps.length + 1,
+        splitTime: currentMs - prevTotal,
+        totalTime: currentMs
+      });
+    },
+
+    formatStopwatch(ms) {
+      if (!ms || ms < 0) ms = 0;
+      const pad = (n, len = 2) => String(n).padStart(len, '0');
+      const totalSeconds = Math.floor(ms / 1000);
+      const m = Math.floor(totalSeconds / 60);
+      const s = totalSeconds % 60;
+      const milli = Math.floor((ms % 1000) / 100);
+      return pad(m) + ':' + pad(s) + '.' + milli;
+    },
+
+    // ─── COUNTDOWN TIMER (HẸN GIỜ) ───
+    setCountdownPreset(sec) {
+      this.pauseCountdown();
+      this.countdownDuration = sec;
+      this.countdownTimeLeft = sec;
+    },
+
+    startCountdown() {
+      if (this.countdownRunning || this.countdownTimeLeft <= 0) return;
+      this.initAudioContext();
+      this.countdownRunning = true;
+      this.countdownInterval = setInterval(() => {
+        if (this.countdownTimeLeft > 0) {
+          this.countdownTimeLeft--;
+        } else {
+          this.pauseCountdown();
+          this.playChime();
+          this.showToast('⏳ Hết giờ hẹn!', 'warning');
+          if (window.Capacitor?.isPluginAvailable?.('LocalNotifications')) {
+            window.Capacitor.Plugins.LocalNotifications.schedule({
+              notifications: [{
+                id: 99999,
+                title: '⏳ Hẹn giờ kết thúc',
+                body: 'Thời gian hẹn giờ của bạn đã kết thúc!',
+                schedule: { at: new Date() },
+                sound: 'beep.caf'
+              }]
+            }).catch(() => {});
+          }
+        }
+      }, 1000);
+    },
+
+    pauseCountdown() {
+      this.countdownRunning = false;
+      if (this.countdownInterval) {
+        clearInterval(this.countdownInterval);
+        this.countdownInterval = null;
+      }
+    },
+
+    resetCountdown() {
+      this.pauseCountdown();
+      this.countdownTimeLeft = this.countdownDuration || 300;
+    },
+
+    formatCountdown(sec) {
+      if (!sec || sec < 0) sec = 0;
+      const pad = (n) => String(n).padStart(2, '0');
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return pad(m) + ':' + pad(s);
     },
 
     // ─── NĂNG SUẤT & THỐNG KÊ (ANALYTICS BẢO TOÀN LỊCH SỬ) ───

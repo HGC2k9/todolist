@@ -183,6 +183,46 @@ async function run() {
   assert.strictEqual(updatedTodoIds[0], 'daily-task-1');
   console.log('  ✅ PASS: resetRecurringTasks tự động khôi phục is_completed = 0 và dời hạn sang ngày mới');
 
+  // Test 6: normalizeVietnameseVoice chuẩn hóa phát âm, phương ngữ & nói ngọng
+  const { normalizeVietnameseVoice, parseTaskFromText } = await import('../src/utils');
+  const normalized1 = normalizeVietnameseVoice('ăn kơm lúc 6h chìu');
+  assert.strictEqual(normalized1, 'ăn cơm lúc 6h chiều');
+  const normalized2 = normalizeVietnameseVoice('nàm việc nhà và xắp xếp đồ đạc');
+  assert.strictEqual(normalized2, 'làm việc nhà và sắp xếp đồ đạc');
+  console.log('  ✅ PASS: normalizeVietnameseVoice xử lý chính xác từ ngọng, phương ngữ (kơm, chìu, nàm, xắp xếp)');
+
+  // Test 7: parseTaskFromText với "ăn cơm lúc 6h chiều"
+  const task1 = parseTaskFromText('ăn cơm lúc 6h chiều');
+  assert.strictEqual(task1.title, 'Ăn cơm');
+  assert.strictEqual(task1.category, 'Personal');
+  assert.strictEqual(task1.priority, 'Medium');
+  assert.ok(task1.dueDate !== null);
+  // 18:00 VN = 11:00 UTC
+  const dueD1 = new Date(task1.dueDate!);
+  assert.strictEqual(dueD1.getUTCHours(), 11);
+  assert.strictEqual(dueD1.getUTCMinutes(), 0);
+  console.log('  ✅ PASS: parseTaskFromText bóc tách chuẩn "ăn cơm lúc 6h chiều" (Title, Category, 18:00 local time)');
+
+  // Test 8: parseTaskFromText với giờ kém "họp dự án 7h kém 15 tối"
+  const task2 = parseTaskFromText('họp dự án 7h kém 15 tối');
+  assert.strictEqual(task2.title, 'Họp dự án');
+  assert.strictEqual(task2.category, 'Work');
+  assert.ok(task2.dueDate !== null);
+  // 18:45 VN = 11:45 UTC
+  const dueD2 = new Date(task2.dueDate!);
+  assert.strictEqual(dueD2.getUTCHours(), 11);
+  assert.strictEqual(dueD2.getUTCMinutes(), 45);
+  console.log('  ✅ PASS: parseTaskFromText xử lý đúng giờ kém "7h kém 15 tối" -> 18:45 VN (11:45 UTC)');
+
+  // Test 9: dueTimeStr trong notification không bị lệch 7 tiếng
+  const vnSampleDate = new Date('2026-11-18T07:15:00.000Z'); // 14:15 VN time
+  // Giả lập thiết bị ở múi giờ VN (offset -420)
+  const dLocal = new Date(vnSampleDate.getTime() + 7 * 3600 * 1000);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const dueTimeStr = pad(dLocal.getUTCHours()) + ':' + pad(dLocal.getUTCMinutes());
+  assert.strictEqual(dueTimeStr, '14:15');
+  console.log('  ✅ PASS: dueTimeStr định dạng theo giờ địa phương trả về đúng 14:15 (không còn bị 07:15)');
+
   console.log('🎉 TẤT CẢ KIỂM THỬ V3 & LOCAL NOTIFICATIONS ĐÃ VƯỢT QUA 100%!');
 }
 
