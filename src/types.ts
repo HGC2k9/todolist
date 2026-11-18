@@ -7,8 +7,6 @@ export interface Env {
   AI?: any;
   JWT_SECRET: string;
   COOKIE_NAME: string;
-  TELEGRAM_BOT_TOKEN?: string;
-  TELEGRAM_CHAT_ID?: string;
 }
 
 export interface User {

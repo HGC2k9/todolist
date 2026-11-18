@@ -1,132 +1,117 @@
 import app from '../src/index';
 import assert from 'node:assert';
+import { createJWT } from '../src/auth';
 
 async function run() {
-  console.log('Testing /api/test-telegram endpoint...');
+  console.log('🧪 Bắt đầu kiểm thử To-Do API endpoints...');
 
-  // 1. Missing secrets
-  const res1 = await app.fetch(new Request('http://localhost/api/test-telegram', { method: 'POST' }), {
-    DB: {} as any,
-    JWT_SECRET: 'test',
-    COOKIE_NAME: 'todo_session'
-  });
-  assert.strictEqual(res1.status, 400);
-  const json1 = await res1.json() as any;
-  assert.strictEqual(json1.success, false);
-  assert.ok(json1.error.includes('TELEGRAM_BOT_TOKEN'));
-  console.log('  ✅ PASS: 400 when secrets missing');
-
-  // 2. GET method also works
-  const res2 = await app.fetch(new Request('http://localhost/api/test-telegram', { method: 'GET' }), {
-    DB: {} as any,
-    JWT_SECRET: 'test',
-    COOKIE_NAME: 'todo_session'
-  });
-  assert.strictEqual(res2.status, 400);
-  console.log('  ✅ PASS: GET handles missing secrets gracefully');
-
-  // 3. Mock fetch success
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => new Response(JSON.stringify({ ok: true }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' }
-  });
-
-  try {
-    const res3 = await app.fetch(new Request('http://localhost/api/test-telegram', { method: 'POST' }), {
-      DB: {} as any,
-      JWT_SECRET: 'test',
-      COOKIE_NAME: 'todo_session',
-      TELEGRAM_BOT_TOKEN: 'valid_token',
-      TELEGRAM_CHAT_ID: 'valid_chat'
-    });
-    assert.strictEqual(res3.status, 200);
-    const json3 = await res3.json() as any;
-    assert.strictEqual(json3.success, true);
-    console.log('  ✅ PASS: 200 and success:true when message sent');
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-
-  // 4. PUT /api/todos/:id with changed due_date deletes old Telegram message and resets reminder_logs
-  console.log('Testing PUT /api/todos/:id with changed due_date...');
-  const { createJWT } = await import('../src/auth');
   const validToken = await createJWT({ sub: 'user-123', email: 'test@example.com', username: 'TestUser' }, 'test');
 
-  let deleteCalled = false;
-  let executedSqls: string[] = [];
+  // 1. GET /api/todos không có token trả về 401
+  const res1 = await app.fetch(new Request('http://localhost/api/todos'), {
+    DB: {} as any,
+    JWT_SECRET: 'test',
+    COOKIE_NAME: 'todo_session'
+  });
+  assert.strictEqual(res1.status, 401);
+  console.log('  ✅ PASS: 401 Unauthorized khi truy cập /api/todos không có token');
 
+  // 2. GET /api/todos có token hợp lệ
+  let executedSqls: string[] = [];
   const mockDb = {
     prepare: (sql: string) => {
       executedSqls.push(sql);
       return {
         bind: (...args: any[]) => ({
           run: async () => ({ success: true }),
-          first: async () => {
-            if (sql.includes('SELECT *, COALESCE(is_pinned, 0)')) {
+          first: async () => null,
+          all: async () => {
+            if (sql.includes('FROM todos WHERE user_id = ?')) {
               return {
-                id: 'todo-999',
-                user_id: 'user-123',
-                title: 'Họp khẩn',
-                due_date: '2026-11-13T10:00:00.000Z',
-                telegram_message_id: 55555,
-                is_completed: 0,
-                is_pinned: 0,
-                repeat_mode: 'none'
+                results: [
+                  { id: 'todo-1', user_id: 'user-123', title: 'Task 1', is_completed: 0, is_pinned: 0, repeat_mode: 'none' }
+                ]
               };
             }
-            return null;
-          },
-          all: async () => ({ results: [] })
+            if (sql.includes("repeat_mode IN ('daily', 'weekly')")) {
+              return { results: [] };
+            }
+            return { results: [] };
+          }
         }),
         run: async () => ({ success: true })
       };
     }
   };
 
-  const fetchMock = async (url: any) => {
-    if (String(url).includes('deleteMessage')) {
-      deleteCalled = true;
+  const res2 = await app.fetch(
+    new Request('http://localhost/api/todos', {
+      headers: {
+        'Cookie': `todo_session=${validToken}`
+      }
+    }),
+    {
+      DB: mockDb as any,
+      JWT_SECRET: 'test',
+      COOKIE_NAME: 'todo_session'
     }
-    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  );
+  assert.strictEqual(res2.status, 200);
+  const data2 = await res2.json() as any;
+  assert.strictEqual(data2.todos.length, 1);
+  assert.strictEqual(data2.todos[0].title, 'Task 1');
+  console.log('  ✅ PASS: GET /api/todos trả về danh sách công việc đúng format');
+
+  // 3. PUT /api/todos/:id cập nhật công việc
+  let currentTitle = 'Họp khẩn';
+  const mockDbPut = {
+    prepare: (sql: string) => ({
+      bind: (...args: any[]) => ({
+        first: async () => {
+          return {
+            id: 'todo-999',
+            user_id: 'user-123',
+            title: currentTitle,
+            due_date: '2026-11-13T10:00:00.000Z',
+            is_completed: 0,
+            is_pinned: 0,
+            repeat_mode: 'none'
+          };
+        },
+        run: async () => {
+          if (sql.includes('UPDATE todos SET')) {
+            currentTitle = 'Họp khẩn mới';
+          }
+          return { success: true };
+        }
+      })
+    })
   };
 
-  const oldFetch = globalThis.fetch;
-  globalThis.fetch = fetchMock as any;
+  const res3 = await app.fetch(
+    new Request('http://localhost/api/todos/todo-999', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': `todo_session=${validToken}`
+      },
+      body: JSON.stringify({
+        title: 'Họp khẩn mới',
+        due_date: '2026-11-13T15:00:00.000Z'
+      })
+    }),
+    {
+      DB: mockDbPut as any,
+      JWT_SECRET: 'test',
+      COOKIE_NAME: 'todo_session'
+    }
+  );
+  assert.strictEqual(res3.status, 200);
+  const data3 = await res3.json() as any;
+  assert.strictEqual(data3.todo.title, 'Họp khẩn mới');
+  console.log('  ✅ PASS: PUT /api/todos/:id cập nhật thông tin công việc thành công');
 
-  try {
-    const res4 = await app.fetch(
-      new Request('http://localhost/api/todos/todo-999', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cookie': `todo_session=${validToken}`
-        },
-        body: JSON.stringify({
-          title: 'Họp khẩn',
-          due_date: '2026-11-13T15:00:00.000Z' // Đổi sang giờ mới
-        })
-      }),
-      {
-        DB: mockDb as any,
-        JWT_SECRET: 'test',
-        COOKIE_NAME: 'todo_session',
-        TELEGRAM_BOT_TOKEN: 'valid_token',
-        TELEGRAM_CHAT_ID: 'valid_chat'
-      }
-    );
-
-    assert.strictEqual(res4.status, 200);
-    assert.strictEqual(deleteCalled, true);
-    assert.ok(executedSqls.some(sql => sql.includes('DELETE FROM reminder_logs WHERE todo_id = ?')));
-    assert.ok(executedSqls.some(sql => sql.includes('telegram_message_id = ?')));
-    console.log('  ✅ PASS: PUT /api/todos/:id with changed due_date deletes old Telegram reminder and resets logs');
-  } finally {
-    globalThis.fetch = oldFetch;
-  }
-
-  // 5. PATCH /api/todos/:id/toggle blocks with 400 when subtasks are incomplete
-  console.log('Testing PATCH /api/todos/:id/toggle blocks when subtasks incomplete...');
+  // 4. PATCH /api/todos/:id/toggle chặn hoàn thành nếu việc con chưa xong
   const mockDbSubtasks = {
     prepare: (sql: string) => ({
       bind: (...args: any[]) => ({
@@ -140,7 +125,7 @@ async function run() {
               repeat_mode: 'none',
               subtasks: JSON.stringify([
                 { id: 'st1', title: 'Viết báo cáo', is_completed: 1 },
-                { id: 'st2', title: 'Thuyết trình slide', is_completed: 0 } // chưa hoàn thành
+                { id: 'st2', title: 'Thuyết trình slide', is_completed: 0 } // việc con chưa xong
               ])
             };
           }
@@ -151,7 +136,7 @@ async function run() {
     })
   };
 
-  const res5 = await app.fetch(
+  const res4 = await app.fetch(
     new Request('http://localhost/api/todos/todo-sub-1/toggle', {
       method: 'PATCH',
       headers: {
@@ -164,17 +149,15 @@ async function run() {
       COOKIE_NAME: 'todo_session'
     }
   );
+  assert.strictEqual(res4.status, 400);
+  const json4 = await res4.json() as any;
+  assert.ok(json4.error.includes('việc con chưa xong'));
+  console.log('  ✅ PASS: PATCH /api/todos/:id/toggle từ chối hoàn thành khi việc con chưa xong');
 
-  assert.strictEqual(res5.status, 400);
-  const json5 = await res5.json() as any;
-  assert.ok(json5.error.includes('việc con chưa xong'));
-  console.log('  ✅ PASS: PATCH /api/todos/:id/toggle rejects completion when subtasks are incomplete');
-
-  console.log('🎉 All endpoint tests passed!');
+  console.log('🎉 Toàn bộ kiểm thử API endpoints đã hoàn thành xuất sắc!');
 }
 
 run().catch((e) => {
   console.error(e);
   process.exit(1);
 });
-

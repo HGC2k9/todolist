@@ -359,19 +359,6 @@ export function renderHTML(): string {
           <span class="hidden md:inline">Download</span>
         </button>
 
-        <!-- Nút Liên kết Telegram Bot @hgc_todolist_bot -->
-        <button type="button"
-           @click="openTelegramConnectModal()"
-           aria-label="Liên kết Telegram Bot @hgc_todolist_bot"
-           class="h-8 px-2 sm:px-2.5 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/70 dark:hover:bg-sky-900 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800 transition shadow-xs active:scale-95 cursor-pointer"
-           title="Kết nối Telegram Bot @hgc_todolist_bot">
-          <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-            <path d="m20.665 3.717-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l-.313 4.693c.46 0 .663-.211.921-.46l2.211-2.15 4.599 3.397c.848.467 1.457.227 1.668-.785l3.019-14.228c.309-1.239-.473-1.8-1.282-1.434z"/>
-          </svg>
-          <span class="hidden md:inline">@hgc_todolist_bot</span>
-          <span class="hidden sm:inline md:hidden">Bot</span>
-        </button>
-
         <!-- Nút Sao lưu & Xuất lịch -->
         <button @click="showBackupModal = true"
                 aria-label="Sao lưu dữ liệu và xuất lịch"
@@ -1022,18 +1009,8 @@ export function renderHTML(): string {
       </div>
     </div>
 
-    <!-- Nút hành động: Chỉ Test Telegram & Kiểm tra phiên bản -->
+    <!-- Nút hành động -->
     <div class="flex flex-col gap-2.5">
-      <!-- Nút Gửi thử Telegram Bot (Tự động xóa sau 15s) -->
-      <button @click="testTelegram()"
-              :disabled="testingTelegram"
-              class="w-full py-2.5 px-4 bg-sky-500 hover:bg-sky-600 active:scale-95 text-white font-bold rounded-2xl shadow-md shadow-sky-500/25 transition text-xs flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-          <path d="m20.665 3.717-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l-.313 4.693c.46 0 .663-.211.921-.46l2.211-2.15 4.599 3.397c.848.467 1.457.227 1.668-.785l3.019-14.228c.309-1.239-.473-1.8-1.282-1.434z"/>
-        </svg>
-        <span x-text="testingTelegram ? 'Đang gửi qua Telegram...' : 'Test tin nhắn Telegram'"></span>
-      </button>
-
       <!-- Nút Kiểm tra phiên bản -->
       <button @click="checkAppVersion(true)"
               class="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 active:scale-95 text-slate-700 dark:text-slate-200 font-bold rounded-2xl transition text-xs flex items-center justify-center gap-1.5 cursor-pointer">
@@ -1747,72 +1724,6 @@ export function renderHTML(): string {
   </div>
 </div>
 
-<!-- ═══════ TELEGRAM CONNECT MODAL (LIÊN KẾT ĐA NGƯỜI DÙNG) ═══════ -->
-<div x-show="showTelegramModal" x-cloak class="fixed inset-0 z-[130] flex items-center justify-center p-4"
-     role="dialog" aria-modal="true" aria-labelledby="telegram-modal-title">
-  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showTelegramModal=false"
-       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
-  <div class="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 text-center"
-       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-       @click.stop>
-    <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
-      <div class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded-xl bg-sky-50 dark:bg-sky-950/70 text-sky-500 flex items-center justify-center">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-            <path d="m20.665 3.717-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l-.313 4.693c.46 0 .663-.211.921-.46l2.211-2.15 4.599 3.397c.848.467 1.457.227 1.668-.785l3.019-14.228c.309-1.239-.473-1.8-1.282-1.434z"/>
-          </svg>
-        </div>
-        <h3 id="telegram-modal-title" class="text-base sm:text-lg font-black text-slate-900 dark:text-white">
-          Kết nối Telegram Bot
-        </h3>
-      </div>
-      <button @click="showTelegramModal=false" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">✕</button>
-    </div>
-
-    <!-- Loading State -->
-    <div x-show="telegramLinkLoading" class="py-8 text-center text-xs text-slate-400 font-bold animate-pulse">
-      Đang tạo mã liên kết cá nhân...
-    </div>
-
-    <!-- Ready State -->
-    <div x-show="!telegramLinkLoading && telegramLinkCode" class="space-y-4 text-left">
-      <p class="text-xs text-slate-600 dark:text-slate-300">
-        Liên kết tài khoản của bạn với Telegram Bot <b>@hgc_todolist_bot</b> để nhận thông báo, nhắc nhở riêng biệt và tạo việc nhanh qua chat:
-      </p>
-
-      <div class="p-4 rounded-2xl bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-800 text-center">
-        <span class="text-[11px] font-bold text-sky-600 dark:text-sky-400 uppercase tracking-wider block mb-1">Mã kết nối cá nhân (Hết hạn sau 15 phút)</span>
-        <div class="text-3xl font-black font-mono tracking-widest text-sky-700 dark:text-sky-300 select-all my-1" x-text="telegramLinkCode"></div>
-        <button type="button" @click="copyToClipboard('/link ' + telegramLinkCode); showToast('Đã sao chép lệnh liên kết Telegram!', 'success')"
-                class="mt-2 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-sky-100 text-sky-700 dark:text-sky-300 text-xs font-bold border border-sky-200 dark:border-sky-700 shadow-xs active:scale-95 transition cursor-pointer">
-          📋 Sao chép lệnh: /link <span x-text="telegramLinkCode"></span>
-        </button>
-      </div>
-
-      <div class="space-y-2 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800">
-        <p class="font-bold text-slate-700 dark:text-slate-200">Hướng dẫn nhanh 2 bước:</p>
-        <p>1. Bấm nút <b>Mở Telegram Bot</b> bên dưới hoặc tìm <b>@hgc_todolist_bot</b> trên Telegram.</p>
-        <p>2. Gửi cú pháp: <code class="bg-white dark:bg-slate-700 px-1.5 py-0.5 rounded text-sky-600 font-mono font-bold" x-text="'/link ' + telegramLinkCode"></code></p>
-      </div>
-
-      <div class="flex gap-2 pt-1">
-        <button type="button" @click="openTelegramBot($event)"
-                class="flex-1 py-2.5 px-4 bg-sky-500 hover:bg-sky-600 active:scale-95 text-white font-bold rounded-2xl shadow-md shadow-sky-500/25 transition text-xs flex items-center justify-center gap-1.5 cursor-pointer">
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-            <path d="m20.665 3.717-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l-.313 4.693c.46 0 .663-.211.921-.46l2.211-2.15 4.599 3.397c.848.467 1.457.227 1.668-.785l3.019-14.228c.309-1.239-.473-1.8-1.282-1.434z"/>
-          </svg>
-          <span>Mở Telegram Bot</span>
-        </button>
-        <button type="button" @click="showTelegramModal=false"
-                class="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 cursor-pointer">
-          Đóng
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- ═══════ POMODORO FOCUS MODE & AMBIENT SOUND MODAL ═══════ -->
 <div x-show="showPomodoroModal" x-cloak class="fixed inset-0 z-[130] flex items-center justify-center p-4"
      role="dialog" aria-modal="true" aria-labelledby="pomodoro-modal-title">
@@ -2178,11 +2089,6 @@ function app() {
     // Kéo thả & Sắp xếp vị trí
     draggedTodo: null,
 
-    // Liên kết Telegram cá nhân
-    showTelegramModal: false,
-    telegramLinkCode: '',
-    telegramLinkLoading: false,
-
     // V3: Thùng rác (Trash)
     showTrashModal: false,
     trashTodos: [],
@@ -2257,8 +2163,7 @@ function app() {
 
     // Modal About & Version
     showAboutModal: false,
-    appVersion: '2.3.0',
-    testingTelegram: false,
+    appVersion: '2.4.0',
 
     // In-App Notifications, Priorities & Auto-Update
     notificationsEnabled: localStorage.getItem('notificationsEnabled') !== 'false',
@@ -2636,6 +2541,7 @@ function app() {
         try {
           window.Capacitor.Plugins.App.addListener('appStateChange', (state) => {
             if (state && state.isActive) {
+              this.checkAndResetRecurringTasksLocally();
               if (this.authenticated) {
                 this.fetchTodos(true);
               }
@@ -2699,6 +2605,7 @@ function app() {
       // 5. Lắng nghe khi người dùng mở lại app / tab từ background
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && this.authenticated) {
+          this.checkAndResetRecurringTasksLocally();
           if (navigator.onLine && this.offlineQueue.length > 0) {
             this.syncOfflineQueue();
           }
@@ -2709,6 +2616,7 @@ function app() {
       });
       window.addEventListener('focus', () => {
         if (this.authenticated) {
+          this.checkAndResetRecurringTasksLocally();
           if (navigator.onLine && this.offlineQueue.length > 0) {
             this.syncOfflineQueue();
           }
@@ -2811,7 +2719,7 @@ function app() {
         }
         const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
         if (!isInput && this.authenticated) {
-          const anyModalOpen = this.showModal || this.showDeleteModal || this.showClearCompletedModal || this.showLogoutModal || this.showAboutModal || this.showDownloadModal || this.showTrashModal || this.showPomodoroModal || this.showAnalyticsModal || this.showLightbox || this.showTelegramModal;
+          const anyModalOpen = this.showModal || this.showDeleteModal || this.showClearCompletedModal || this.showLogoutModal || this.showAboutModal || this.showDownloadModal || this.showTrashModal || this.showPomodoroModal || this.showAnalyticsModal || this.showLightbox;
           if (!anyModalOpen) {
             if (e.key === 'n' || e.key === 'N') {
               e.preventDefault();
@@ -2841,7 +2749,6 @@ function app() {
       this.showPomodoroModal = false;
       this.showAnalyticsModal = false;
       this.showLightbox = false;
-      this.showTelegramModal = false;
     },
 
     onModalDragStart(e) {
@@ -3033,74 +2940,6 @@ function app() {
       this.playChime();
       if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
       this.showToast('🔔 Âm thanh và thông báo nhắc việc đang hoạt động hoàn hảo!', 'info');
-    },
-
-    async testTelegram() {
-      this.testingTelegram = true;
-      this.showToast('Đang kết nối và gửi thử qua Telegram Bot...', 'info');
-      try {
-        const res = await this.api('/api/test-telegram', { method: 'POST' });
-        if (res && res.success) {
-          this.playChime();
-          this.showToast(res.message || 'Gửi tin nhắn Telegram thành công! 🎉', 'success');
-        } else {
-          this.showToast(res?.error || res?.message || 'Chưa gửi được tin nhắn Telegram.', 'warning');
-        }
-      } catch (err) {
-        this.showToast(err.message || 'Lỗi gửi Telegram', 'error');
-      } finally {
-        this.testingTelegram = false;
-      }
-    },
-
-    async setupTelegramWebhook() {
-      this.settingUpWebhook = true;
-      this.showToast('Đang kích hoạt Webhook 2 chiều trên Telegram...', 'info');
-      try {
-        const data = await this.api('/api/setup-telegram-webhook');
-        if (data && data.success) {
-          this.playChime();
-          this.showToast('Kích hoạt Webhook Telegram thành công! 🎉', 'success');
-        } else {
-          this.showToast(data?.error || data?.telegram_response?.description || 'Chưa thể kích hoạt Webhook.', 'warning');
-        }
-      } catch (err) {
-        this.showToast(err.message || 'Lỗi kết nối Webhook', 'error');
-      } finally {
-        this.settingUpWebhook = false;
-      }
-    },
-
-    openTelegramBot(event) {
-      if (event) event.preventDefault();
-      const url = 'https://t.me/hgc_todolist_bot';
-      try {
-        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
-          window.Capacitor.Plugins.Browser.open({ url });
-          return;
-        }
-      } catch {}
-      const w = window.open(url, '_blank', 'noopener,noreferrer');
-      if (!w || w.closed || typeof w.closed === 'undefined') {
-        window.location.href = url;
-      }
-    },
-
-    async openTelegramConnectModal() {
-      this.showTelegramModal = true;
-      this.telegramLinkLoading = true;
-      try {
-        const res = await this.api('/api/telegram/link-code', { method: 'POST' });
-        if (res && res.code) {
-          this.telegramLinkCode = res.code;
-        } else {
-          this.showToast(res?.error || 'Không thể tạo mã liên kết Telegram', 'error');
-        }
-      } catch (err) {
-        this.showToast('Lỗi tạo mã: ' + (err.message || err), 'error');
-      } finally {
-        this.telegramLinkLoading = false;
-      }
     },
 
     async copyToClipboard(text) {
@@ -3406,7 +3245,11 @@ function app() {
         if (perm.display !== 'granted') {
           await LN.requestPermissions();
         }
-        LN.addListener('localNotificationActionPerformed', () => {
+        LN.addListener('localNotificationActionPerformed', (notification) => {
+          const todoId = notification?.notification?.extra?.todoId;
+          if (todoId) {
+            this.cancelNativeLocalNotification(todoId);
+          }
           if (this.authenticated) {
             this.fetchTodos(true);
           }
@@ -3414,6 +3257,50 @@ function app() {
       } catch (e) {
         console.warn('Native LocalNotifications init error:', e);
       }
+    },
+
+    getDailyBriefingPayloads() {
+      const now = new Date();
+      const next6am = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 0, 0, 0);
+      if (next6am.getTime() <= now.getTime()) {
+        next6am.setDate(next6am.getDate() + 1);
+      }
+
+      const next6pm = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0, 0);
+      if (next6pm.getTime() <= now.getTime()) {
+        next6pm.setDate(next6pm.getDate() + 1);
+      }
+
+      const pendingTodos = Array.isArray(this.todos) ? this.todos.filter(t => !t.is_completed) : [];
+      const pendingCount = pendingTodos.length;
+      const highCount = pendingTodos.filter(t => t.priority === 'High').length;
+
+      let morningBody = pendingCount > 0
+        ? ('Bạn có ' + pendingCount + ' việc cần làm hôm nay' + (highCount > 0 ? (' (' + highCount + ' việc khẩn cấp)') : '') + '. Chúc bạn ngày mới hiệu quả!')
+        : 'Bạn chưa có việc nào hôm nay. Hãy bắt đầu lên kế hoạch ngay!';
+
+      let eveningBody = pendingCount > 0
+        ? ('Còn ' + pendingCount + ' việc chưa hoàn thành' + (highCount > 0 ? (' (' + highCount + ' việc khẩn cấp)') : '') + '. Hãy kiểm tra và hoàn thành nhé!')
+        : 'Tuyệt vời! Bạn đã hoàn thành toàn bộ mục tiêu hôm nay. Nghỉ ngơi thôi nào! 🎉';
+
+      return [
+        {
+          id: 999006,
+          title: '☀️ Chào buổi sáng! Kế hoạch hôm nay',
+          body: morningBody,
+          schedule: { at: next6am, every: 'day', allowWhileIdle: true },
+          sound: 'beep.caf',
+          extra: { type: 'daily_briefing_morning' }
+        },
+        {
+          id: 999018,
+          title: '🌙 Chào buổi tối! Tổng kết & việc tối nay',
+          body: eveningBody,
+          schedule: { at: next6pm, every: 'day', allowWhileIdle: true },
+          sound: 'beep.caf',
+          extra: { type: 'daily_briefing_evening' }
+        }
+      ];
     },
 
     async scheduleNativeLocalNotification(todo) {
@@ -3424,30 +3311,41 @@ function app() {
 
       const offsetMinutes = Number(todo.reminder_offset) || 0;
       const dueTime = d.getTime();
-      let notifyTime = dueTime - (offsetMinutes * 60 * 1000);
+      const startAt = dueTime - (offsetMinutes * 60 * 1000);
       const now = Date.now();
 
-      if (notifyTime <= now && dueTime > now) {
-        notifyTime = dueTime;
+      // Priority repeating intervals: High = 1m, Medium = 3m, Low = 5m
+      const priority = todo.priority || 'Medium';
+      const intervalMs = (priority === 'High') ? 60 * 1000 : (priority === 'Medium' ? 3 * 60 * 1000 : 5 * 60 * 1000);
+
+      const baseId = ((this.getNotificationId(todo.id) % 90000) + 1000) * 10;
+      const notifications = [];
+
+      // Lên lịch nhắc lặp liên tục (tối đa 8 lần)
+      for (let i = 0; i < 8; i++) {
+        const triggerTime = startAt + (i * intervalMs);
+        if (triggerTime > dueTime + (intervalMs * 2)) break;
+        if (triggerTime > now) {
+          const priorityPrefix = priority === 'High' ? '🚨 [KHẨN CẤP] ' : (priority === 'Medium' ? '⚡ [ƯU TIÊN] ' : '⏰ Nhắc việc: ');
+          const dueTimeStr = todo.due_date ? todo.due_date.substring(11, 16) : '';
+          const repeatSuffix = i > 0 ? (' (Nhắc lặp lần ' + (i + 1) + ')') : '';
+          notifications.push({
+            id: baseId + i,
+            title: priorityPrefix + (todo.title || 'Công việc cần làm'),
+            body: 'Hạn: ' + dueTimeStr + (todo.category ? (' • ' + todo.category) : '') + repeatSuffix,
+            schedule: { at: new Date(triggerTime), allowWhileIdle: true },
+            sound: 'beep.caf',
+            extra: { todoId: todo.id, baseId: baseId }
+          });
+        }
       }
-      if (notifyTime <= now) return;
+
+      if (notifications.length === 0) return;
 
       try {
         const LN = window.Capacitor.Plugins.LocalNotifications;
-        const notifId = this.getNotificationId(todo.id);
-        await LN.cancel({ notifications: [{ id: notifId }] }).catch(() => {});
-        await LN.schedule({
-          notifications: [
-            {
-              id: notifId,
-              title: '⏰ Nhắc việc: ' + (todo.title || 'Công việc cần làm'),
-              body: 'Hạn: ' + (todo.due_date ? todo.due_date.substring(11, 16) : '') + (todo.category ? ' • ' + todo.category : ''),
-              schedule: { at: new Date(notifyTime) },
-              sound: 'beep.caf',
-              extra: { todoId: todo.id }
-            }
-          ]
-        });
+        await this.cancelNativeLocalNotification(todo.id);
+        await LN.schedule({ notifications });
       } catch (e) {
         console.warn('scheduleNativeLocalNotification error:', e);
       }
@@ -3458,8 +3356,12 @@ function app() {
       if (!todoId) return;
       try {
         const LN = window.Capacitor.Plugins.LocalNotifications;
-        const notifId = this.getNotificationId(todoId);
-        await LN.cancel({ notifications: [{ id: notifId }] });
+        const baseId = ((this.getNotificationId(todoId) % 90000) + 1000) * 10;
+        const toCancel = [];
+        for (let i = 0; i < 10; i++) {
+          toCancel.push({ id: baseId + i });
+        }
+        await LN.cancel({ notifications: toCancel }).catch(() => {});
       } catch (e) {
         console.warn('cancelNativeLocalNotification error:', e);
       }
@@ -3467,39 +3369,61 @@ function app() {
 
     async syncAllNativeLocalNotifications() {
       if (!window.Capacitor?.isPluginAvailable?.('LocalNotifications')) return;
-      if (!Array.isArray(this.todos)) return;
       try {
         const LN = window.Capacitor.Plugins.LocalNotifications;
         const pending = await LN.getPending();
         if (pending && pending.notifications && pending.notifications.length > 0) {
-          await LN.cancel({ notifications: pending.notifications.map(n => ({ id: n.id })) });
+          await LN.cancel({ notifications: pending.notifications.map(n => ({ id: n.id })) }).catch(() => {});
         }
+
         const now = Date.now();
-        const validTodos = this.todos.filter(t => !t.is_completed && t.due_date);
-        const toSchedule = [];
-        for (const t of validTodos) {
-          const d = this.parseDateSafe(t.due_date);
-          if (!d) continue;
-          const offsetMinutes = Number(t.reminder_offset) || 0;
-          const dueTime = d.getTime();
-          let notifyTime = dueTime - (offsetMinutes * 60 * 1000);
-          if (notifyTime <= now && dueTime > now) {
-            notifyTime = dueTime;
+        const allToSchedule = [];
+
+        // 1. Cố định 2 mốc Daily Briefing 06:00 và 18:00
+        const briefings = this.getDailyBriefingPayloads();
+        allToSchedule.push(...briefings);
+
+        // 2. Lên lịch nhắc việc lặp theo độ ưu tiên (tối đa 50 thông báo để tổng <= 52 trên iOS)
+        if (Array.isArray(this.todos)) {
+          const validTodos = this.todos.filter(t => !t.is_completed && t.due_date);
+          const taskNotifications = [];
+
+          for (const t of validTodos) {
+            const d = this.parseDateSafe(t.due_date);
+            if (!d) continue;
+
+            const offsetMinutes = Number(t.reminder_offset) || 0;
+            const dueTime = d.getTime();
+            const startAt = dueTime - (offsetMinutes * 60 * 1000);
+            const priority = t.priority || 'Medium';
+            const intervalMs = (priority === 'High') ? 60 * 1000 : (priority === 'Medium' ? 3 * 60 * 1000 : 5 * 60 * 1000);
+            const baseId = ((this.getNotificationId(t.id) % 90000) + 1000) * 10;
+
+            for (let i = 0; i < 8; i++) {
+              const triggerTime = startAt + (i * intervalMs);
+              if (triggerTime > dueTime + (intervalMs * 2)) break;
+              if (triggerTime > now) {
+                const priorityPrefix = priority === 'High' ? '🚨 [KHẨN CẤP] ' : (priority === 'Medium' ? '⚡ [ƯU TIÊN] ' : '⏰ Nhắc việc: ');
+                const dueTimeStr = t.due_date ? t.due_date.substring(11, 16) : '';
+                const repeatSuffix = i > 0 ? (' (Nhắc lặp lần ' + (i + 1) + ')') : '';
+                taskNotifications.push({
+                  id: baseId + i,
+                  title: priorityPrefix + (t.title || 'Công việc cần làm'),
+                  body: 'Hạn: ' + dueTimeStr + (t.category ? (' • ' + t.category) : '') + repeatSuffix,
+                  schedule: { at: new Date(triggerTime), allowWhileIdle: true },
+                  sound: 'beep.caf',
+                  extra: { todoId: t.id, baseId: baseId }
+                });
+              }
+            }
           }
-          if (notifyTime > now) {
-            toSchedule.push({
-              id: this.getNotificationId(t.id),
-              title: '⏰ Nhắc việc: ' + (t.title || 'Công việc cần làm'),
-              body: 'Hạn: ' + (t.due_date ? t.due_date.substring(11, 16) : '') + (t.category ? ' • ' + t.category : ''),
-              schedule: { at: new Date(notifyTime) },
-              sound: 'beep.caf',
-              extra: { todoId: t.id }
-            });
-          }
+
+          taskNotifications.sort((a, b) => a.schedule.at.getTime() - b.schedule.at.getTime());
+          allToSchedule.push(...taskNotifications.slice(0, 50));
         }
-        if (toSchedule.length > 0) {
-          toSchedule.sort((a, b) => a.schedule.at.getTime() - b.schedule.at.getTime());
-          await LN.schedule({ notifications: toSchedule.slice(0, 50) });
+
+        if (allToSchedule.length > 0) {
+          await LN.schedule({ notifications: allToSchedule });
         }
       } catch (e) {
         console.warn('syncAllNativeLocalNotifications error:', e);
@@ -3530,17 +3454,93 @@ function app() {
 
     parseDateSafe(dateStr) {
       if (!dateStr) return null;
-      let s = String(dateStr).trim();
-      if (s.length >= 19 && s.indexOf('T') === -1 && s.indexOf(' ') !== -1) {
-        s = s.replace(' ', 'T');
+      const s = String(dateStr).trim();
+      if (!s) return null;
+      if (s.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(s)) {
+        const d = new Date(s);
+        if (isNaN(d.getTime())) return null;
+        d.setSeconds(0, 0);
+        return d;
       }
-      if (!s.endsWith('Z') && s.includes('T') && s.length >= 19) {
-        s = s + 'Z';
+      const match = s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
+      if (match) {
+        const d = new Date(
+          parseInt(match[1], 10),
+          parseInt(match[2], 10) - 1,
+          parseInt(match[3], 10),
+          parseInt(match[4], 10),
+          parseInt(match[5], 10),
+          0,
+          0
+        );
+        if (!isNaN(d.getTime())) return d;
       }
-      const d = new Date(s);
-      if (isNaN(d.getTime())) return null;
-      d.setSeconds(0, 0);
-      return d;
+      const fallback = new Date(s);
+      if (isNaN(fallback.getTime())) return null;
+      fallback.setSeconds(0, 0);
+      return fallback;
+    },
+
+    checkAndResetRecurringTasksLocally() {
+      if (!Array.isArray(this.todos) || this.todos.length === 0) return;
+      const now = new Date();
+      const todayStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+
+      // Thứ 2 tuần hiện tại
+      const currentDay = now.getDay();
+      const distToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+      const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + distToMonday);
+      const currentMondayStr = monday.getFullYear() + '-' + String(monday.getMonth() + 1).padStart(2, '0') + '-' + String(monday.getDate()).padStart(2, '0');
+
+      let changed = false;
+      for (const t of this.todos) {
+        if (t.repeat_mode === 'daily') {
+          if (t.due_date) {
+            const d = this.parseDateSafe(t.due_date);
+            if (d) {
+              const taskDateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+              if (taskDateStr < todayStr) {
+                t.is_completed = 0;
+                d.setFullYear(now.getFullYear(), now.getMonth(), now.getDate());
+                const hours = String(d.getHours()).padStart(2, '0');
+                const mins = String(d.getMinutes()).padStart(2, '0');
+                t.due_date = todayStr + 'T' + hours + ':' + mins;
+                changed = true;
+              }
+            }
+          } else if (t.is_completed) {
+            t.is_completed = 0;
+            changed = true;
+          }
+        } else if (t.repeat_mode === 'weekly') {
+          if (t.due_date) {
+            const d = this.parseDateSafe(t.due_date);
+            if (d) {
+              const tDay = d.getDay();
+              const tDist = tDay === 0 ? -6 : 1 - tDay;
+              const tMon = new Date(d.getFullYear(), d.getMonth(), d.getDate() + tDist);
+              const tMonStr = tMon.getFullYear() + '-' + String(tMon.getMonth() + 1).padStart(2, '0') + '-' + String(tMon.getDate()).padStart(2, '0');
+              if (tMonStr < currentMondayStr) {
+                t.is_completed = 0;
+                const dayOffset = tDay === 0 ? 6 : tDay - 1;
+                const targetDate = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + dayOffset);
+                const targetStr = targetDate.getFullYear() + '-' + String(targetDate.getMonth() + 1).padStart(2, '0') + '-' + String(targetDate.getDate()).padStart(2, '0');
+                const hours = String(d.getHours()).padStart(2, '0');
+                const mins = String(d.getMinutes()).padStart(2, '0');
+                t.due_date = targetStr + 'T' + hours + ':' + mins;
+                changed = true;
+              }
+            }
+          } else if (t.is_completed) {
+            t.is_completed = 0;
+            changed = true;
+          }
+        }
+      }
+      if (changed) {
+        this.saveCachedTodos();
+        this.syncAllNativeLocalNotifications();
+      }
     },
 
     isOverdue(todo) {

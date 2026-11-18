@@ -1,6 +1,6 @@
 {
   "name": "cloudflare-todo-list",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "private": true,
   "scripts": {
     "dev": "wrangler dev",
@@ -11,7 +11,7 @@
     "db:migrate:remote": "wrangler d1 execute todo-db --remote --file=./migration_pinned.sql",
     "db:seed:local": "wrangler d1 execute todo-db --local --file=./seed.sql",
     "db:seed:remote": "wrangler d1 execute todo-db --remote --file=./seed.sql",
-    "test": "tsx test/auth.test.ts && tsx test/recurring.test.ts && tsx test/telegram.test.ts && tsx test/api.test.ts && tsx test/webhook.test.ts && tsx test/v2_features.test.ts && tsx test/v3_features.test.ts",
+    "test": "tsx test/auth.test.ts && tsx test/recurring.test.ts && tsx test/api.test.ts && tsx test/v2_features.test.ts && tsx test/v3_features.test.ts",
     "build": "tsx scripts/build.ts",
     "cap:sync": "npm run build && cap sync ios",
     "cap:open": "cap open ios"

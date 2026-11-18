@@ -4,7 +4,7 @@
 
 import assert from 'node:assert';
 import { generateIcs, exportTodosJson, validateAndParseImportJson, escapeIcs, formatIcsDate } from '../src/export';
-import { calculateStreak, parseTaskFromText } from '../src/telegram';
+import { calculateStreak, parseTaskFromText } from '../src/utils';
 import type { Todo } from '../src/types';
 
 async function run() {
