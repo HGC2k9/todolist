@@ -45,9 +45,9 @@
     "semantic_hash": "109aded755e8064cd0c2de99e039aeb5"
   },
   "ios/App/CapApp-SPM/Package.swift": {
-    "mtime": 1794928975.1216216,
-    "seen": 1794930647.4305365,
-    "ast_hash": "9d3893a22759e6c78b405d8f7c9fd55e",
+    "mtime": 1794983442.3825576,
+    "seen": 1794983578.403116,
+    "ast_hash": "269313d044c973fbde71c32d12353028",
     "semantic_hash": ""
   },
   "ios/App/CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift": {
@@ -57,9 +57,9 @@
     "semantic_hash": "0d92cb44a62bc3f2d73464a2e4f9a890"
   },
   "package.json": {
-    "mtime": 1794928975.136618,
-    "seen": 1794930647.430788,
-    "ast_hash": "92f38039695113709473a879b03ebac7",
+    "mtime": 1794983334.4550366,
+    "seen": 1794983578.4033513,
+    "ast_hash": "df7a9a2f0e976c41317b6dc47250d4e6",
     "semantic_hash": ""
   },
   "scripts/build.ts": {
@@ -87,9 +87,9 @@
     "semantic_hash": "43560de99e1dfdd18726b09b2111670a"
   },
   "src/frontend.ts": {
-    "mtime": 1794928975.145614,
-    "seen": 1794930647.4316814,
-    "ast_hash": "0133ba0647738c1ad3750c43c55e5c69",
+    "mtime": 1794982919.954927,
+    "seen": 1794983578.404173,
+    "ast_hash": "0c8d7a0398ce7f2d61a97b35ebccb816",
     "semantic_hash": ""
   },
   "src/icon.ts": {
@@ -99,9 +99,9 @@
     "semantic_hash": "2eedce545259be3043fe8aef2f199f4c"
   },
   "src/index.ts": {
-    "mtime": 1794922916.7286384,
-    "seen": 1794930647.4318993,
-    "ast_hash": "230c4ca2d257c0d00d47caa17476224d",
+    "mtime": 1794980544.294711,
+    "seen": 1794983578.4043734,
+    "ast_hash": "df9392ba7916b6b73e131ddc66095b2b",
     "semantic_hash": ""
   },
   "src/iosProfile.ts": {
@@ -116,23 +116,17 @@
     "ast_hash": "deeafb3d74488c9605e165dbd0b59c4e",
     "semantic_hash": "deeafb3d74488c9605e165dbd0b59c4e"
   },
-  "src/telegram.ts": {
-    "mtime": 1794917561.4553964,
-    "seen": 1794930647.4323387,
-    "ast_hash": "0678c3c745b797dc1255c2be4beac653",
-    "semantic_hash": ""
-  },
   "src/types.ts": {
-    "mtime": 1794910701.2885015,
-    "seen": 1794913923.7508821,
-    "ast_hash": "ee5d242d5ec628cb6fc6b93131a4ff18",
+    "mtime": 1794979594.1280806,
+    "seen": 1794983578.4050002,
+    "ast_hash": "e08d589760b0602d8ca64745d4351561",
     "semantic_hash": ""
   },
   "test/api.test.ts": {
-    "mtime": 1794763537.3398001,
-    "seen": 1794825306.528205,
-    "ast_hash": "b161f90baf6e5380c5991f839b7bb862",
-    "semantic_hash": "b161f90baf6e5380c5991f839b7bb862"
+    "mtime": 1794983380.3549738,
+    "seen": 1794983578.4050078,
+    "ast_hash": "f259887e03923ea907be339ff2677a7f",
+    "semantic_hash": ""
   },
   "test/auth.test.ts": {
     "mtime": 1794405836.9630558,
@@ -146,28 +140,16 @@
     "ast_hash": "dfa1c8f6b15baf4e690be47dff4dc74d",
     "semantic_hash": "dfa1c8f6b15baf4e690be47dff4dc74d"
   },
-  "test/telegram.test.ts": {
-    "mtime": 1794566624.1859624,
-    "seen": 1794825306.5292873,
-    "ast_hash": "86cca71103e6db5d5b8d098f510cf245",
-    "semantic_hash": "86cca71103e6db5d5b8d098f510cf245"
-  },
   "test/v2_features.test.ts": {
-    "mtime": 1794917559.4874349,
-    "seen": 1794930647.4335644,
-    "ast_hash": "7cd77845c1fa26228121055c654671bd",
+    "mtime": 1794983103.1954203,
+    "seen": 1794983578.4054527,
+    "ast_hash": "e54668e77e5b0155cc34ddfca375ccf5",
     "semantic_hash": ""
   },
   "test/v3_features.test.ts": {
-    "mtime": 1794819205.6124294,
-    "seen": 1794825306.5299952,
-    "ast_hash": "f2355be66fe21314d805e9b54bf01f97",
-    "semantic_hash": "f2355be66fe21314d805e9b54bf01f97"
-  },
-  "test/webhook.test.ts": {
-    "mtime": 1794913833.5063787,
-    "seen": 1794913923.753563,
-    "ast_hash": "e9f9234308b2e881e36bd3fff56d9e49",
+    "mtime": 1794983405.5959246,
+    "seen": 1794983578.4054575,
+    "ast_hash": "bbc404924df294249774e49f5498bc26",
     "semantic_hash": ""
   },
   "tsconfig.json": {
@@ -237,9 +219,15 @@
     "semantic_hash": ""
   },
   ".github/workflows/build-ios-ipa.yml": {
-    "mtime": 1794929180.7044008,
-    "seen": 1794930647.4244056,
-    "ast_hash": "5f294a65399654e7d9e1fe3ddc5a6af8",
+    "mtime": 1794933970.7517803,
+    "seen": 1794983578.4003565,
+    "ast_hash": "5aa6d92531218b4b57a97e8777820d98",
+    "semantic_hash": ""
+  },
+  "src/utils.ts": {
+    "mtime": 1794979930.2578342,
+    "seen": 1794983578.4050043,
+    "ast_hash": "ed278d67e06ee71ff65dfedfffae1e40",
     "semantic_hash": ""
   },
   "package-lock.json": {
