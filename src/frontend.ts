@@ -1,6 +1,7 @@
 import { storageScript } from './client/storage';
 import { notificationsScript } from './client/notifications';
 import { audioTimerScript } from './client/audio-timer';
+import { otaUpdaterScript } from './client/ota-updater';
 
 // ============================================================
 // Frontend SPA — To-Do List (Alpine.js + Tailwind CSS + PWA)
@@ -34,6 +35,43 @@ export function renderHTML(): string {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"></noscript>
+
+  <!-- ═══════ OTA BOOT HEALTH CHECK & AUTO-ROLLBACK GUARD ═══════ -->
+  <script>
+    (function() {
+      try {
+        var otaVersion = localStorage.getItem('ota_active_version');
+        if (otaVersion) {
+          window.__OTA_BOOT_TIMER__ = setTimeout(function() {
+            if (!window.__APP_BOOTED__) {
+              console.warn('[OTA Guard] Bản OTA ' + otaVersion + ' không thể khởi động sau 3.5s! Đang tự động rollback về bản gốc .ipa...');
+              try {
+                if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.WebView) {
+                  var WV = window.Capacitor.Plugins.WebView;
+                  WV.setServerAssetPath({ path: 'public' }).then(function() {
+                    WV.persistServerBasePath().then(function() {
+                      localStorage.setItem('ota_blacklisted_' + otaVersion, '1');
+                      localStorage.removeItem('ota_active_version');
+                      window.location.reload();
+                    });
+                  }).catch(function() {
+                    localStorage.removeItem('ota_active_version');
+                    window.location.reload();
+                  });
+                } else {
+                  localStorage.removeItem('ota_active_version');
+                  window.location.reload();
+                }
+              } catch(e) {
+                localStorage.removeItem('ota_active_version');
+                window.location.reload();
+              }
+            }
+          }, 3500);
+        }
+      } catch(e) {}
+    })();
+  </script>
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -1843,6 +1881,7 @@ export function renderHTML(): string {
 ${storageScript}
 ${notificationsScript}
 ${audioTimerScript}
+${otaUpdaterScript}
 
 function app() {
   return {
@@ -1898,13 +1937,18 @@ function app() {
     toasts: [],
     toastId: 0,
     showAboutModal: false,
-    appVersion: '2.5.0 (Offline Edition)',
+    appVersion: '2.6.0',
     isRefreshing: false,
 
     // ── GỘP CÁC MODULE CON ĐỘC LẬP ──
     ...getStorageModule(),
     ...getNotificationsModule(),
     ...getAudioTimerModule(),
+    ...getOtaUpdaterModule(),
+
+    checkAppVersion(manual) {
+      return this.checkOtaUpdate(manual);
+    },
 
     // ── COMPUTED / GETTERS ──
     get trashTodos() {
@@ -2268,6 +2312,16 @@ function app() {
       setTimeout(() => {
         document.querySelectorAll('[x-cloak]').forEach(el => el.removeAttribute('x-cloak'));
       }, 300);
+
+      // Đánh dấu app khởi chạy thành công và hủy timer Boot Guard
+      window.__APP_BOOTED__ = true;
+      if (window.__OTA_BOOT_TIMER__) {
+        clearTimeout(window.__OTA_BOOT_TIMER__);
+        window.__OTA_BOOT_TIMER__ = null;
+      }
+
+      // Khởi động kiểm tra OTA ngầm (non-blocking, timeout 4s)
+      this.initOtaCheck();
 
       if (window.Capacitor?.Plugins?.StatusBar) {
         try {

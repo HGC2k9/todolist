@@ -1,9 +1,11 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import { exec } from 'node:child_process';
 
 const PORT = 5173;
 const DIST_DIR = path.resolve(process.cwd(), 'dist');
+const SRC_DIR = path.resolve(process.cwd(), 'src');
 
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -46,6 +48,43 @@ const server = http.createServer((req, res) => {
     res.end(data);
   });
 });
+
+let isBuilding = false;
+let buildPending = false;
+
+function triggerRebuild(filename?: string) {
+  if (isBuilding) {
+    buildPending = true;
+    return;
+  }
+  isBuilding = true;
+  console.log(`\n🔄 Phát hiện thay đổi file [${filename || 'src/'}], đang tự động build lại...`);
+  exec('npx tsx scripts/build.ts', (err) => {
+    isBuilding = false;
+    if (err) {
+      console.error('❌ Lỗi khi re-build:', err.message);
+    } else {
+      console.log('⚡ Build xong! Nhấn F5 trên trình duyệt để xem thay đổi.');
+    }
+    if (buildPending) {
+      buildPending = false;
+      triggerRebuild();
+    }
+  });
+}
+
+try {
+  let debounceTimer: NodeJS.Timeout | null = null;
+  fs.watch(SRC_DIR, { recursive: true }, (event, filename) => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      triggerRebuild(filename || undefined);
+    }, 250);
+  });
+  console.log('👀 Đang theo dõi (Watch mode) các thay đổi trong src/...');
+} catch (e: any) {
+  console.warn('Watch mode không khả dụng:', e.message);
+}
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`🚀 Standalone Local ToDoList Server running at http://localhost:${PORT}`);

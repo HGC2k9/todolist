@@ -440,7 +440,7 @@ function getNotificationsModule() {
     startBackgroundTimerWorker() {
       try {
         if (typeof Worker !== 'undefined') {
-          const blobCode = 'let timer = null; self.onmessage = function(e) { if (e.data === "START") { if (timer) clearInterval(timer); timer = setInterval(function() { self.postMessage("TICK"); }, 1000); } else if (e.data === "STOP") { if (timer) clearInterval(timer); } };';
+          const blobCode = 'let timer = null; self.onmessage = function(e) { if (e.data === "START") { if (timer) clearInterval(timer); timer = setInterval(function() { self.postMessage("TICK"); }, 500); } else if (e.data === "STOP") { if (timer) clearInterval(timer); } };';
           const blob = new Blob([blobCode], { type: 'application/javascript' });
           const workerUrl = URL.createObjectURL(blob);
           this.bgWorker = new Worker(workerUrl);
@@ -472,8 +472,8 @@ function getNotificationsModule() {
 
         if (minutesLeft >= 0 && minutesLeft <= warningWindow) {
           const lastTime = this.lastNotifiedTimes[todo.id] || 0;
-          // High: 2 giây, Medium: 150 giây, Low: 300 giây
-          const intervalMs = (todo.priority === 'High') ? (2 * 1000) : (todo.priority === 'Medium' ? (150 * 1000) : (300 * 1000));
+          // High: 1 giây, Medium: 150 giây, Low: 300 giây
+          const intervalMs = (todo.priority === 'High') ? (1000) : (todo.priority === 'Medium' ? (150 * 1000) : (300 * 1000));
           const shouldNotify = !lastTime || (now - lastTime >= intervalMs);
 
           if (shouldNotify) {
@@ -582,8 +582,8 @@ function getNotificationsModule() {
       const now = Date.now();
 
       const priority = todo.priority || 'Medium';
-      // High: 2 giây, Medium: 150 giây, Low: 300 giây
-      const intervalMs = (priority === 'High') ? (2 * 1000) : (priority === 'Medium' ? (150 * 1000) : (300 * 1000));
+      // High: 1 giây, Medium: 150 giây, Low: 300 giây
+      const intervalMs = (priority === 'High') ? (1000) : (priority === 'Medium' ? (150 * 1000) : (300 * 1000));
       const baseId = ((this.getNotificationId(todo.id) % 90000) + 1000) * 10;
       const notifications = [];
 
@@ -661,8 +661,8 @@ function getNotificationsModule() {
             const dueTime = d.getTime();
             const startAt = dueTime - (offsetMinutes * 60 * 1000);
             const priority = t.priority || 'Medium';
-            // High: 2 giây, Medium: 150 giây, Low: 300 giây
-            const intervalMs = (priority === 'High') ? (2 * 1000) : (priority === 'Medium' ? (150 * 1000) : (300 * 1000));
+            // High: 1 giây, Medium: 150 giây, Low: 300 giây
+            const intervalMs = (priority === 'High') ? (1000) : (priority === 'Medium' ? (150 * 1000) : (300 * 1000));
             const baseId = ((this.getNotificationId(t.id) % 90000) + 1000) * 10;
 
             for (let i = 0; i < 8; i++) {

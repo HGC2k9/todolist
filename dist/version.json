@@ -1,0 +1,21 @@
+{
+  "version": "3.0.0-20261120152015",
+  "appVersion": "3.0.0",
+  "commit": "7bd79a2",
+  "buildTime": "2026-11-20T15:20:15.576Z",
+  "files": [
+    "icon-192.png",
+    "icon-512.png",
+    "index.html",
+    "index.js",
+    "index.js.map",
+    "manifest.json",
+    "README.md",
+    "sw.js",
+    "vendor/alpine.min.js",
+    "vendor/confetti.browser.min.js",
+    "vendor/lucide.min.js",
+    "vendor/sortable.min.js",
+    "vendor/tailwind.js"
+  ]
+}

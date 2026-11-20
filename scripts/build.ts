@@ -151,8 +151,52 @@ async function build() {
     console.log('   ✓ Đã sao chép icon-512.png');
   }
 
+  // 6. Sinh dist/version.json phục vụ OTA Update qua GitHub Pages
+  console.log('📡 Đang sinh dist/version.json cho OTA Updates...');
+  const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+  let commitHash = 'local';
+  try {
+    const { execSync } = await import('node:child_process');
+    commitHash = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+  } catch {}
+
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const timestampStr = `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}`;
+  const otaVersion = `${pkg.version}-${timestampStr}`;
+
+  function getAllFilesRelative(dir: string, baseDir: string = dir): string[] {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    const list: string[] = [];
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        list.push(...getAllFilesRelative(fullPath, baseDir));
+      } else if (entry.isFile()) {
+        const rel = path.relative(baseDir, fullPath).replace(/\\/g, '/');
+        if (rel !== 'version.json') {
+          list.push(rel);
+        }
+      }
+    }
+    return list;
+  }
+
+  const distFiles = getAllFilesRelative(distDir);
+  const versionData = {
+    version: otaVersion,
+    appVersion: pkg.version,
+    commit: commitHash,
+    buildTime: now.toISOString(),
+    files: distFiles
+  };
+  fs.writeFileSync(path.join(distDir, 'version.json'), JSON.stringify(versionData, null, 2), 'utf8');
+  console.log(`   ✓ Đã tạo dist/version.json (${otaVersion}) chứa ${distFiles.length} files`);
+
   console.log('✅ Hoàn tất đóng gói dist/ thành công!');
 }
+
+export { build };
 
 build().catch((err) => {
   console.error('❌ Lỗi quá trình build:', err);
