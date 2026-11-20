@@ -1856,7 +1856,30 @@ function getStorageModule() {
     showClearCompletedModal: false,
     showTrashModal: false,
     showAnalyticsModal: false,
+    draggedTodo: null,
     todoToDelete: null,
+    deletingTodo: null,
+    showCompletionModal: false,
+    completingTodo: null,
+    completingProofPhoto: null,
+    completingUploadingPhoto: false,
+    trashLoading: false,
+    analyticsLoading: false,
+    isOffline: false,
+    isSyncing: false,
+    offlineQueue: [],
+    isUnderMaintenance: false,
+    maintenanceMessage: '',
+    confirmDialog: {
+      show: false,
+      title: '',
+      message: '',
+      confirmText: 'Đồng ý',
+      cancelText: 'Hủy',
+      isDanger: false,
+      icon: '⚠️',
+      onConfirm: null
+    },
     editingTodo: null,
     editingTodoImages: [],
     customCategoryMode: false,
@@ -2500,6 +2523,329 @@ function getStorageModule() {
       } catch (e) {
         this.showToast('Lỗi xuất file lịch: ' + e.message, 'error');
       }
+    },
+
+    // ─── THÙNG RÁC, PHÂN TÍCH & CÁC TIỆN ÍCH TƯƠNG TÁC GIAO DIỆN ───
+    openAnalytics() {
+      this.showAnalyticsModal = true;
+    },
+
+    openTrashModal() {
+      this.showTrashModal = true;
+    },
+
+    async deleteTodo() {
+      await this.deleteTodoConfirmed();
+    },
+
+    confirmClearCompleted() {
+      this.showClearCompletedModal = true;
+    },
+
+    async clearCompleted() {
+      await this.clearCompletedConfirmed();
+    },
+
+    async restoreAllTrash() {
+      const trashed = (this.todos || []).filter(t => Boolean(t.deleted_at));
+      if (!trashed || trashed.length === 0) return;
+      const nowIso = new Date().toISOString();
+      trashed.forEach(t => {
+        t.deleted_at = null;
+        t.updated_at = nowIso;
+        this.scheduleNativeLocalNotification(t);
+      });
+      await this.persistAllData();
+      this.showToast('Đã khôi phục ' + trashed.length + ' công việc! 🎉', 'success');
+    },
+
+    async emptyTrash() {
+      const trashed = (this.todos || []).filter(t => Boolean(t.deleted_at));
+      if (!trashed || trashed.length === 0) return;
+      const ok = await this.askConfirm({
+        title: 'Dọn sạch thùng rác?',
+        message: 'Bạn có chắc chắn muốn dọn sạch toàn bộ thùng rác? Toàn bộ ' + trashed.length + ' công việc trong thùng rác sẽ bị xóa vĩnh viễn!',
+        confirmText: 'Dọn sạch tất cả',
+        isDanger: true,
+        icon: '🗑️'
+      });
+      if (!ok) return;
+      await this.clearTrashConfirmed();
+    },
+
+    async deletePermanently(todo) {
+      if (!todo || !todo.id) return;
+      const ok = await this.askConfirm({
+        title: 'Xóa vĩnh viễn công việc?',
+        message: 'Bạn có chắc chắn muốn xóa vĩnh viễn "' + (todo.title || 'công việc này') + '"? Dữ liệu sẽ không thể khôi phục!',
+        confirmText: 'Xóa vĩnh viễn',
+        isDanger: true,
+        icon: '🗑️'
+      });
+      if (!ok) return;
+      this.todos = this.todos.filter(t => t.id !== todo.id);
+      delete this.todoImagesMap[todo.id];
+      this.cancelNativeLocalNotification(todo.id);
+      await this.persistAllData();
+      this.showToast('Đã xóa vĩnh viễn công việc', 'info');
+    },
+
+    askConfirm(opts) {
+      return new Promise((resolve) => {
+        this.confirmDialog = {
+          show: true,
+          title: opts.title || 'Xác nhận',
+          message: opts.message || '',
+          confirmText: opts.confirmText || 'Đồng ý',
+          cancelText: opts.cancelText || 'Hủy',
+          isDanger: Boolean(opts.isDanger),
+          icon: opts.icon || '⚠️',
+          resolve
+        };
+      });
+    },
+
+    closeConfirm(result) {
+      if (this.confirmDialog && typeof this.confirmDialog.resolve === 'function') {
+        this.confirmDialog.resolve(Boolean(result));
+        this.confirmDialog.resolve = null;
+      }
+      this.confirmDialog.show = false;
+    },
+
+    addSubtask() {
+      const val = (this.newSubtaskInput || '').trim();
+      if (!val) return;
+      if (!Array.isArray(this.todoForm.subtasks)) {
+        this.todoForm.subtasks = [];
+      }
+      this.todoForm.subtasks.push({
+        id: 'st_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        title: val,
+        is_completed: 0
+      });
+      this.newSubtaskInput = '';
+    },
+
+    removeSubtask(idx) {
+      if (Array.isArray(this.todoForm.subtasks)) {
+        this.todoForm.subtasks.splice(idx, 1);
+      }
+    },
+
+    addTag() {
+      const val = (this.newTagInput || '').replace(/^#/, '').trim().toLowerCase();
+      if (!val) return;
+      if (!Array.isArray(this.todoForm.tags)) {
+        this.todoForm.tags = [];
+      }
+      if (!this.todoForm.tags.includes(val)) {
+        this.todoForm.tags.push(val);
+      }
+      this.newTagInput = '';
+    },
+
+    removeTag(idx) {
+      if (Array.isArray(this.todoForm.tags)) {
+        this.todoForm.tags.splice(idx, 1);
+      }
+    },
+
+    getUncompletedSubtasksCount(todo) {
+      if (!todo) return 0;
+      const subtasks = this.getSubtasks(todo);
+      return subtasks.filter(st => !st.is_completed).length;
+    },
+
+    hasUncompletedSubtasks(todo) {
+      if (!todo) return false;
+      const subtasks = this.getSubtasks(todo);
+      return subtasks.some(st => !st.is_completed);
+    },
+
+    onDragStart(todo, e) {
+      this.draggedTodo = todo;
+      try {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', todo.id);
+      } catch (err) {}
+    },
+
+    onDragOver(todo, e) {
+      if (this.sortBy !== 'custom' || !this.draggedTodo || this.draggedTodo.id === todo.id) return;
+      e.preventDefault();
+    },
+
+    async onDrop(targetTodo, e) {
+      if (this.sortBy !== 'custom' || !this.draggedTodo || this.draggedTodo.id === targetTodo.id) return;
+      e.preventDefault();
+      const list = [...this.todos];
+      const fromIdx = list.findIndex(t => t.id === this.draggedTodo.id);
+      const toIdx = list.findIndex(t => t.id === targetTodo.id);
+      if (fromIdx === -1 || toIdx === -1) return;
+      const [moved] = list.splice(fromIdx, 1);
+      list.splice(toIdx, 0, moved);
+      list.forEach((t, i) => { t.position = i; });
+      this.todos = list;
+      this.draggedTodo = null;
+      await this.persistAllData();
+    },
+
+    onDragEnd() {
+      this.draggedTodo = null;
+    },
+
+    async moveTodo(todo, direction) {
+      const currentList = this.filteredSortedTodos;
+      const idx = currentList.findIndex(t => t.id === todo.id);
+      if (idx === -1) return;
+      const targetIdx = idx + direction;
+      if (targetIdx < 0 || targetIdx >= currentList.length) return;
+
+      const targetTodo = currentList[targetIdx];
+      const list = [...this.todos];
+      const fromIdx = list.findIndex(t => t.id === todo.id);
+      const toIdx = list.findIndex(t => t.id === targetTodo.id);
+      if (fromIdx === -1 || toIdx === -1) return;
+
+      const [moved] = list.splice(fromIdx, 1);
+      list.splice(toIdx, 0, moved);
+      list.forEach((t, i) => { t.position = i; });
+      this.todos = list;
+      await this.persistAllData();
+    },
+
+    async duplicateTodo(todo, e) {
+      if (e?.currentTarget?.blur) e.currentTarget.blur();
+      const tempId = this.generateLocalId('todo');
+      const nowIso = new Date().toISOString();
+      const newTodo = {
+        ...todo,
+        id: tempId,
+        title: todo.title + ' (Bản sao)',
+        is_completed: 0,
+        created_at: nowIso,
+        updated_at: nowIso
+      };
+      this.todos.unshift(newTodo);
+      await this.persistAllData();
+      this.scheduleNativeLocalNotification(newTodo);
+      this.showToast('Đã nhân bản công việc!');
+    },
+
+    getTodoImages(todoId) {
+      this.todoImagesMap = this.todoImagesMap || {};
+      return this.todoImagesMap[todoId] || [];
+    },
+
+    openLightbox(imageData) {
+      this.lightboxImage = imageData;
+      this.showLightbox = true;
+    },
+
+    async deleteImage(todoId, imageId) {
+      this.todoImagesMap = this.todoImagesMap || {};
+      this.editingTodoImages = this.editingTodoImages || [];
+      if (imageId && imageId.startsWith('temp_img_')) {
+        this.editingTodoImages = this.editingTodoImages.filter(img => img.id !== imageId);
+        return;
+      }
+      const confirmed = await this.askConfirm({
+        title: 'Xóa ảnh minh chứng?',
+        message: 'Bạn có chắc chắn muốn xóa ảnh minh chứng này khỏi công việc không?',
+        confirmText: 'Xóa ảnh',
+        isDanger: true
+      });
+      if (!confirmed) return;
+      if (this.todoImagesMap[todoId]) {
+        this.todoImagesMap[todoId] = this.todoImagesMap[todoId].filter(img => img.id !== imageId);
+      }
+      this.editingTodoImages = this.editingTodoImages.filter(img => img.id !== imageId);
+      await this.persistAllData();
+      this.showToast('Đã xóa ảnh minh chứng', 'info');
+    },
+
+    chooseOrCapturePhoto(todoId) {
+      this.activePhotoTodoId = todoId;
+      const cam = document.getElementById('todo-camera-input');
+      const img = document.getElementById('todo-image-input');
+      if (cam) cam.click();
+      else if (img) img.click();
+    },
+
+    chooseOrCaptureProofForCompletion(mode) {
+      if (mode === 'camera') {
+        document.getElementById('todo-camera-input')?.click();
+      } else {
+        document.getElementById('todo-image-input')?.click();
+      }
+    },
+
+    closeCompletionModal() {
+      this.showCompletionModal = false;
+      this.completingTodo = null;
+      this.completingProofPhoto = null;
+      this.completingPhotoName = '';
+      this.completingUploadingPhoto = false;
+    },
+
+    async confirmCompleteTask() {
+      if (!this.completingTodo) return;
+      const todo = this.completingTodo;
+      const proofPhoto = this.completingProofPhoto;
+      const photoName = this.completingPhotoName;
+
+      const uncompletedCount = this.getUncompletedSubtasksCount(todo);
+      if (uncompletedCount > 0) {
+        this.showToast('⚠️ Không thể hoàn thành: còn ' + uncompletedCount + ' việc con chưa xong!', 'error');
+        this.closeCompletionModal();
+        return;
+      }
+
+      this.closeCompletionModal();
+
+      if (proofPhoto) {
+        const fileName = photoName || ('proof_' + Date.now() + '.jpg');
+        if (!this.todoImagesMap[todo.id]) this.todoImagesMap[todo.id] = [];
+        this.todoImagesMap[todo.id].push({
+          id: 'img_' + Date.now(),
+          image_data: proofPhoto,
+          file_name: fileName
+        });
+      }
+
+      await this.executeToggleTodo(todo, 1);
+      try { this.playChime(); } catch {}
+      try { this.triggerConfetti(); } catch {}
+    },
+
+    syncOfflineQueue() {
+      this.isOffline = !navigator.onLine;
+      this.showToast('Ứng dụng hoạt động 100% Cục bộ (Offline)', 'info');
+    },
+
+    checkMaintenanceStatus() {
+      this.isUnderMaintenance = false;
+    },
+
+    checkAppVersion(manual = false) {
+      if (manual) {
+        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.0.0') + ')! 🎉', 'success');
+      }
+    },
+
+    triggerConfetti() {
+      try {
+        if (typeof window.confetti === 'function') {
+          window.confetti({
+            particleCount: 80,
+            spread: 60,
+            origin: { y: 0.8 }
+          });
+        }
+      } catch (e) {
+        console.warn('triggerConfetti error:', e);
+      }
     }
   };
 }
@@ -2603,25 +2949,27 @@ function getNotificationsModule() {
       const d = this.parseDateSafe(dateStr);
       if (!d) return '';
 
-      const now = new Date();
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-      const startOfTarget = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-      const diffDays = Math.round((startOfTarget - startOfToday) / (24 * 3600 * 1000));
+      const vn = this.getVnDateParts(d);
+      const nowVn = this.getVnDateParts(Date.now());
+      const pad = (n) => String(n).padStart(2, '0');
 
-      const timeStr = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-      const dateFormatted = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const timeStr = vn.timeStr;
+      const dateFormatted = pad(vn.day) + '/' + pad(vn.month + 1) + '/' + vn.year;
 
-      if (diffDays === 0) {
+      if (vn.dateStr === nowVn.dateStr) {
         return 'Hôm nay, ' + timeStr;
-      } else if (diffDays === 1) {
-        return 'Ngày mai, ' + timeStr;
-      } else if (diffDays === -1) {
-        return 'Hôm qua, ' + timeStr;
-      } else if (diffDays > 1 && diffDays <= 7) {
-        return diffDays + ' ngày nữa (' + timeStr + ')';
-      } else if (diffDays < -1 && diffDays >= -7) {
-        return Math.abs(diffDays) + ' ngày trước';
       }
+
+      const tomoMs = Date.now() + 24 * 3600 * 1000;
+      if (vn.dateStr === this.getVnDateParts(tomoMs).dateStr) {
+        return 'Ngày mai, ' + timeStr;
+      }
+
+      const yestMs = Date.now() - 24 * 3600 * 1000;
+      if (vn.dateStr === this.getVnDateParts(yestMs).dateStr) {
+        return 'Hôm qua, ' + timeStr;
+      }
+
       return dateFormatted + ' ' + timeStr;
     },
 
@@ -2677,27 +3025,20 @@ function getNotificationsModule() {
     },
 
     setQuickDate(type) {
-      const now = new Date();
-      const pad = (n) => String(n).padStart(2, '0');
-      const format = (d, h, m) => {
-        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(h) + ':' + pad(m);
-      };
-
+      const vnNow = this.getVnDateParts(Date.now());
       let val = '';
       if (type === 'today-12') {
-        val = format(now, 12, 0);
+        val = vnNow.dateStr + 'T12:00';
       } else if (type === 'today-21') {
-        val = format(now, 21, 0);
+        val = vnNow.dateStr + 'T21:00';
       } else if (type === 'tomorrow-06') {
-        const tomorrow = new Date(now);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        val = format(tomorrow, 6, 0);
+        const tomoVn = this.getVnDateParts(Date.now() + 24 * 3600 * 1000);
+        val = tomoVn.dateStr + 'T06:00';
       } else if (type === 'weekend') {
-        const weekend = new Date(now);
-        const day = weekend.getDay();
-        const diff = (0 - day + 7) % 7 || 7;
-        weekend.setDate(weekend.getDate() + diff);
-        val = format(weekend, 8, 0);
+        const currentDay = vnNow.dayOfWeek;
+        const diff = (0 - currentDay + 7) % 7 || 7;
+        const wkndVn = this.getVnDateParts(Date.now() + diff * 24 * 3600 * 1000);
+        val = wkndVn.dateStr + 'T08:00';
       }
       this.todoForm.due_datetime = val;
     },
@@ -3525,14 +3866,83 @@ function app() {
     ...getAudioTimerModule(),
 
     // ── COMPUTED / GETTERS ──
-    get stats() {
-      const total = this.todos.length;
-      const completed = this.todos.filter(t => t.is_completed).length;
-      const pending = this.todos.filter(t => !t.is_completed).length;
-      const overdue = this.todos.filter(t => this.isOverdue(t)).length;
-      const recurring = this.todos.filter(t => t.repeat_mode && t.repeat_mode !== 'none' && !t.is_completed).length;
+    get trashTodos() {
+      return (this.todos || []).filter(t => Boolean(t.deleted_at));
+    },
 
-      const todayTodos = this.todos.filter(t => this.isTodoForToday(t));
+    get analyticsData() {
+      const activeTodos = (this.todos || []).filter(t => !t.deleted_at);
+      const total = activeTodos.length;
+      const completedList = activeTodos.filter(t => t.is_completed);
+      const completed = completedList.length;
+      const pending = activeTodos.filter(t => !t.is_completed).length;
+      const completion_rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+      const on_time = completedList.filter(t => {
+        if (!t.due_date) return true;
+        const due = this.parseDateSafe(t.due_date);
+        const comp = this.parseDateSafe(t.updated_at || t.created_at);
+        if (!due || !comp) return true;
+        return comp.getTime() <= due.getTime();
+      }).length;
+
+      const total_actual_minutes = activeTodos.reduce((sum, t) => sum + (Number(t.actual_minutes) || 0), 0);
+
+      const catMap = {};
+      activeTodos.forEach(t => {
+        const cat = t.category || 'Personal';
+        catMap[cat] = (catMap[cat] || 0) + 1;
+      });
+      const category_distribution = Object.entries(catMap).map(([category, count]) => ({
+        category,
+        count
+      }));
+
+      const days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+      const week_stats = days.map(d => ({ day: d, count: 0 }));
+      const vnNow = this.getVnDateParts(Date.now());
+      const currentDay = vnNow.dayOfWeek;
+      const diffToMonday = currentDay === 0 ? 6 : currentDay - 1;
+      const mondayMs = Date.now() - (diffToMonday * 24 * 3600 * 1000);
+      const mondayVn = this.getVnDateParts(mondayMs);
+      const mondayDateStr = mondayVn.dateStr;
+
+      (this.completionHistory || []).forEach(hist => {
+        if (!hist.date_str) return;
+        if (hist.date_str >= mondayDateStr) {
+          const histD = this.parseDateSafe(hist.completed_at || hist.date_str);
+          if (histD) {
+            const histVn = this.getVnDateParts(histD);
+            const dayIdx = histVn.dayOfWeek === 0 ? 6 : histVn.dayOfWeek - 1;
+            if (week_stats[dayIdx]) {
+              week_stats[dayIdx].count++;
+            }
+          }
+        }
+      });
+
+      return {
+        total,
+        completed,
+        pending,
+        completion_rate,
+        on_time,
+        total_actual_minutes,
+        category_distribution,
+        week_stats,
+        streak: this.streak || 1
+      };
+    },
+
+    get stats() {
+      const activeTodos = (this.todos || []).filter(t => !t.deleted_at);
+      const total = activeTodos.length;
+      const completed = activeTodos.filter(t => t.is_completed).length;
+      const pending = activeTodos.filter(t => !t.is_completed).length;
+      const overdue = activeTodos.filter(t => this.isOverdue(t)).length;
+      const recurring = activeTodos.filter(t => t.repeat_mode && t.repeat_mode !== 'none' && !t.is_completed).length;
+
+      const todayTodos = activeTodos.filter(t => this.isTodoForToday(t));
       const todayTotal = todayTodos.length;
       const todayCompleted = todayTodos.filter(t => t.is_completed).length;
       const todayPending = todayTodos.filter(t => !t.is_completed).length;

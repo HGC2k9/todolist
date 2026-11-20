@@ -55,7 +55,30 @@ function getStorageModule() {
     showClearCompletedModal: false,
     showTrashModal: false,
     showAnalyticsModal: false,
+    draggedTodo: null,
     todoToDelete: null,
+    deletingTodo: null,
+    showCompletionModal: false,
+    completingTodo: null,
+    completingProofPhoto: null,
+    completingUploadingPhoto: false,
+    trashLoading: false,
+    analyticsLoading: false,
+    isOffline: false,
+    isSyncing: false,
+    offlineQueue: [],
+    isUnderMaintenance: false,
+    maintenanceMessage: '',
+    confirmDialog: {
+      show: false,
+      title: '',
+      message: '',
+      confirmText: 'Đồng ý',
+      cancelText: 'Hủy',
+      isDanger: false,
+      icon: '⚠️',
+      onConfirm: null
+    },
     editingTodo: null,
     editingTodoImages: [],
     customCategoryMode: false,
@@ -698,6 +721,329 @@ function getStorageModule() {
         this.showToast('✅ Đã xuất lịch .ics thành công!', 'success');
       } catch (e) {
         this.showToast('Lỗi xuất file lịch: ' + e.message, 'error');
+      }
+    },
+
+    // ─── THÙNG RÁC, PHÂN TÍCH & CÁC TIỆN ÍCH TƯƠNG TÁC GIAO DIỆN ───
+    openAnalytics() {
+      this.showAnalyticsModal = true;
+    },
+
+    openTrashModal() {
+      this.showTrashModal = true;
+    },
+
+    async deleteTodo() {
+      await this.deleteTodoConfirmed();
+    },
+
+    confirmClearCompleted() {
+      this.showClearCompletedModal = true;
+    },
+
+    async clearCompleted() {
+      await this.clearCompletedConfirmed();
+    },
+
+    async restoreAllTrash() {
+      const trashed = (this.todos || []).filter(t => Boolean(t.deleted_at));
+      if (!trashed || trashed.length === 0) return;
+      const nowIso = new Date().toISOString();
+      trashed.forEach(t => {
+        t.deleted_at = null;
+        t.updated_at = nowIso;
+        this.scheduleNativeLocalNotification(t);
+      });
+      await this.persistAllData();
+      this.showToast('Đã khôi phục ' + trashed.length + ' công việc! 🎉', 'success');
+    },
+
+    async emptyTrash() {
+      const trashed = (this.todos || []).filter(t => Boolean(t.deleted_at));
+      if (!trashed || trashed.length === 0) return;
+      const ok = await this.askConfirm({
+        title: 'Dọn sạch thùng rác?',
+        message: 'Bạn có chắc chắn muốn dọn sạch toàn bộ thùng rác? Toàn bộ ' + trashed.length + ' công việc trong thùng rác sẽ bị xóa vĩnh viễn!',
+        confirmText: 'Dọn sạch tất cả',
+        isDanger: true,
+        icon: '🗑️'
+      });
+      if (!ok) return;
+      await this.clearTrashConfirmed();
+    },
+
+    async deletePermanently(todo) {
+      if (!todo || !todo.id) return;
+      const ok = await this.askConfirm({
+        title: 'Xóa vĩnh viễn công việc?',
+        message: 'Bạn có chắc chắn muốn xóa vĩnh viễn "' + (todo.title || 'công việc này') + '"? Dữ liệu sẽ không thể khôi phục!',
+        confirmText: 'Xóa vĩnh viễn',
+        isDanger: true,
+        icon: '🗑️'
+      });
+      if (!ok) return;
+      this.todos = this.todos.filter(t => t.id !== todo.id);
+      delete this.todoImagesMap[todo.id];
+      this.cancelNativeLocalNotification(todo.id);
+      await this.persistAllData();
+      this.showToast('Đã xóa vĩnh viễn công việc', 'info');
+    },
+
+    askConfirm(opts) {
+      return new Promise((resolve) => {
+        this.confirmDialog = {
+          show: true,
+          title: opts.title || 'Xác nhận',
+          message: opts.message || '',
+          confirmText: opts.confirmText || 'Đồng ý',
+          cancelText: opts.cancelText || 'Hủy',
+          isDanger: Boolean(opts.isDanger),
+          icon: opts.icon || '⚠️',
+          resolve
+        };
+      });
+    },
+
+    closeConfirm(result) {
+      if (this.confirmDialog && typeof this.confirmDialog.resolve === 'function') {
+        this.confirmDialog.resolve(Boolean(result));
+        this.confirmDialog.resolve = null;
+      }
+      this.confirmDialog.show = false;
+    },
+
+    addSubtask() {
+      const val = (this.newSubtaskInput || '').trim();
+      if (!val) return;
+      if (!Array.isArray(this.todoForm.subtasks)) {
+        this.todoForm.subtasks = [];
+      }
+      this.todoForm.subtasks.push({
+        id: 'st_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        title: val,
+        is_completed: 0
+      });
+      this.newSubtaskInput = '';
+    },
+
+    removeSubtask(idx) {
+      if (Array.isArray(this.todoForm.subtasks)) {
+        this.todoForm.subtasks.splice(idx, 1);
+      }
+    },
+
+    addTag() {
+      const val = (this.newTagInput || '').replace(/^#/, '').trim().toLowerCase();
+      if (!val) return;
+      if (!Array.isArray(this.todoForm.tags)) {
+        this.todoForm.tags = [];
+      }
+      if (!this.todoForm.tags.includes(val)) {
+        this.todoForm.tags.push(val);
+      }
+      this.newTagInput = '';
+    },
+
+    removeTag(idx) {
+      if (Array.isArray(this.todoForm.tags)) {
+        this.todoForm.tags.splice(idx, 1);
+      }
+    },
+
+    getUncompletedSubtasksCount(todo) {
+      if (!todo) return 0;
+      const subtasks = this.getSubtasks(todo);
+      return subtasks.filter(st => !st.is_completed).length;
+    },
+
+    hasUncompletedSubtasks(todo) {
+      if (!todo) return false;
+      const subtasks = this.getSubtasks(todo);
+      return subtasks.some(st => !st.is_completed);
+    },
+
+    onDragStart(todo, e) {
+      this.draggedTodo = todo;
+      try {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', todo.id);
+      } catch (err) {}
+    },
+
+    onDragOver(todo, e) {
+      if (this.sortBy !== 'custom' || !this.draggedTodo || this.draggedTodo.id === todo.id) return;
+      e.preventDefault();
+    },
+
+    async onDrop(targetTodo, e) {
+      if (this.sortBy !== 'custom' || !this.draggedTodo || this.draggedTodo.id === targetTodo.id) return;
+      e.preventDefault();
+      const list = [...this.todos];
+      const fromIdx = list.findIndex(t => t.id === this.draggedTodo.id);
+      const toIdx = list.findIndex(t => t.id === targetTodo.id);
+      if (fromIdx === -1 || toIdx === -1) return;
+      const [moved] = list.splice(fromIdx, 1);
+      list.splice(toIdx, 0, moved);
+      list.forEach((t, i) => { t.position = i; });
+      this.todos = list;
+      this.draggedTodo = null;
+      await this.persistAllData();
+    },
+
+    onDragEnd() {
+      this.draggedTodo = null;
+    },
+
+    async moveTodo(todo, direction) {
+      const currentList = this.filteredSortedTodos;
+      const idx = currentList.findIndex(t => t.id === todo.id);
+      if (idx === -1) return;
+      const targetIdx = idx + direction;
+      if (targetIdx < 0 || targetIdx >= currentList.length) return;
+
+      const targetTodo = currentList[targetIdx];
+      const list = [...this.todos];
+      const fromIdx = list.findIndex(t => t.id === todo.id);
+      const toIdx = list.findIndex(t => t.id === targetTodo.id);
+      if (fromIdx === -1 || toIdx === -1) return;
+
+      const [moved] = list.splice(fromIdx, 1);
+      list.splice(toIdx, 0, moved);
+      list.forEach((t, i) => { t.position = i; });
+      this.todos = list;
+      await this.persistAllData();
+    },
+
+    async duplicateTodo(todo, e) {
+      if (e?.currentTarget?.blur) e.currentTarget.blur();
+      const tempId = this.generateLocalId('todo');
+      const nowIso = new Date().toISOString();
+      const newTodo = {
+        ...todo,
+        id: tempId,
+        title: todo.title + ' (Bản sao)',
+        is_completed: 0,
+        created_at: nowIso,
+        updated_at: nowIso
+      };
+      this.todos.unshift(newTodo);
+      await this.persistAllData();
+      this.scheduleNativeLocalNotification(newTodo);
+      this.showToast('Đã nhân bản công việc!');
+    },
+
+    getTodoImages(todoId) {
+      this.todoImagesMap = this.todoImagesMap || {};
+      return this.todoImagesMap[todoId] || [];
+    },
+
+    openLightbox(imageData) {
+      this.lightboxImage = imageData;
+      this.showLightbox = true;
+    },
+
+    async deleteImage(todoId, imageId) {
+      this.todoImagesMap = this.todoImagesMap || {};
+      this.editingTodoImages = this.editingTodoImages || [];
+      if (imageId && imageId.startsWith('temp_img_')) {
+        this.editingTodoImages = this.editingTodoImages.filter(img => img.id !== imageId);
+        return;
+      }
+      const confirmed = await this.askConfirm({
+        title: 'Xóa ảnh minh chứng?',
+        message: 'Bạn có chắc chắn muốn xóa ảnh minh chứng này khỏi công việc không?',
+        confirmText: 'Xóa ảnh',
+        isDanger: true
+      });
+      if (!confirmed) return;
+      if (this.todoImagesMap[todoId]) {
+        this.todoImagesMap[todoId] = this.todoImagesMap[todoId].filter(img => img.id !== imageId);
+      }
+      this.editingTodoImages = this.editingTodoImages.filter(img => img.id !== imageId);
+      await this.persistAllData();
+      this.showToast('Đã xóa ảnh minh chứng', 'info');
+    },
+
+    chooseOrCapturePhoto(todoId) {
+      this.activePhotoTodoId = todoId;
+      const cam = document.getElementById('todo-camera-input');
+      const img = document.getElementById('todo-image-input');
+      if (cam) cam.click();
+      else if (img) img.click();
+    },
+
+    chooseOrCaptureProofForCompletion(mode) {
+      if (mode === 'camera') {
+        document.getElementById('todo-camera-input')?.click();
+      } else {
+        document.getElementById('todo-image-input')?.click();
+      }
+    },
+
+    closeCompletionModal() {
+      this.showCompletionModal = false;
+      this.completingTodo = null;
+      this.completingProofPhoto = null;
+      this.completingPhotoName = '';
+      this.completingUploadingPhoto = false;
+    },
+
+    async confirmCompleteTask() {
+      if (!this.completingTodo) return;
+      const todo = this.completingTodo;
+      const proofPhoto = this.completingProofPhoto;
+      const photoName = this.completingPhotoName;
+
+      const uncompletedCount = this.getUncompletedSubtasksCount(todo);
+      if (uncompletedCount > 0) {
+        this.showToast('⚠️ Không thể hoàn thành: còn ' + uncompletedCount + ' việc con chưa xong!', 'error');
+        this.closeCompletionModal();
+        return;
+      }
+
+      this.closeCompletionModal();
+
+      if (proofPhoto) {
+        const fileName = photoName || ('proof_' + Date.now() + '.jpg');
+        if (!this.todoImagesMap[todo.id]) this.todoImagesMap[todo.id] = [];
+        this.todoImagesMap[todo.id].push({
+          id: 'img_' + Date.now(),
+          image_data: proofPhoto,
+          file_name: fileName
+        });
+      }
+
+      await this.executeToggleTodo(todo, 1);
+      try { this.playChime(); } catch {}
+      try { this.triggerConfetti(); } catch {}
+    },
+
+    syncOfflineQueue() {
+      this.isOffline = !navigator.onLine;
+      this.showToast('Ứng dụng hoạt động 100% Cục bộ (Offline)', 'info');
+    },
+
+    checkMaintenanceStatus() {
+      this.isUnderMaintenance = false;
+    },
+
+    checkAppVersion(manual = false) {
+      if (manual) {
+        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.0.0') + ')! 🎉', 'success');
+      }
+    },
+
+    triggerConfetti() {
+      try {
+        if (typeof window.confetti === 'function') {
+          window.confetti({
+            particleCount: 80,
+            spread: 60,
+            origin: { y: 0.8 }
+          });
+        }
+      } catch (e) {
+        console.warn('triggerConfetti error:', e);
       }
     }
   };

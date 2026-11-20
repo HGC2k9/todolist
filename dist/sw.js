@@ -1,9 +1,14 @@
 
-const CACHE_NAME = 'todolist-v20';
+const CACHE_NAME = 'todolist-local-v30';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
-  '/icon-192.png'
+  '/icon-192.png',
+  '/vendor/tailwind.js',
+  '/vendor/alpine.min.js',
+  '/vendor/lucide.min.js',
+  '/vendor/confetti.browser.min.js',
+  '/vendor/sortable.min.js'
 ];
 
 // Cài đặt Service Worker

@@ -205,25 +205,27 @@ function getNotificationsModule() {
       const d = this.parseDateSafe(dateStr);
       if (!d) return '';
 
-      const now = new Date();
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-      const startOfTarget = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-      const diffDays = Math.round((startOfTarget - startOfToday) / (24 * 3600 * 1000));
+      const vn = this.getVnDateParts(d);
+      const nowVn = this.getVnDateParts(Date.now());
+      const pad = (n) => String(n).padStart(2, '0');
 
-      const timeStr = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-      const dateFormatted = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const timeStr = vn.timeStr;
+      const dateFormatted = pad(vn.day) + '/' + pad(vn.month + 1) + '/' + vn.year;
 
-      if (diffDays === 0) {
+      if (vn.dateStr === nowVn.dateStr) {
         return 'Hôm nay, ' + timeStr;
-      } else if (diffDays === 1) {
-        return 'Ngày mai, ' + timeStr;
-      } else if (diffDays === -1) {
-        return 'Hôm qua, ' + timeStr;
-      } else if (diffDays > 1 && diffDays <= 7) {
-        return diffDays + ' ngày nữa (' + timeStr + ')';
-      } else if (diffDays < -1 && diffDays >= -7) {
-        return Math.abs(diffDays) + ' ngày trước';
       }
+
+      const tomoMs = Date.now() + 24 * 3600 * 1000;
+      if (vn.dateStr === this.getVnDateParts(tomoMs).dateStr) {
+        return 'Ngày mai, ' + timeStr;
+      }
+
+      const yestMs = Date.now() - 24 * 3600 * 1000;
+      if (vn.dateStr === this.getVnDateParts(yestMs).dateStr) {
+        return 'Hôm qua, ' + timeStr;
+      }
+
       return dateFormatted + ' ' + timeStr;
     },
 
@@ -279,27 +281,20 @@ function getNotificationsModule() {
     },
 
     setQuickDate(type) {
-      const now = new Date();
-      const pad = (n) => String(n).padStart(2, '0');
-      const format = (d, h, m) => {
-        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(h) + ':' + pad(m);
-      };
-
+      const vnNow = this.getVnDateParts(Date.now());
       let val = '';
       if (type === 'today-12') {
-        val = format(now, 12, 0);
+        val = vnNow.dateStr + 'T12:00';
       } else if (type === 'today-21') {
-        val = format(now, 21, 0);
+        val = vnNow.dateStr + 'T21:00';
       } else if (type === 'tomorrow-06') {
-        const tomorrow = new Date(now);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        val = format(tomorrow, 6, 0);
+        const tomoVn = this.getVnDateParts(Date.now() + 24 * 3600 * 1000);
+        val = tomoVn.dateStr + 'T06:00';
       } else if (type === 'weekend') {
-        const weekend = new Date(now);
-        const day = weekend.getDay();
-        const diff = (0 - day + 7) % 7 || 7;
-        weekend.setDate(weekend.getDate() + diff);
-        val = format(weekend, 8, 0);
+        const currentDay = vnNow.dayOfWeek;
+        const diff = (0 - currentDay + 7) % 7 || 7;
+        const wkndVn = this.getVnDateParts(Date.now() + diff * 24 * 3600 * 1000);
+        val = wkndVn.dateStr + 'T08:00';
       }
       this.todoForm.due_datetime = val;
     },

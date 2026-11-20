@@ -1881,14 +1881,83 @@ function app() {
     ...getAudioTimerModule(),
 
     // ── COMPUTED / GETTERS ──
-    get stats() {
-      const total = this.todos.length;
-      const completed = this.todos.filter(t => t.is_completed).length;
-      const pending = this.todos.filter(t => !t.is_completed).length;
-      const overdue = this.todos.filter(t => this.isOverdue(t)).length;
-      const recurring = this.todos.filter(t => t.repeat_mode && t.repeat_mode !== 'none' && !t.is_completed).length;
+    get trashTodos() {
+      return (this.todos || []).filter(t => Boolean(t.deleted_at));
+    },
 
-      const todayTodos = this.todos.filter(t => this.isTodoForToday(t));
+    get analyticsData() {
+      const activeTodos = (this.todos || []).filter(t => !t.deleted_at);
+      const total = activeTodos.length;
+      const completedList = activeTodos.filter(t => t.is_completed);
+      const completed = completedList.length;
+      const pending = activeTodos.filter(t => !t.is_completed).length;
+      const completion_rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+      const on_time = completedList.filter(t => {
+        if (!t.due_date) return true;
+        const due = this.parseDateSafe(t.due_date);
+        const comp = this.parseDateSafe(t.updated_at || t.created_at);
+        if (!due || !comp) return true;
+        return comp.getTime() <= due.getTime();
+      }).length;
+
+      const total_actual_minutes = activeTodos.reduce((sum, t) => sum + (Number(t.actual_minutes) || 0), 0);
+
+      const catMap = {};
+      activeTodos.forEach(t => {
+        const cat = t.category || 'Personal';
+        catMap[cat] = (catMap[cat] || 0) + 1;
+      });
+      const category_distribution = Object.entries(catMap).map(([category, count]) => ({
+        category,
+        count
+      }));
+
+      const days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+      const week_stats = days.map(d => ({ day: d, count: 0 }));
+      const vnNow = this.getVnDateParts(Date.now());
+      const currentDay = vnNow.dayOfWeek;
+      const diffToMonday = currentDay === 0 ? 6 : currentDay - 1;
+      const mondayMs = Date.now() - (diffToMonday * 24 * 3600 * 1000);
+      const mondayVn = this.getVnDateParts(mondayMs);
+      const mondayDateStr = mondayVn.dateStr;
+
+      (this.completionHistory || []).forEach(hist => {
+        if (!hist.date_str) return;
+        if (hist.date_str >= mondayDateStr) {
+          const histD = this.parseDateSafe(hist.completed_at || hist.date_str);
+          if (histD) {
+            const histVn = this.getVnDateParts(histD);
+            const dayIdx = histVn.dayOfWeek === 0 ? 6 : histVn.dayOfWeek - 1;
+            if (week_stats[dayIdx]) {
+              week_stats[dayIdx].count++;
+            }
+          }
+        }
+      });
+
+      return {
+        total,
+        completed,
+        pending,
+        completion_rate,
+        on_time,
+        total_actual_minutes,
+        category_distribution,
+        week_stats,
+        streak: this.streak || 1
+      };
+    },
+
+    get stats() {
+      const activeTodos = (this.todos || []).filter(t => !t.deleted_at);
+      const total = activeTodos.length;
+      const completed = activeTodos.filter(t => t.is_completed).length;
+      const pending = activeTodos.filter(t => !t.is_completed).length;
+      const overdue = activeTodos.filter(t => this.isOverdue(t)).length;
+      const recurring = activeTodos.filter(t => t.repeat_mode && t.repeat_mode !== 'none' && !t.is_completed).length;
+
+      const todayTodos = activeTodos.filter(t => this.isTodoForToday(t));
       const todayTotal = todayTodos.length;
       const todayCompleted = todayTodos.filter(t => t.is_completed).length;
       const todayPending = todayTodos.filter(t => !t.is_completed).length;
