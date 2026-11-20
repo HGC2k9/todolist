@@ -345,6 +345,7 @@ function getStorageModule() {
           }
           await this.persistAllData();
           this.scheduleNativeLocalNotification(newTodo);
+          if (typeof this.playSound === 'function') this.playSound('add');
           this.showToast('Đã thêm công việc mới!');
         }
 
@@ -380,6 +381,7 @@ function getStorageModule() {
       todo.updated_at = new Date().toISOString();
 
       if (targetStatus === 1) {
+        if (typeof this.playSound === 'function') this.playSound('complete');
         this.playChime();
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
         this.triggerConfetti();
@@ -412,6 +414,7 @@ function getStorageModule() {
           }
         }
       } else {
+        if (typeof this.playSound === 'function') this.playSound('uncomplete');
         this.scheduleNativeLocalNotification(todo);
         // Xóa lần hoàn thành gần nhất của việc này nếu hoàn tác
         const histIdx = this.completionHistory.map(h => h.todo_id).lastIndexOf(todo.id);
@@ -443,6 +446,7 @@ function getStorageModule() {
         todo.subtasks = subs;
         todo.updated_at = new Date().toISOString();
         await this.persistAllData();
+        if (typeof this.playSound === 'function') this.playSound('click');
       }
     },
 
@@ -455,6 +459,7 @@ function getStorageModule() {
         is_completed: 0
       });
       this.newSubtaskInput = '';
+      if (typeof this.playSound === 'function') this.playSound('click');
     },
 
     removeSubtaskFromForm(index) {
@@ -476,28 +481,38 @@ function getStorageModule() {
 
     confirmDelete(todo) {
       this.todoToDelete = todo;
+      this.deletingTodo = todo;
       this.showDeleteModal = true;
     },
 
     async deleteTodoConfirmed() {
-      if (!this.todoToDelete) return;
-      const targetId = this.todoToDelete.id;
-      const target = this.todos.find(t => t.id === targetId);
-      if (target) {
-        target.deleted_at = new Date().toISOString();
+      const target = this.todoToDelete || this.deletingTodo;
+      if (!target) return;
+      const targetId = target.id;
+      const targetItem = this.todos.find(t => t.id === targetId);
+      if (targetItem) {
+        targetItem.deleted_at = new Date().toISOString();
         this.cancelNativeLocalNotification(targetId);
+        this.todos = [...this.todos];
         await this.persistAllData();
-        this.showToast('Đã chuyển công việc vào thùng rác');
+        if (typeof this.playSound === 'function') this.playSound('delete');
+        this.showToast('Đã chuyển công việc vào thùng rác', 'info', {
+          label: 'Hoàn tác',
+          onClick: () => this.restoreTodo(targetItem)
+        });
       }
       this.showDeleteModal = false;
       this.todoToDelete = null;
+      this.deletingTodo = null;
     },
 
     async restoreTodo(todo) {
       todo.deleted_at = null;
       todo.updated_at = new Date().toISOString();
+      this.todos = [...this.todos];
       await this.persistAllData();
       this.scheduleNativeLocalNotification(todo);
+      if (typeof this.playSound === 'function') this.playSound('add');
       this.showToast('Đã khôi phục công việc!');
     },
 

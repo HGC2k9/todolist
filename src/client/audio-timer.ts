@@ -11,6 +11,98 @@ function getAudioTimerModule() {
     ambientSound: 'none',
     ambientVolume: 50,
     ambientNodes: null,
+    soundEffectsEnabled: localStorage.getItem('soundEffectsEnabled') !== 'false',
+
+    toggleSoundEffects() {
+      this.soundEffectsEnabled = !this.soundEffectsEnabled;
+      localStorage.setItem('soundEffectsEnabled', String(this.soundEffectsEnabled));
+      if (this.soundEffectsEnabled) {
+        this.playSound('click');
+        this.showToast('Đã bật âm thanh thao tác 🔊', 'info');
+      } else {
+        this.showToast('Đã tắt âm thanh thao tác 🔇', 'info');
+      }
+    },
+
+    playSound(type) {
+      if (!this.soundEffectsEnabled) return;
+      try {
+        const ctx = this.initAudioContext();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+
+        if (type === 'complete') {
+          // Âm thanh hoàn thành việc: hợp âm vui tươi C-E-G-C (4 nốt arpeggio)
+          const notes = [523.25, 659.25, 783.99, 1046.50];
+          notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + i * 0.06);
+            gain.gain.setValueAtTime(0, now + i * 0.06);
+            gain.gain.linearRampToValueAtTime(0.22, now + i * 0.06 + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.45);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + i * 0.06);
+            osc.stop(now + i * 0.06 + 0.5);
+          });
+        } else if (type === 'uncomplete') {
+          // Bỏ hoàn thành: nốt hạ nhẹ
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(650, now);
+          osc.frequency.exponentialRampToValueAtTime(320, now + 0.12);
+          gain.gain.setValueAtTime(0.18, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.13);
+        } else if (type === 'click') {
+          // Tiếng click tactile dứt khoát
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(900, now);
+          osc.frequency.exponentialRampToValueAtTime(350, now + 0.035);
+          gain.gain.setValueAtTime(0.14, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.04);
+        } else if (type === 'add') {
+          // Tiếng thêm việc mới: nốt vút lên tươi sáng
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(520, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.08);
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(0.2, now + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.17);
+        } else if (type === 'delete') {
+          // Tiếng chuyển vào thùng rác: âm swoosh dịu
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(300, now);
+          osc.frequency.exponentialRampToValueAtTime(120, now + 0.14);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.15);
+        }
+      } catch (err) {}
+    },
 
     showPomodoroModal: false,
     focusToolTab: 'pomodoro',

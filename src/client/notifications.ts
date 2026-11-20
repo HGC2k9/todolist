@@ -110,6 +110,7 @@ export const notificationsScript = /*javascript*/ `
 function getNotificationsModule() {
   return {
     notificationsEnabled: localStorage.getItem('notificationsEnabled') !== 'false',
+    currentTimeTick: Date.now(),
     lastNotifiedTimes: {},
     reminderInterval: null,
     bgWorker: null,
@@ -300,12 +301,14 @@ function getNotificationsModule() {
     },
 
     isOverdue(todo) {
-      if (!todo.due_date || todo.is_completed) return false;
+      if (!todo || !todo.due_date || todo.is_completed || todo.deleted_at) return false;
       const d = this.parseDateSafe(todo.due_date);
       if (!d) return false;
-      const now = new Date();
-      now.setSeconds(0, 0);
-      return d.getTime() < now.getTime();
+      const nowMs = this.currentTimeTick || Date.now();
+      const dueMs = d.getTime();
+      // Hết phút thời hạn: nếu đặt 14:15, hết phút 14:15 (tức 14:16:00) là lập tức thành quá hạn
+      const minuteEndMs = (d.getSeconds() === 0) ? (dueMs + 60 * 1000) : dueMs;
+      return nowMs >= minuteEndMs;
     },
 
     isTodoForToday(todo) {
@@ -437,12 +440,13 @@ function getNotificationsModule() {
     startBackgroundTimerWorker() {
       try {
         if (typeof Worker !== 'undefined') {
-          const blobCode = 'let timer = null; self.onmessage = function(e) { if (e.data === "START") { if (timer) clearInterval(timer); timer = setInterval(function() { self.postMessage("TICK"); }, 4000); } else if (e.data === "STOP") { if (timer) clearInterval(timer); } };';
+          const blobCode = 'let timer = null; self.onmessage = function(e) { if (e.data === "START") { if (timer) clearInterval(timer); timer = setInterval(function() { self.postMessage("TICK"); }, 1000); } else if (e.data === "STOP") { if (timer) clearInterval(timer); } };';
           const blob = new Blob([blobCode], { type: 'application/javascript' });
           const workerUrl = URL.createObjectURL(blob);
           this.bgWorker = new Worker(workerUrl);
           this.bgWorker.onmessage = (e) => {
-            if (e.data === 'TICK' && this.authenticated) {
+            if (e.data === 'TICK') {
+              this.currentTimeTick = Date.now();
               this.checkDueReminders();
             }
           };
@@ -456,10 +460,9 @@ function getNotificationsModule() {
     checkDueReminders() {
       if (!this.todos || this.todos.length === 0) return;
       const now = Date.now();
-      const FIVE_MINUTES_MS = 5 * 60 * 1000;
 
       this.todos.forEach(todo => {
-        if (todo.is_completed || !todo.due_date) return;
+        if (todo.is_completed || !todo.due_date || todo.deleted_at) return;
         const d = this.parseDateSafe(todo.due_date);
         if (!d) return;
 
@@ -469,8 +472,9 @@ function getNotificationsModule() {
 
         if (minutesLeft >= 0 && minutesLeft <= warningWindow) {
           const lastTime = this.lastNotifiedTimes[todo.id] || 0;
-          const isRecurring = (todo.priority === 'High' || todo.priority === 'Medium');
-          const shouldNotify = isRecurring ? (now - lastTime >= FIVE_MINUTES_MS) : (!lastTime);
+          // High: 2 giây, Medium: 150 giây, Low: 300 giây
+          const intervalMs = (todo.priority === 'High') ? (2 * 1000) : (todo.priority === 'Medium' ? (150 * 1000) : (300 * 1000));
+          const shouldNotify = !lastTime || (now - lastTime >= intervalMs);
 
           if (shouldNotify) {
             this.lastNotifiedTimes[todo.id] = now;
@@ -578,7 +582,8 @@ function getNotificationsModule() {
       const now = Date.now();
 
       const priority = todo.priority || 'Medium';
-      const intervalMs = (priority === 'High') ? 60 * 1000 : (priority === 'Medium' ? 3 * 60 * 1000 : 5 * 60 * 1000);
+      // High: 2 giây, Medium: 150 giây, Low: 300 giây
+      const intervalMs = (priority === 'High') ? (2 * 1000) : (priority === 'Medium' ? (150 * 1000) : (300 * 1000));
       const baseId = ((this.getNotificationId(todo.id) % 90000) + 1000) * 10;
       const notifications = [];
 
@@ -656,7 +661,8 @@ function getNotificationsModule() {
             const dueTime = d.getTime();
             const startAt = dueTime - (offsetMinutes * 60 * 1000);
             const priority = t.priority || 'Medium';
-            const intervalMs = (priority === 'High') ? 60 * 1000 : (priority === 'Medium' ? 3 * 60 * 1000 : 5 * 60 * 1000);
+            // High: 2 giây, Medium: 150 giây, Low: 300 giây
+            const intervalMs = (priority === 'High') ? (2 * 1000) : (priority === 'Medium' ? (150 * 1000) : (300 * 1000));
             const baseId = ((this.getNotificationId(t.id) % 90000) + 1000) * 10;
 
             for (let i = 0; i < 8; i++) {

@@ -115,6 +115,23 @@ export function renderHTML(): string {
     @keyframes spin { to { transform:rotate(360deg); } }
     .spinner { animation: spin 0.7s linear infinite; }
     .line-through-anim { text-decoration: line-through; color: #94a3b8; }
+
+    @keyframes checkmark-pop {
+      0% { transform: scale(0.5); opacity: 0; }
+      60% { transform: scale(1.2); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .animate-checkmark {
+      animation: checkmark-pop 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    @keyframes badge-glow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35); }
+      50% { box-shadow: 0 0 10px 2px rgba(239, 68, 68, 0.2); }
+    }
+    .overdue-glow {
+      animation: badge-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
     
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -307,6 +324,15 @@ export function renderHTML(): string {
                 class="w-8 h-8 rounded-xl inline-flex items-center justify-center text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 border border-transparent hover:border-slate-200 dark:hover:border-slate-700" title="Đổi giao diện">
           <svg x-show="!darkMode" class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
           <svg x-show="darkMode" class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </button>
+
+        <!-- Bật / Tắt Âm thanh thao tác (Tùy chọn) -->
+        <button @click="toggleSoundEffects()"
+                :aria-label="soundEffectsEnabled ? 'Tắt âm thanh thao tác' : 'Bật âm thanh thao tác'"
+                class="w-8 h-8 rounded-xl inline-flex items-center justify-center text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                :title="soundEffectsEnabled ? 'Âm thanh: Đang bật 🔊 (Bấm để tắt)' : 'Âm thanh: Đang tắt 🔇 (Bấm để bật)'">
+          <span x-show="soundEffectsEnabled" class="text-xs">🔊</span>
+          <span x-show="!soundEffectsEnabled" class="text-xs opacity-50">🔇</span>
         </button>
 
         </div>
@@ -618,13 +644,13 @@ export function renderHTML(): string {
                     class="mt-0.5 flex-shrink-0 w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all duration-150 cursor-pointer shadow-xs active:scale-90"
                     :class="{
                       'bg-emerald-500 border-emerald-500 text-white shadow-emerald-500/20': todo.is_completed,
-                      'bg-rose-50 dark:bg-rose-950/80 border-rose-500 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900': !todo.is_completed && isOverdue(todo),
+                      'bg-rose-50 dark:bg-rose-950/80 border-rose-500 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900 overdue-glow': !todo.is_completed && isOverdue(todo),
                       'border-amber-400 dark:border-amber-600 bg-amber-50/50 dark:bg-amber-950/30 text-amber-500': !todo.is_completed && !isOverdue(todo) && hasUncompletedSubtasks(todo),
                       'border-slate-300 dark:border-slate-600 hover:border-brand-500 hover:bg-brand-50/40 dark:hover:bg-brand-950/40 bg-white dark:bg-slate-800 text-transparent': !todo.is_completed && !isOverdue(todo) && !hasUncompletedSubtasks(todo)
                     }"
                     :title="todo.is_completed ? 'Đã hoàn thành (Bấm để mở lại)' : (hasUncompletedSubtasks(todo) ? ('Còn ' + getUncompletedSubtasksCount(todo) + ' việc con chưa xong!') : (isOverdue(todo) ? 'Quá hạn (Tự hủy) - Bấm để xác nhận xong việc' : 'Đánh dấu hoàn thành'))">
               <!-- Đã xong: checkmark xanh lá -->
-              <svg x-show="todo.is_completed" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              <svg x-show="todo.is_completed" class="w-4 h-4 animate-checkmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
               <!-- Quá hạn: Dấu X đỏ tự hủy, bấm vào sẽ tick thành xong việc -->
               <svg x-show="!todo.is_completed && isOverdue(todo)" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               <!-- Còn việc con chưa xong: Chấm amber cảnh báo -->
@@ -1989,7 +2015,7 @@ function app() {
 
     get sortedTodos() {
       if (!this.todos || this.todos.length === 0) return [];
-      let list = [...this.todos];
+      let list = this.todos.filter(t => !t.deleted_at);
       return list.sort((a, b) => {
         const aCompleted = a.is_completed ? 1 : 0;
         const bCompleted = b.is_completed ? 1 : 0;
@@ -2054,7 +2080,7 @@ function app() {
     },
 
     get imminentTodos() {
-      return this.todos.filter(t => this.isWithin30Minutes(t));
+      return (this.todos || []).filter(t => !t.deleted_at && this.isWithin30Minutes(t));
     },
 
     get imminentSummary() {
@@ -2063,7 +2089,8 @@ function app() {
 
     get allTags() {
       const set = new Set();
-      for (const t of this.todos) {
+      for (const t of (this.todos || [])) {
+        if (t.deleted_at) continue;
         const tags = this.getTags(t);
         tags.forEach(tg => set.add(tg));
       }
@@ -2175,8 +2202,8 @@ function app() {
 
       for (let d = 1; d <= lastDay.getDate(); d++) {
         const dateStr = year + '-' + pad(month + 1) + '-' + pad(d);
-        const tasksOnDay = this.todos.filter(t => {
-          if (!t.due_date) return false;
+        const tasksOnDay = (this.todos || []).filter(t => {
+          if (!t.due_date || t.deleted_at) return false;
           const taskD = new Date(t.due_date);
           if (isNaN(taskD.getTime())) return false;
           const taskVn = new Date(taskD.getTime() + 7 * 3600 * 1000);
@@ -2206,8 +2233,8 @@ function app() {
     get selectedDateTodos() {
       if (!this.selectedCalendarDate) return [];
       const pad = n => String(n).padStart(2, '0');
-      return this.todos.filter(t => {
-        if (!t.due_date) return false;
+      return (this.todos || []).filter(t => {
+        if (!t.due_date || t.deleted_at) return false;
         const taskD = new Date(t.due_date);
         if (isNaN(taskD.getTime())) return false;
         const taskVn = new Date(taskD.getTime() + 7 * 3600 * 1000);
@@ -2267,8 +2294,12 @@ function app() {
       this.initNativeLocalNotifications().catch(() => {});
       this.syncAllNativeLocalNotifications();
 
-      // Bắt đầu background timer worker
+      // Bắt đầu background timer worker & Ticker phản ứng thời gian thực 1s
       this.startBackgroundTimerWorker();
+      this.currentTimeTick = Date.now();
+      setInterval(() => {
+        this.currentTimeTick = Date.now();
+      }, 1000);
 
       this.reminderInterval = setInterval(() => {
         this.checkDueReminders();

@@ -45,7 +45,7 @@ async function run() {
     const startAt = dueTime - (offsetMinutes * 60 * 1000);
 
     const priority = todo.priority || 'Medium';
-    const intervalMs = (priority === 'High') ? 60 * 1000 : (priority === 'Medium' ? 3 * 60 * 1000 : 5 * 60 * 1000);
+    const intervalMs = (priority === 'High') ? (2 * 1000) : (priority === 'Medium' ? (150 * 1000) : (300 * 1000));
     const baseId = ((getNotificationId(todo.id) % 90000) + 1000) * 10;
     const notifications: any[] = [];
 
@@ -63,7 +63,7 @@ async function run() {
     return notifications;
   }
 
-  // Task High Priority: Nhắc mỗi 1 phút
+  // Task High Priority: Nhắc mỗi 2 giây
   const now = Date.now();
   const formatLocalIso = (d: Date) => {
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -79,10 +79,10 @@ async function run() {
   const highSchedule = calculateRepeatingSchedule(highTask, now);
   assert.ok(highSchedule.length >= 2, 'High task phải tạo nhiều mốc nhắc lặp');
   const highInterval = highSchedule[1].triggerTime - highSchedule[0].triggerTime;
-  assert.strictEqual(highInterval, 60 * 1000, 'High priority interval phải đúng 1 phút (60,000ms)');
-  console.log('  ✅ PASS: High priority repeating interval chính xác 1 phút (60s)');
+  assert.strictEqual(highInterval, 2 * 1000, 'High priority interval phải đúng 2 giây (2,000ms)');
+  console.log('  ✅ PASS: High priority repeating interval chính xác 2 giây (2s)');
 
-  // Task Medium Priority: Nhắc mỗi 3 phút
+  // Task Medium Priority: Nhắc mỗi 150 giây
   const medTask = {
     id: 'task-med-456',
     priority: 'Medium',
@@ -92,10 +92,10 @@ async function run() {
   const medSchedule = calculateRepeatingSchedule(medTask, now);
   assert.ok(medSchedule.length >= 2);
   const medInterval = medSchedule[1].triggerTime - medSchedule[0].triggerTime;
-  assert.strictEqual(medInterval, 3 * 60 * 1000, 'Medium priority interval phải đúng 3 phút (180,000ms)');
-  console.log('  ✅ PASS: Medium priority repeating interval chính xác 3 phút (180s)');
+  assert.strictEqual(medInterval, 150 * 1000, 'Medium priority interval phải đúng 150 giây (150,000ms)');
+  console.log('  ✅ PASS: Medium priority repeating interval chính xác 150 giây (150s)');
 
-  // Task Low Priority: Nhắc mỗi 5 phút
+  // Task Low Priority: Nhắc mỗi 300 giây (5 phút)
   const lowTask = {
     id: 'task-low-789',
     priority: 'Low',
@@ -105,8 +105,8 @@ async function run() {
   const lowSchedule = calculateRepeatingSchedule(lowTask, now);
   assert.ok(lowSchedule.length >= 2);
   const lowInterval = lowSchedule[1].triggerTime - lowSchedule[0].triggerTime;
-  assert.strictEqual(lowInterval, 5 * 60 * 1000, 'Low priority interval phải đúng 5 phút (300,000ms)');
-  console.log('  ✅ PASS: Low priority repeating interval chính xác 5 phút (300s)');
+  assert.strictEqual(lowInterval, 300 * 1000, 'Low priority interval phải đúng 300 giây (300,000ms)');
+  console.log('  ✅ PASS: Low priority repeating interval chính xác 300 giây (300s)');
 
   // Test 4: Cố định 2 mốc Daily Briefing Local Notifications lúc 06:00 và 18:00
   const briefingMorningId = 999006;
