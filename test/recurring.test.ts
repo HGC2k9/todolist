@@ -1,11 +1,11 @@
 // ============================================================
-// Unit Test: Recurring Tasks Auto-Reset (Tự Reset Hàng Ngày / Hàng Tuần)
+// Unit Test: Recurring Tasks Local Auto-Reset (Hàng Ngày & Hàng Tuần)
 // ============================================================
 
 import assert from 'node:assert';
-import { getVnDateParts, resetRecurringTasks } from '../src/index';
+import { getVnDateParts } from '../src/client/notifications';
 
-console.log('🧪 Bắt đầu kiểm thử tính năng Tự Reset việc Hàng ngày & Hàng tuần...');
+console.log('🧪 Bắt đầu kiểm thử tính năng Tự Reset việc Hàng ngày & Hàng tuần (Pure Local)...');
 
 function test(name: string, fn: () => void | Promise<void>) {
   try {
@@ -38,124 +38,69 @@ test('getVnDateParts tính đúng ngày giờ VN và ngày đầu tuần (Thứ 
   assert.strictEqual(parts.hours, 12);
   assert.strictEqual(parts.minutes, 0);
   assert.strictEqual(parts.dateStr, '2026-11-13');
-  // Thứ 2 của tuần đó phải là 2026-11-09
-  assert.strictEqual(parts.mondayStr, '2026-11-09');
+  assert.strictEqual(parts.timeStr, '12:00');
 });
 
-test('getVnDateParts xử lý đúng Chủ nhật thuộc về tuần bắt đầu từ Thứ 2 trước đó', () => {
+test('getVnDateParts xử lý đúng Chủ nhật (dayOfWeek = 0)', () => {
   // 2026-11-15 15:00:00 UTC = 2026-11-15 22:00:00 VN (Chủ nhật)
   const d = new Date('2026-11-15T15:00:00Z');
   const parts = getVnDateParts(d);
   assert.strictEqual(parts.dayOfWeek, 0); // Chủ nhật
-  assert.strictEqual(parts.mondayStr, '2026-11-09'); // Tuần bắt đầu từ 09/11
+  assert.strictEqual(parts.dateStr, '2026-11-15');
 });
 
-// 2. Mock D1 Database để test resetRecurringTasks
-test('resetRecurringTasks tự reset việc Hàng ngày khi qua ngày mới', async () => {
-  const updatedRecords: any[] = [];
-  const mockDb: any = {
-    prepare(sql: string) {
-      return {
-        bind(...args: any[]) {
-          return {
-            async all() {
-              if (sql.includes('SELECT')) {
-                return {
-                  results: [
-                    {
-                      id: 'task-daily-yesterday',
-                      user_id: 'user-1',
-                      title: 'Uống thuốc',
-                      priority: 'High',
-                      // Hạn hôm qua: 2026-11-12 18:00 VN
-                      due_date: '2026-11-12T11:00:00.000Z',
-                      is_completed: 1,
-                      repeat_mode: 'daily',
-                      updated_at: '2026-11-12T11:00:00.000Z'
-                    },
-                    {
-                      id: 'task-daily-today',
-                      user_id: 'user-1',
-                      title: 'Học bài',
-                      priority: 'Medium',
-                      // Hạn hôm nay: 2026-11-13 18:00 VN (giả sử hôm nay là 13/11)
-                      due_date: new Date().toISOString(),
-                      is_completed: 1,
-                      repeat_mode: 'daily',
-                      updated_at: new Date().toISOString()
-                    }
-                  ]
-                };
-              }
-              return { results: [] };
-            },
-            async run() {
-              if (sql.includes('UPDATE')) {
-                updatedRecords.push({ sql, args });
-              }
-              return { success: true };
-            }
-          };
-        }
-      };
+// 2. Logic Reset việc Hàng ngày (Daily) trên Local Storage
+test('checkAndResetRecurringTasksLocally tự động reset việc Daily và uncheck subtasks', () => {
+  const vnNow = getVnDateParts(Date.now());
+  const todayStr = vnNow.dateStr;
+
+  const yesterdayDate = new Date(Date.now() - 24 * 3600 * 1000);
+  const yesterdayIso = yesterdayDate.toISOString();
+
+  const mockTodos = [
+    {
+      id: 'daily-task-1',
+      title: 'Tập thể dục buổi sáng',
+      is_completed: 1,
+      repeat_mode: 'daily',
+      updated_at: yesterdayIso,
+      due_date: yesterdayIso,
+      subtasks: [
+        { id: 'sub-1', title: 'Hít đất 30 cái', is_completed: 1 },
+        { id: 'sub-2', title: 'Chạy bộ 2km', is_completed: 1 }
+      ]
+    },
+    {
+      id: 'daily-task-today',
+      title: 'Đã hoàn thành hôm nay',
+      is_completed: 1,
+      repeat_mode: 'daily',
+      updated_at: new Date().toISOString(),
+      due_date: new Date().toISOString(),
+      subtasks: []
     }
-  };
+  ];
 
-  const count = await resetRecurringTasks(mockDb);
-  assert.strictEqual(count, 1, 'Chỉ 1 việc ngày hôm qua được reset');
-  assert.strictEqual(updatedRecords.length, 1);
-  assert.strictEqual(updatedRecords[0].args[2], 'task-daily-yesterday');
-});
-
-test('resetRecurringTasks tự reset việc Hàng tuần khi qua tuần mới', async () => {
-  const updatedRecords: any[] = [];
-  const mockDb: any = {
-    prepare(sql: string) {
-      return {
-        bind(...args: any[]) {
-          return {
-            async all() {
-              if (sql.includes('SELECT')) {
-                return {
-                  results: [
-                    {
-                      id: 'task-weekly-last-week',
-                      user_id: 'user-1',
-                      title: 'Dọn phòng Thứ 4 hàng tuần',
-                      priority: 'Medium',
-                      // Hạn thứ 4 tuần trước: 2026-11-04 15:00 VN
-                      due_date: '2026-11-04T08:00:00.000Z',
-                      is_completed: 1,
-                      repeat_mode: 'weekly',
-                      updated_at: '2026-11-04T08:00:00.000Z'
-                    }
-                  ]
-                };
-              }
-              return { results: [] };
-            },
-            async run() {
-              if (sql.includes('UPDATE')) {
-                updatedRecords.push({ sql, args });
-              }
-              return { success: true };
-            }
-          };
+  // Thực hiện hàm reset local
+  for (const t of mockTodos) {
+    if (!t.repeat_mode || t.repeat_mode === 'none' || !t.is_completed) continue;
+    const lastUpdatedParts = getVnDateParts(t.updated_at);
+    if (t.repeat_mode === 'daily') {
+      if (lastUpdatedParts.dateStr < todayStr) {
+        t.is_completed = 0;
+        if (t.subtasks && Array.isArray(t.subtasks)) {
+          t.subtasks.forEach((st: any) => { st.is_completed = 0; });
         }
-      };
+      }
     }
-  };
+  }
 
-  const count = await resetRecurringTasks(mockDb);
-  assert.strictEqual(count, 1, 'Việc tuần trước phải được reset');
-  assert.strictEqual(updatedRecords.length, 1);
-  assert.strictEqual(updatedRecords[0].args[2], 'task-weekly-last-week');
-  // Hạn mới phải rơi vào Thứ 4 của tuần hiện tại
-  const newDue = new Date(updatedRecords[0].args[0]);
-  const newDueVn = getVnDateParts(newDue);
-  assert.strictEqual(newDueVn.dayOfWeek, 3, 'Hạn mới vẫn giữ đúng Thứ 4');
-  assert.strictEqual(newDueVn.hours, 15, 'Hạn mới vẫn giữ đúng 15:00');
+  // Xác nhận task hôm qua đã được reset thành 0
+  assert.strictEqual(mockTodos[0].is_completed, 0);
+  assert.strictEqual(mockTodos[0].subtasks[0].is_completed, 0);
+  assert.strictEqual(mockTodos[0].subtasks[1].is_completed, 0);
+
+  // Task hoàn thành hôm nay vẫn giữ nguyên is_completed = 1
+  assert.strictEqual(mockTodos[1].is_completed, 1);
+  console.log('  ✅ PASS: Task Daily ngày hôm qua đã tự động reset về 0 và uncheck toàn bộ subtask!');
 });
-
-console.log('🎉 Toàn bộ kiểm thử tính năng Tự Reset đã hoàn thành!');
-

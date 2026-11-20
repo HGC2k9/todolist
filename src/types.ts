@@ -1,23 +1,6 @@
 // ============================================================
-// Type Definitions — Cloudflare To-Do List
+// Type Definitions — ToDoList Local Standalone
 // ============================================================
-
-export interface Env {
-  DB: D1Database;
-  AI?: any;
-  JWT_SECRET: string;
-  COOKIE_NAME: string;
-}
-
-export interface User {
-  id: string;
-  email: string;
-  username: string;
-  password_hash: string;
-  salt: string;
-  telegram_chat_id?: string | null;
-  created_at: string;
-}
 
 export interface Subtask {
   id: string;
@@ -27,7 +10,7 @@ export interface Subtask {
 
 export interface Todo {
   id: string;
-  user_id: string;
+  user_id?: string;
   title: string;
   description: string;
   category: string;
@@ -36,7 +19,6 @@ export interface Todo {
   is_completed: number;
   is_pinned?: number;
   repeat_mode?: 'none' | 'daily' | 'weekly';
-  telegram_message_id?: number | null;
   subtasks?: Subtask[] | string;
   tags?: string[] | string;
   reminder_offset?: number;
@@ -59,7 +41,6 @@ export interface TodoImage {
 
 export interface CompletionHistory {
   id: string;
-  user_id: string;
   todo_id?: string;
   task_title: string;
   completed_at: string;
@@ -68,12 +49,4 @@ export interface CompletionHistory {
   priority?: string;
   actual_minutes?: number;
   created_at: string;
-}
-
-export interface JWTPayload {
-  sub: string;       // user id
-  email: string;
-  username: string;
-  iat: number;
-  exp: number;
 }

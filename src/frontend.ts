@@ -1,3 +1,7 @@
+import { storageScript } from './client/storage';
+import { notificationsScript } from './client/notifications';
+import { audioTimerScript } from './client/audio-timer';
+
 // ============================================================
 // Frontend SPA — To-Do List (Alpine.js + Tailwind CSS + PWA)
 // iOS Safe Area Support + Pull-To-Refresh + Auto-Alert 30m
@@ -226,83 +230,8 @@ export function renderHTML(): string {
   </template>
 </div>
 
-<!-- ═══════ AUTH SCREEN (Đăng nhập / Đăng ký) ═══════ -->
-<div x-show="!authenticated" x-cloak class="min-h-[100dvh] h-[100dvh] overflow-y-auto flex items-center justify-center p-4 ios-safe-top">
-  <div class="w-full max-w-md">
-    <div class="text-center mb-8">
-      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand-600 to-blue-400 text-white shadow-lg shadow-brand-500/30 mb-4 ring-4 ring-brand-100 dark:ring-brand-950">
-        <img src="/icon-192.png" alt="Logo" class="w-12 h-12 rounded-xl" />
-      </div>
-      <h1 class="text-3xl font-extrabold bg-gradient-to-r from-brand-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent tracking-tight">To-Do List</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Cloudflare Edge & D1 Serverless</p>
-    </div>
-
-    <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 backdrop-blur-xl">
-      <div class="flex bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 mb-6" role="tablist" aria-label="Phương thức xác thực">
-        <button @click="authMode='login'" role="tab" :aria-selected="authMode==='login'" class="flex-1 h-10 text-sm font-bold rounded-xl transition-all inline-flex items-center justify-center"
-                :class="authMode==='login' ? 'bg-white dark:bg-slate-700 shadow-sm text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'">
-          Đăng nhập
-        </button>
-        <button @click="authMode='register'" role="tab" :aria-selected="authMode==='register'" class="flex-1 h-10 text-sm font-bold rounded-xl transition-all inline-flex items-center justify-center"
-                :class="authMode==='register' ? 'bg-white dark:bg-slate-700 shadow-sm text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'">
-          Đăng ký
-        </button>
-      </div>
-
-      <form @submit.prevent="handleAuth" class="space-y-4">
-        <div x-show="authMode==='register'" class="space-y-1.5">
-          <label for="auth-username" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Tên người dùng</label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            </span>
-            <input id="auth-username" name="username" autocomplete="name" x-model="authForm.username" type="text" placeholder="Họ và tên..."
-                   class="w-full pl-11 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 focus:ring-2 focus:ring-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-sm font-medium" />
-          </div>
-        </div>
-
-        <div class="space-y-1.5">
-          <label for="auth-email" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Email</label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-            </span>
-            <input id="auth-email" name="email" autocomplete="email" x-model="authForm.email" type="email" placeholder="you@example.com" required
-                   class="w-full pl-11 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 focus:ring-2 focus:ring-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-sm font-medium" />
-          </div>
-        </div>
-
-        <div class="space-y-1.5">
-          <label for="auth-password" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Mật khẩu</label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            </span>
-            <input id="auth-password" name="password" autocomplete="current-password" x-model="authForm.password" type="password" placeholder="••••••••" required minlength="6"
-                   class="w-full pl-11 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 focus:ring-2 focus:ring-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-sm font-medium" />
-          </div>
-        </div>
-
-        <button type="submit" :disabled="authLoading"
-                class="w-full h-12 px-4 bg-brand-600 hover:bg-brand-700 active:scale-[0.99] text-white font-bold rounded-2xl shadow-lg shadow-brand-500/25 transition disabled:opacity-60 inline-flex items-center justify-center gap-2 mt-2 text-sm">
-          <svg x-show="authLoading" class="spinner w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4 31.4" stroke-linecap="round"/></svg>
-          <span x-text="authMode==='login' ? 'Đăng nhập ngay' : 'Tạo tài khoản mới'"></span>
-        </button>
-      </form>
-    </div>
-
-    <div class="mt-6 text-center">
-      <button @click="toggleDarkMode($event)" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-semibold inline-flex items-center gap-2 p-2 rounded-xl transition active:scale-95">
-        <svg x-show="!darkMode" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-        <svg x-show="darkMode" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-        <span x-text="darkMode ? 'Chuyển sang Chế độ Sáng' : 'Chuyển sang Chế độ Tối'"></span>
-      </button>
-    </div>
-  </div>
-</div>
-
 <!-- ═══════ MAIN APPLICATION INTERFACE ═══════ -->
-<div x-show="authenticated" x-cloak class="h-screen h-[100dvh] flex flex-col overflow-hidden bg-slate-50 dark:bg-[#0b0f19] text-slate-900 dark:text-slate-100 font-sans">
+<div class="h-screen h-[100dvh] flex flex-col overflow-hidden bg-slate-50 dark:bg-[#0b0f19] text-slate-900 dark:text-slate-100 font-sans">
 
   <!-- ─── HEADER CỐ ĐỊNH 100% TRÁNH BỊ TREO HOẶC TRÔI KHI VUỐT ─── -->
   <header class="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-[#0b0f19]/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 select-none shadow-xs"
@@ -351,19 +280,6 @@ export function renderHTML(): string {
       <!-- Action Toolbar (Căn chỉnh đối xứng 100% - Chuẩn hóa chiều cao h-8) -->
       <div class="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
         
-        <!-- Nút Download App -->
-        <button @click="showDownloadModal = true"
-                aria-label="Tải ứng dụng To-Do List cho PC hoặc iOS"
-                class="h-8 px-2 sm:px-2.5 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 bg-brand-50 hover:bg-brand-100 dark:bg-brand-950/70 dark:hover:bg-brand-900 text-brand-600 dark:text-brand-400 border border-brand-200 dark:border-brand-800 transition shadow-xs active:scale-95"
-                title="Tải ứng dụng cho PC hoặc iOS">
-          <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
-          </svg>
-          <span class="hidden md:inline">Download</span>
-        </button>
-
         <!-- Nút Sao lưu & Xuất lịch -->
         <button @click="showBackupModal = true"
                 aria-label="Sao lưu dữ liệu và xuất lịch"
@@ -393,14 +309,7 @@ export function renderHTML(): string {
           <svg x-show="darkMode" class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
         </button>
 
-        <!-- Đăng xuất (Có xác nhận an toàn) -->
-        <button @click="confirmLogout($event)"
-                aria-label="Đăng xuất tài khoản"
-                class="w-8 h-8 rounded-xl inline-flex items-center justify-center text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition active:scale-95 border border-transparent hover:border-rose-200 dark:hover:border-rose-900" title="Đăng xuất">
-          <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-        </button>
-      </div>
-    </div>
+        </div>
   </header>
 
   <!-- ═══════ PHẦN 2: BODY CUỘN ĐỘC LẬP ═══════ -->
@@ -642,13 +551,7 @@ export function renderHTML(): string {
         <kbd class="ml-2 text-[10px] font-semibold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">N</kbd>
       </button>
 
-      <button type="button" @click="openCreateModal(); setTimeout(() => startVoiceInput(), 200)"
-              class="h-[50px] px-4 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-bold text-xs inline-flex items-center justify-center gap-2 shadow-md shadow-rose-500/20 active:scale-95 transition"
-              title="Nói tiếng Việt để tự động tạo công việc bằng Whisper AI">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-        <span>Nói để tạo việc</span>
-      </button>
-    </div>
+      </div>
 
     <!-- ─── Skeleton Loading State (Tránh giật giật màn hình khi tải) ─── -->
     <div x-show="todosLoading" class="space-y-3" role="status" aria-busy="true" aria-label="Đang tải danh sách công việc...">
@@ -1035,114 +938,6 @@ export function renderHTML(): string {
   </div>
 </div>
 
-<!-- ═══════ MODAL TẢI ỨNG DỤNG (DOWNLOAD FOR PC / IOS) ═══════ -->
-<div x-show="showDownloadModal" x-cloak class="fixed inset-0 z-[115] flex items-end sm:items-center justify-center sm:p-4"
-     role="dialog" aria-modal="true" aria-labelledby="download-modal-title">
-  
-  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showDownloadModal=false"
-       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
-
-  <div class="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-7 max-h-[92vh] overflow-y-auto ios-safe-bottom"
-       x-transition:enter="transition ease-out duration-250" x-transition:enter-start="opacity-0 translate-y-6 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
-       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-6 sm:translate-y-0 sm:scale-95"
-       @click.stop>
-    
-    <div class="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-4 sm:hidden"></div>
-
-    <div class="flex items-center justify-between mb-5">
-      <div class="flex items-center gap-2.5">
-        <img src="/icon-192.png" alt="Logo" class="w-8 h-8 rounded-xl shadow-sm" />
-        <h2 id="download-modal-title" class="text-lg sm:text-xl font-black text-slate-900 dark:text-white">Cài đặt ứng dụng To-Do List</h2>
-      </div>
-      <button @click="showDownloadModal=false" aria-label="Đóng cửa sổ tải ứng dụng" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95">
-        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-
-    <div class="flex bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 mb-5">
-      <button @click="downloadTab='pc'" class="flex-1 h-10 text-xs sm:text-sm font-bold rounded-xl transition-all inline-flex items-center justify-center gap-2"
-              :class="downloadTab==='pc' ? 'bg-white dark:bg-slate-700 shadow-sm text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-        Download for PC
-      </button>
-      <button @click="downloadTab='ios'" class="flex-1 h-10 text-xs sm:text-sm font-bold rounded-xl transition-all inline-flex items-center justify-center gap-2"
-              :class="downloadTab==='ios' ? 'bg-white dark:bg-slate-700 shadow-sm text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-        Download for iOS
-      </button>
-    </div>
-
-    <!-- TAB 1: PC -->
-    <div x-show="downloadTab==='pc'" class="space-y-4">
-      <div class="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900 text-xs sm:text-sm text-blue-900 dark:text-blue-300 space-y-2">
-        <p class="font-bold flex items-center gap-1.5">
-          <svg class="w-4 h-4 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          Lợi ích khi cài bản PC App:
-        </p>
-        <ul class="list-disc pl-5 space-y-1 text-slate-700 dark:text-slate-300">
-          <li>Chạy độc lập như phần mềm máy tính (có icon Desktop & Start Menu).</li>
-          <li>Thông báo hiển thị tên <strong>"To-Do List"</strong> và logo sắc nét.</li>
-          <li>Nhận thông báo ngay cả khi đóng tab trình duyệt.</li>
-        </ul>
-      </div>
-
-      <button @click="installPWA()"
-              class="w-full py-3.5 px-4 bg-brand-600 hover:bg-brand-700 active:scale-[0.99] text-white font-bold rounded-2xl shadow-lg shadow-brand-500/25 transition flex items-center justify-center gap-2 text-sm">
-        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        <span>Cài đặt ngay vào máy tính (1-Click)</span>
-      </button>
-
-      <div class="text-xs text-slate-500 dark:text-slate-400 space-y-1 pt-1">
-        <p class="font-semibold text-slate-700 dark:text-slate-300">Hoặc cài đặt từ trình duyệt:</p>
-        <p>• <strong>Microsoft Edge</strong>: Bấm biểu tượng <strong>Ứng dụng</strong> trên thanh URL &gt; chọn <strong>Cài đặt</strong>.</p>
-        <p>• <strong>Google Chrome</strong>: Bấm menu 3 chấm &gt; chọn <strong>Lưu & chia sẻ &gt; Cài đặt To-Do List...</strong></p>
-      </div>
-    </div>
-
-    <!-- TAB 2: IOS -->
-    <div x-show="downloadTab==='ios'" class="space-y-4">
-      <div class="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900 text-xs sm:text-sm text-amber-900 dark:text-amber-300 space-y-2">
-        <p class="font-bold flex items-center gap-1.5">
-          <svg class="w-4 h-4 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          Cài đặt Web App lên iPhone không cần App Store:
-        </p>
-        <p class="text-slate-700 dark:text-slate-300">
-          Ứng dụng sử dụng chuẩn <strong>Hồ sơ WebClip (.mobileconfig)</strong> của Apple với icon chuẩn HD, tự động chạy chế độ Toàn màn hình (FullScreen) như App Native!
-        </p>
-      </div>
-
-      <div class="p-4 rounded-2xl border-2 border-dashed border-brand-300 dark:border-brand-800 bg-white dark:bg-slate-800 space-y-2.5">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-black uppercase text-brand-600 dark:text-brand-400">Cách 1: Tải file cấu hình iOS (.mobileconfig)</span>
-          <span class="text-[10px] bg-brand-100 dark:bg-brand-900 text-brand-700 dark:text-brand-300 font-bold px-2 py-0.5 rounded-full">Khuyên dùng</span>
-        </div>
-        <p class="text-xs text-slate-500 dark:text-slate-400">
-          Tải hồ sơ Apple WebClip chính thức của To-Do List với icon sắc nét chuẩn 100%.
-        </p>
-        <a href="/api/download/ios-profile" download="todolist.mobileconfig"
-           class="w-full py-3 px-4 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2 text-xs sm:text-sm">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Tải hồ sơ cài đặt (.mobileconfig)
-        </a>
-        <div class="text-[11px] text-slate-500 dark:text-slate-400 space-y-1 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700">
-          <p class="font-bold text-slate-700 dark:text-slate-200">Các bước sau khi bấm Tải:</p>
-          <p>1. Safari hỏi tải hồ sơ &gt; bấm <strong>Cho phép (Allow)</strong>.</p>
-          <p>2. Mở <strong>Cài đặt (Settings)</strong> trên iPhone &gt; bấm vào mục <strong>"Đã tải về hồ sơ" (Profile Downloaded)</strong> ở trên cùng.</p>
-          <p>3. Bấm <strong>Cài đặt (Install)</strong> ở góc phải trên &gt; Icon To-Do List sẽ xuất hiện ngay trên màn hình chính!</p>
-        </div>
-      </div>
-
-      <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 space-y-1">
-        <p class="font-bold text-slate-800 dark:text-slate-200">Cách 2: Thêm từ trình duyệt Safari:</p>
-        <p>1. Mở trang web này trong trình duyệt <strong>Safari</strong> trên iPhone.</p>
-        <p>2. Bấm nút <strong>Chia sẻ (Share)</strong> ở thanh dưới Safari.</p>
-        <p>3. Chọn <strong>"Thêm vào Màn hình chính" (Add to Home Screen)</strong> &gt; Bấm <strong>Thêm</strong>.</p>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- ═══════ CREATE / EDIT MODAL ═══════ -->
 <div x-show="showModal" x-cloak class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4"
      role="dialog" aria-modal="true" aria-labelledby="todo-modal-title">
@@ -1182,14 +977,7 @@ export function renderHTML(): string {
           <label for="todo-title-input" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
             1. Tiêu đề công việc <span class="text-rose-500">*</span>
           </label>
-          <button type="button" @click="startVoiceInput()"
-                  class="text-xs font-bold px-2.5 py-1 rounded-xl flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-xs"
-                  :class="isListeningVoice ? 'bg-rose-500 text-white animate-pulse' : 'bg-brand-50 hover:bg-brand-100 dark:bg-brand-950/60 dark:hover:bg-brand-900 text-brand-600 dark:text-brand-400 border border-brand-200 dark:border-brand-800'"
-                  title="Nhấn để nói tiếng Việt điền tiêu đề tự động">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-            <span x-text="isListeningVoice ? 'Đang nghe...' : 'Nói tiếng Việt'"></span>
-          </button>
-        </div>
+          </div>
         <input id="todo-title-input" x-model="todoForm.title" type="text" required placeholder="Ví dụ: Làm bài tập, Họp đối tác, Tập gym..."
                class="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 focus:ring-2 focus:ring-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-sm font-semibold text-slate-900 dark:text-white" />
       </div>
@@ -1536,34 +1324,6 @@ export function renderHTML(): string {
   </div>
 </div>
 
-<!-- ═══════ CONFIRM LOGOUT MODAL ═══════ -->
-<div x-show="showLogoutModal" x-cloak class="fixed inset-0 z-[200] flex items-center justify-center p-4"
-     role="dialog" aria-modal="true" aria-labelledby="logout-modal-title">
-  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showLogoutModal=false"
-       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
-  <div class="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 text-center animate-bounce-once"
-       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
-       @click.stop>
-    <div class="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-500 mx-auto flex items-center justify-center mb-3">
-      <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-        <polyline points="16 17 21 12 16 7"></polyline>
-        <line x1="21" y1="12" x2="9" y2="12"></line>
-      </svg>
-    </div>
-    <h3 id="logout-modal-title" class="text-base font-bold mb-1.5">Xác nhận đăng xuất?</h3>
-    <p class="text-xs text-slate-500 dark:text-slate-400 mb-5">
-      Bạn có chắc chắn muốn đăng xuất khỏi tài khoản <strong x-text="currentUser?.username || 'này'" class="text-slate-800 dark:text-slate-200"></strong> không?
-    </p>
-    <div class="flex gap-2.5">
-      <button @click="showLogoutModal=false" class="flex-1 h-10 px-3 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 inline-flex items-center justify-center">Huỷ</button>
-      <button @click="confirmLogoutAction()" class="flex-1 h-10 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/30 transition active:scale-95 inline-flex items-center justify-center">Đăng xuất ngay</button>
-    </div>
-  </div>
-</div>
-
 <!-- ═══════ UNIVERSAL CONFIRM MODAL ═══════ -->
 <div x-show="confirmDialog.show" x-cloak class="fixed inset-0 z-[200] flex items-center justify-center p-4"
      role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title">
@@ -1588,37 +1348,6 @@ export function renderHTML(): string {
               class="flex-1 h-10 px-3 text-white font-bold rounded-xl text-xs shadow-md transition active:scale-95 inline-flex items-center justify-center cursor-pointer"
               :class="confirmDialog.isDanger ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/30' : 'bg-brand-600 hover:bg-brand-700 shadow-brand-600/30'"
               x-text="confirmDialog.confirmText || 'Đồng ý'"></button>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════ APP VERSION UPDATE NOTIFICATION MODAL ═══════ -->
-<div x-show="showUpdateModal" x-cloak class="fixed inset-0 z-[210] flex items-center justify-center p-4"
-     role="dialog" aria-modal="true" aria-labelledby="update-modal-title">
-  <div class="fixed inset-0 bg-slate-950/70 backdrop-blur-md" @click="showUpdateModal=false"
-       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
-  <div class="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-brand-200 dark:border-brand-800/60 p-6 text-center animate-bounce-once"
-       x-transition:enter="transition ease-out duration-250" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
-       @click.stop>
-    <div class="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center mb-3 text-3xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 shadow-sm animate-pulse">
-      🚀
-    </div>
-    <h3 id="update-modal-title" class="text-base font-extrabold text-slate-900 dark:text-white mb-2">Đang cập nhật phiên bản mới</h3>
-    <p class="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
-      Hệ thống vừa có bản cập nhật mới <span class="font-bold text-brand-600 dark:text-brand-400" x-text="newVersionInfo ? ('v' + newVersionInfo) : ''"></span>. Vui lòng tải lại ứng dụng để áp dụng!
-    </p>
-    <div class="flex gap-3">
-      <button type="button" @click="showUpdateModal = false"
-              class="flex-1 h-11 px-4 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold rounded-2xl text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 cursor-pointer">
-        Để sau
-      </button>
-      <button type="button" @click="window.location.reload()"
-              class="flex-1 h-11 px-4 bg-brand-600 hover:bg-brand-700 active:scale-95 text-white font-bold rounded-2xl text-xs shadow-lg shadow-brand-500/30 transition cursor-pointer inline-flex items-center justify-center gap-1.5">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-        <span>Đồng ý</span>
-      </button>
     </div>
   </div>
 </div>
@@ -1648,37 +1377,50 @@ export function renderHTML(): string {
 
     <div class="space-y-3 pt-2">
       <!-- 1. Xuất lịch iCal (.ics) -->
-      <a href="/api/export/ics" download="todolist.ics"
-         class="w-full p-3.5 rounded-2xl border border-violet-200 dark:border-violet-900/60 bg-violet-50/50 dark:bg-violet-950/30 hover:bg-violet-100/50 dark:hover:bg-violet-900/40 transition flex items-center gap-3 text-xs sm:text-sm font-bold text-violet-900 dark:text-violet-200 group">
+      <button type="button" @click="exportIcalLocally()"
+         class="w-full p-3.5 rounded-2xl border border-violet-200 dark:border-violet-900/60 bg-violet-50/50 dark:bg-violet-950/30 hover:bg-violet-100/50 dark:hover:bg-violet-900/40 transition flex items-center gap-3 text-xs sm:text-sm font-bold text-violet-900 dark:text-violet-200 group text-left cursor-pointer active:scale-95">
         <span class="text-2xl">📅</span>
         <div class="flex-1">
           <div class="flex items-center justify-between">
             <span>Xuất file iCalendar (.ics)</span>
             <span class="text-[10px] bg-violet-200 dark:bg-violet-800 text-violet-800 dark:text-violet-200 px-2 py-0.5 rounded-full font-bold">Chuẩn RFC 5545</span>
           </div>
-          <p class="text-[11px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">Đồng bộ tự động sang Google Calendar, Apple Calendar, Outlook</p>
+          <p class="text-[11px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">Đồng bộ sang Apple Calendar, Google Calendar, Outlook</p>
         </div>
-      </a>
+      </button>
 
-      <!-- 2. Xuất sao lưu JSON -->
-      <a href="/api/export/json" download
-         class="w-full p-3.5 rounded-2xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30 hover:bg-blue-100/50 dark:hover:bg-blue-900/40 transition flex items-center gap-3 text-xs sm:text-sm font-bold text-blue-900 dark:text-blue-200 group">
+      <!-- 2. Xuất sao lưu JSON qua iOS Share Sheet -->
+      <button type="button" @click="exportJsonLocally()"
+         class="w-full p-3.5 rounded-2xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30 hover:bg-blue-100/50 dark:hover:bg-blue-900/40 transition flex items-center gap-3 text-xs sm:text-sm font-bold text-blue-900 dark:text-blue-200 group text-left cursor-pointer active:scale-95">
         <span class="text-2xl">💾</span>
         <div class="flex-1">
           <div class="flex items-center justify-between">
             <span>Sao lưu dữ liệu JSON</span>
-            <span class="text-[10px] bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full font-bold">Toàn bộ 100%</span>
+            <span class="text-[10px] bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full font-bold">iOS Share Sheet</span>
           </div>
-          <p class="text-[11px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">Tải toàn bộ công việc, danh mục và lịch sử về máy</p>
+          <p class="text-[11px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">Lưu file JSON trực tiếp vào Tệp (Files), AirDrop hoặc Ghi chú trên iPhone</p>
         </div>
-      </a>
+      </button>
+
+      <!-- 2b. Sao chép JSON vào Clipboard -->
+      <button type="button" @click="copyBackupToClipboard()"
+         class="w-full p-3.5 rounded-2xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/50 dark:bg-emerald-950/30 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/40 transition flex items-center gap-3 text-xs sm:text-sm font-bold text-emerald-900 dark:text-emerald-200 group text-left cursor-pointer active:scale-95">
+        <span class="text-2xl">📋</span>
+        <div class="flex-1">
+          <div class="flex items-center justify-between">
+            <span>Sao chép JSON vào Clipboard</span>
+            <span class="text-[10px] bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200 px-2 py-0.5 rounded-full font-bold">1-Click</span>
+          </div>
+          <p class="text-[11px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">Dán nhanh nội dung sao lưu vào bất kỳ ứng dụng nào</p>
+        </div>
+      </button>
 
       <!-- 3. Nhập phục hồi file JSON -->
       <label class="w-full p-3.5 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-slate-100/50 dark:hover:bg-slate-800/80 transition flex items-center gap-3 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
         <span class="text-2xl">📥</span>
         <div class="flex-1">
           <span>Khôi phục từ file JSON</span>
-          <p class="text-[11px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">Nhập lại danh sách công việc từ file sao lưu</p>
+          <p class="text-[11px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">Chọn file sao lưu từ iPhone để phục hồi danh sách công việc</p>
         </div>
         <input type="file" accept=".json" class="hidden" @change="handleImportJsonFile($event)" />
       </label>
@@ -2072,70 +1814,15 @@ export function renderHTML(): string {
 
 <!-- ═══════ JAVASCRIPT CONTROLLER ═══════ -->
 <script>
-const DEFAULT_API_BASE_URL = 'https://app.todolists.workers.dev';
-const IS_CAPACITOR_NATIVE = (
-  typeof window !== 'undefined' && (
-    window.location.protocol === 'capacitor:' ||
-    window.location.protocol === 'ionic:' ||
-    (window.location.origin && window.location.origin.includes('localhost') && Boolean(window.Capacitor))
-  )
-);
-const API_BASE = (
-  (typeof window !== 'undefined' && (window.VITE_API_BASE_URL || window.ENV_API_BASE_URL)) ||
-  (IS_CAPACITOR_NATIVE ? DEFAULT_API_BASE_URL : '')
-);
-
-function cleanBaseUrl(base) {
-  if (!base) return '';
-  return base.endsWith('/') ? base.slice(0, -1) : base;
-}
+${storageScript}
+${notificationsScript}
+${audioTimerScript}
 
 function app() {
   return {
-    authToken: localStorage.getItem('todo_auth_token') || '',
-    isUnderMaintenance: false,
-    maintenanceMessage: '',
     darkMode: localStorage.getItem('darkMode') === 'true',
-    authenticated: Boolean(localStorage.getItem('cached_user')),
-    currentUser: (() => {
-      try {
-        return JSON.parse(localStorage.getItem('cached_user') || 'null');
-      } catch (e) {
-        return null;
-      }
-    })(),
-    authMode: 'login',
-    authForm: { email: '', username: '', password: '' },
-    authLoading: false,
-
-    // Tải tức thì từ LocalStorage (Instant Load)
-    todos: (() => {
-      try {
-        return JSON.parse(localStorage.getItem('cached_todos') || '[]');
-      } catch (e) {
-        return [];
-      }
-    })(),
-    todosLoading: false,
-    categories: (() => {
-      try {
-        return JSON.parse(localStorage.getItem('cached_categories') || '["Personal", "Work", "Shopping", "Health", "Study"]');
-      } catch (e) {
-        return ['Personal', 'Work', 'Shopping', 'Health', 'Study'];
-      }
-    })(),
-
-    // Quản lý Ngoại tuyến & Hàng đợi thao tác (Offline Sync Queue)
-    isOffline: !navigator.onLine,
-    isSyncing: false,
-    offlineQueue: (() => {
-      try {
-        return JSON.parse(localStorage.getItem('offline_queue') || '[]');
-      } catch (e) {
-        return [];
-      }
-    })(),
-    settingUpWebhook: false,
+    authenticated: true,
+    currentUser: { id: 'local_user', username: 'Người dùng', email: 'offline@localhost' },
 
     // Filters
     searchQuery: '',
@@ -2172,180 +1859,28 @@ function app() {
       }
     ],
 
-    // Multi-view mode & Filters
     viewMode: (localStorage.getItem('viewMode') === 'calendar' ? 'calendar' : 'list'),
     filterTag: 'all',
     showBackupModal: false,
-    isListeningVoice: false,
-    newSubtaskInput: '',
-    newTagInput: '',
     calendarDate: new Date(),
     selectedCalendarDate: null,
 
-    // Modals & Bottom Sheet Drag-to-Dismiss
-    showModal: false,
     modalDragY: 0,
     isDraggingModal: false,
     modalStartY: 0,
-    editingTodo: null,
-    customCategoryMode: false,
-    todoForm: {
-      title: '',
-      description: '',
-      category: 'Personal',
-      priority: 'Medium',
-      repeat_mode: 'none',
-      due_datetime: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
-      daily_time: String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0'),
-      weekly_day: new Date().getDay(),
-      weekly_time: String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0'),
-      is_pinned: false,
-      subtasks: [],
-      tags: [],
-      reminder_offset: 0,
-      actual_minutes: 0
-    },
-    todoSaving: false,
-    bgAudio: null,
 
-    // Modal Xác nhận hoàn thành công việc kèm Minh chứng (Tùy chọn)
-    showCompletionModal: false,
-    completingTodo: null,
-    completingProofPhoto: null,
-    completingPhotoName: '',
-    completingUploadingPhoto: false,
-
-    // Kéo thả & Sắp xếp vị trí
-    draggedTodo: null,
-
-    // V3: Thùng rác (Trash)
-    showTrashModal: false,
-    trashTodos: [],
-    trashLoading: false,
-    lastDeletedTodo: null,
-
-    // V3: Focus Tools (Pomodoro, Stopwatch, Countdown Timer) & Web Audio API
-    showPomodoroModal: false,
-    focusToolTab: 'pomodoro',
-    pomodoroRunning: false,
-    pomodoroMode: 'focus',
-    pomodoroTimeLeft: 25 * 60,
-    pomodoroTotalTime: 25 * 60,
-    pomodoroActiveTodo: null,
-    pomodoroInterval: null,
-    stopwatchTime: 0,
-    stopwatchRunning: false,
-    stopwatchInterval: null,
-    stopwatchStartTime: 0,
-    stopwatchLaps: [],
-    countdownDuration: 300,
-    countdownTimeLeft: 300,
-    countdownRunning: false,
-    countdownInterval: null,
-    ambientSound: 'none',
-    ambientVolume: 50,
-    ambientNodes: null,
-
-    // V3: Productivity Analytics
-    showAnalyticsModal: false,
-    analyticsData: null,
-    analyticsLoading: false,
-
-    // V3: Images & Lightbox
-    todoImagesMap: {},
-    editingTodoImages: [],
-    allImagesMap: {},
-    imageUploading: false,
-    lightboxImage: null,
-
-    // V3: Real-Time Sync & Voice MediaRecorder Fallback
-    lastSyncVersion: localStorage.getItem('last_sync_version') || '0',
-    liveSyncInterval: null,
-    isRecordingVoiceMedia: false,
-    mediaRecorder: null,
-    audioChunks: [],
-    audioStream: null,
-    voiceRecordingSeconds: 0,
-    voiceTimerInterval: null,
-    activePhotoTodoId: null,
-
-    // Universal Confirmation Dialog
-    confirmDialog: {
-      show: false,
-      title: 'Xác nhận',
-      message: '',
-      confirmText: 'Đồng ý',
-      cancelText: 'Hủy',
-      icon: '⚠️',
-      isDanger: true,
-      resolve: null
-    },
-    historicalStreak: 0,
-    completedHistoryCount: 0,
-
-    showDeleteModal: false,
-    deletingTodo: null,
-    showClearCompletedModal: false,
-    showLogoutModal: false,
-
-    // Download Modal State
-    showDownloadModal: false,
-    downloadTab: 'ios',
-    deferredInstallPrompt: null,
-
-    // Refresh State
-    isRefreshing: false,
-
-    // Toasts
     toasts: [],
     toastId: 0,
-
-    // Modal About & Version
     showAboutModal: false,
-    appVersion: '2.5.0',
-    showUpdateModal: false,
-    newVersionInfo: '',
+    appVersion: '2.5.0 (Offline Edition)',
+    isRefreshing: false,
 
-    // In-App Notifications, Priorities & Auto-Update
-    notificationsEnabled: localStorage.getItem('notificationsEnabled') !== 'false',
-    lastNotifiedTimes: {},
-    reminderInterval: null,
-    autoPollInterval: null,
-    bgWorker: null,
-    swRegistration: null,
-    audioCtx: null,
+    // ── GỘP CÁC MODULE CON ĐỘC LẬP ──
+    ...getStorageModule(),
+    ...getNotificationsModule(),
+    ...getAudioTimerModule(),
 
-    isTodoForToday(todo) {
-      if (!todo) return false;
-      const pad = n => String(n).padStart(2, '0');
-      const now = new Date();
-      const todayStr = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
-
-      if (todo.due_date) {
-        const d = this.parseDateSafe(todo.due_date);
-        if (d) {
-          const dueStr = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
-          if (dueStr === todayStr) return true;
-        }
-      }
-      if (todo.repeat_mode === 'daily') return true;
-      if (todo.is_completed) {
-        const d = this.parseDateSafe(todo.updated_at || todo.created_at);
-        if (d) {
-          const compStr = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
-          if (compStr === todayStr) return true;
-        }
-      }
-      if (!todo.due_date && todo.created_at) {
-        const d = this.parseDateSafe(todo.created_at);
-        if (d) {
-          const createStr = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
-          if (createStr === todayStr) return true;
-        }
-      }
-      return false;
-    },
-
+    // ── COMPUTED / GETTERS ──
     get stats() {
       const total = this.todos.length;
       const completed = this.todos.filter(t => t.is_completed).length;
@@ -2353,7 +1888,6 @@ function app() {
       const overdue = this.todos.filter(t => this.isOverdue(t)).length;
       const recurring = this.todos.filter(t => t.repeat_mode && t.repeat_mode !== 'none' && !t.is_completed).length;
 
-      // "Việc cần làm" của thanh tiến độ và thống kê hôm nay
       const todayTodos = this.todos.filter(t => this.isTodoForToday(t));
       const todayTotal = todayTodos.length;
       const todayCompleted = todayTodos.filter(t => t.is_completed).length;
@@ -2393,10 +1927,6 @@ function app() {
         const aOverdue = this.isOverdue(a) ? 1 : 0;
         const bOverdue = this.isOverdue(b) ? 1 : 0;
 
-        // Phân loại:
-        // 0 = Cần làm (chưa hoàn thành & chưa quá hạn) -> LÊN TRÊN ĐẦU
-        // 1 = Quá hạn (chưa hoàn thành nhưng đã quá hạn) -> RỚT XUỐNG DƯỚI
-        // 2 = Đã xong -> RỚT XUỐNG DƯỚI CÙNG
         const getGroup = (isComp, isOver) => {
           if (isComp) return 2;
           if (isOver) return 1;
@@ -2410,23 +1940,19 @@ function app() {
           return groupA - groupB;
         }
 
-        // Trong cùng nhóm: việc ghim lên trước
         const aPinned = a.is_pinned ? 1 : 0;
         const bPinned = b.is_pinned ? 1 : 0;
         if (aPinned !== bPinned) {
           return bPinned - aPinned;
         }
 
-        // Xếp theo tiêu chí sortBy mà người dùng chọn
         const sortBy = this.sortBy || 'due_date-asc';
 
         if (sortBy === 'custom') {
-          // Tùy chỉnh: Sắp xếp theo vị trí kéo thả (position tăng dần)
           const posA = typeof a.position === 'number' ? a.position : 0;
           const posB = typeof b.position === 'number' ? b.position : 0;
           if (posA !== posB) return posA - posB;
         } else if (sortBy === 'due_date-desc') {
-          // Xa -> Gần: Việc có hạn lâu tới nhất đứng đầu
           if (a.due_date && b.due_date) {
             const tA = new Date(a.due_date).getTime();
             const tB = new Date(b.due_date).getTime();
@@ -2435,17 +1961,14 @@ function app() {
           if (a.due_date && !b.due_date) return -1;
           if (!a.due_date && b.due_date) return 1;
         } else if (sortBy === 'created_at-desc') {
-          // Mới tạo: Việc mới tạo nhất đứng đầu
           const cA = new Date(a.created_at).getTime() || 0;
           const cB = new Date(b.created_at).getTime() || 0;
           if (cA !== cB) return cB - cA;
         } else if (sortBy === 'created_at-asc') {
-          // Cũ nhất trước
           const cA = new Date(a.created_at).getTime() || 0;
           const cB = new Date(b.created_at).getTime() || 0;
           if (cA !== cB) return cA - cB;
         } else {
-          // Mặc định 'due_date-asc': Gần -> Xa (Việc có hạn gần nhất đứng đầu)
           if (a.due_date && b.due_date) {
             const tA = new Date(a.due_date).getTime();
             const tB = new Date(b.due_date).getTime();
@@ -2481,7 +2004,6 @@ function app() {
     get filteredSortedTodos() {
       let list = this.sortedTodos;
 
-      // 1. Lọc theo trạng thái công việc (Status Filter)
       if (this.filterStatus === 'pending') {
         list = list.filter(t => !t.is_completed);
       } else if (this.filterStatus === 'completed') {
@@ -2492,17 +2014,14 @@ function app() {
         list = list.filter(t => t.repeat_mode && t.repeat_mode !== 'none');
       }
 
-      // 2. Lọc theo danh mục (Category Filter)
       if (this.filterCategory && this.filterCategory !== 'all') {
         list = list.filter(t => t.category === this.filterCategory);
       }
 
-      // 3. Lọc theo mức độ ưu tiên (Priority Filter)
       if (this.filterPriority && this.filterPriority !== 'all') {
         list = list.filter(t => t.priority === this.filterPriority);
       }
 
-      // 4. Lọc theo từ khóa tìm kiếm (Search Query)
       if (this.searchQuery && this.searchQuery.trim()) {
         const q = this.searchQuery.toLowerCase().trim();
         list = list.filter(t =>
@@ -2511,7 +2030,6 @@ function app() {
         );
       }
 
-      // 5. Lọc theo Thẻ (#tags)
       if (this.filterTag && this.filterTag !== 'all') {
         if (this.filterTag === 'pomodoro') {
           list = list.filter(t => Boolean(t.pomodoro_mode));
@@ -2629,8 +2147,8 @@ function app() {
       });
     },
 
+    // ── CORE LIFECYCLE & HANDLERS ──
     async init() {
-      // 1. Mở khóa AudioContext và Background Audio Loop giữ app luôn thức khi ở đa nhiệm
       const unlockAudio = () => {
         try {
           const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -2646,27 +2164,15 @@ function app() {
       window.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
       window.addEventListener('click', unlockAudio, { once: true, passive: true });
 
-      // 1b. Khởi tạo Native Capacitor Settings (StatusBar, SplashScreen, Preferences, Maintenance & OTA)
       if (window.Capacitor?.Plugins?.SplashScreen) {
         try {
           await window.Capacitor.Plugins.SplashScreen.hide();
         } catch {}
       }
       setTimeout(() => {
-        // An toàn: Gỡ bỏ x-cloak sau 300ms nếu có bất kỳ trục trặc render nào để màn hình không bao giờ bị trắng
         document.querySelectorAll('[x-cloak]').forEach(el => el.removeAttribute('x-cloak'));
       }, 300);
 
-      if (window.Capacitor?.Plugins?.Preferences) {
-        try {
-          const prefToken = await window.Capacitor.Plugins.Preferences.get({ key: 'todo_auth_token' });
-          if (prefToken?.value) {
-            this.authToken = prefToken.value;
-          }
-        } catch {}
-      }
-      this.checkMaintenanceStatus();
-      this.checkNativeOtaUpdate();
       if (window.Capacitor?.Plugins?.StatusBar) {
         try {
           const { StatusBar, Style } = window.Capacitor.Plugins;
@@ -2674,190 +2180,50 @@ function app() {
         } catch {}
       }
 
-      // 1c. Lắng nghe sự kiện chuyển đổi trạng thái ứng dụng Capacitor (Resume từ nền -> đồng bộ dữ liệu)
       if (window.Capacitor?.Plugins?.App) {
         try {
           window.Capacitor.Plugins.App.addListener('appStateChange', (state) => {
             if (state && state.isActive) {
               this.checkAndResetRecurringTasksLocally();
-              if (this.authenticated) {
-                this.fetchTodos(true);
-              }
             }
           });
         } catch {}
       }
 
-      // 1d. Khởi tạo & Xin quyền Local Notifications cho App Native
+      // Khởi tạo lưu trữ cục bộ 0ms
+      await this.initStorage();
+      this.checkAndResetRecurringTasksLocally();
+
+      // Khởi tạo thông báo cục bộ Native trên thiết bị
       this.initNativeLocalNotifications().catch(() => {});
+      this.syncAllNativeLocalNotifications();
 
-      // 2. Đăng ký Service Worker & Tự động cập nhật phiên bản mới nhất ngay trên iOS/PWA
-      if ('serviceWorker' in navigator) {
-        try {
-          this.swRegistration = await navigator.serviceWorker.register('/sw.js');
-          if (this.swRegistration.update) {
-            this.swRegistration.update().catch(() => {});
-          }
-          this.swRegistration.addEventListener('updatefound', () => {
-            const installingWorker = this.swRegistration.installing;
-            if (installingWorker) {
-              installingWorker.addEventListener('statechange', () => {
-                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  installingWorker.postMessage({ type: 'SKIP_WAITING' });
-                  window.location.reload();
-                }
-              });
-            }
-          });
-          navigator.serviceWorker.ready.then((reg) => {
-            this.swRegistration = reg;
-          });
-        } catch (e) {
-          console.warn('SW failed:', e);
-        }
-      }
-
-      // 3. Bắt sự kiện PWA Install
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        this.deferredInstallPrompt = e;
-      });
-
-      // 4. Lắng nghe trạng thái Online / Offline để kích hoạt đồng bộ hàng đợi
-      window.addEventListener('online', () => {
-        this.isOffline = false;
-        this.syncOfflineQueue();
-      });
-      window.addEventListener('offline', () => {
-        this.isOffline = true;
-        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
-      });
-
-      // Kiểm tra và đồng bộ hàng đợi ngoại tuyến định kỳ mỗi 15 giây
-      setInterval(() => {
-        if (navigator.onLine && this.offlineQueue.length > 0 && !this.isSyncing) {
-          this.syncOfflineQueue();
-        }
-      }, 15000);
-
-      // 5. Lắng nghe khi người dùng mở lại app / tab từ background
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && this.authenticated) {
-          this.checkAndResetRecurringTasksLocally();
-          if (navigator.onLine && this.offlineQueue.length > 0) {
-            this.syncOfflineQueue();
-          }
-          this.fetchTodos(true);
-          this.checkDueReminders();
-          this.checkAppVersion();
-        }
-      });
-      window.addEventListener('focus', () => {
-        if (this.authenticated) {
-          this.checkAndResetRecurringTasksLocally();
-          if (navigator.onLine && this.offlineQueue.length > 0) {
-            this.syncOfflineQueue();
-          }
-          this.fetchTodos(true);
-          this.checkDueReminders();
-          this.checkAppVersion();
-        }
-      });
-
-      // Kiểm tra phiên bản mới nhất từ server mỗi 60 giây
-      setInterval(() => {
-        this.checkAppVersion();
-      }, 60000);
-
-      await this.checkAuth();
-      if (navigator.onLine && this.offlineQueue.length > 0) {
-        this.syncOfflineQueue();
-      }
-
-      // 5. Khởi động Web Worker chạy ngầm (chống trình duyệt bóp nghẹt timer khi mở ngầm)
+      // Bắt đầu background timer worker
       this.startBackgroundTimerWorker();
 
-      // 6. Tự động kiểm tra nhắc nhở mỗi 10 giây trên main thread
       this.reminderInterval = setInterval(() => {
         this.checkDueReminders();
       }, 10000);
 
-      // 7. Tự động đồng bộ dữ liệu từ server ngầm mỗi 30 giây (Auto-Refresh)
-      this.autoPollInterval = setInterval(() => {
-        if (this.authenticated && !this.todosLoading && !this.showModal) {
-          this.fetchTodos(true);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          this.checkAndResetRecurringTasksLocally();
+          this.checkDueReminders();
         }
-      }, 30000);
-
-      // 7b. Live Sync Polling (Version check siêu nhẹ mỗi 12 giây)
-      this.lastKnownVersion = null;
-      this.liveSyncInterval = setInterval(async () => {
-        if (!this.authenticated || !navigator.onLine || this.isSyncing) return;
-        try {
-          const syncUrl = cleanBaseUrl(API_BASE) + '/api/sync/version';
-          const res = await fetch(syncUrl, {
-            credentials: 'include',
-            headers: this.authToken ? { 'Authorization': 'Bearer ' + this.authToken } : {}
-          });
-          if (res.ok) {
-            const data = await res.json();
-            const currentVersion = String(data.latest_updated_at) + '_' + String(data.count);
-            if (this.lastKnownVersion && this.lastKnownVersion !== currentVersion && !this.showModal) {
-              await this.fetchTodos(true);
-            }
-            this.lastKnownVersion = currentVersion;
-          }
-        } catch {}
-      }, 12000);
-
-      // 7c. Đọc URL Parameters (PWA Shortcuts deep linking: ?action=new, ?action=voice, ?filter=today)
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('action') === 'new') {
-          setTimeout(() => this.openCreateModal(), 300);
-        } else if (urlParams.get('action') === 'voice') {
-          setTimeout(() => {
-            this.openCreateModal();
-            setTimeout(() => this.startVoiceInput(), 200);
-          }, 300);
-        } else if (urlParams.get('filter')) {
-          this.currentFilter = urlParams.get('filter');
-        }
-      } catch {}
-
-      // 8. Tự động nhả focus (.blur()) sau khi chạm/click để loại bỏ triệt để lỗi nút bị kẹt lõm trên iOS/Safari
-      const handleTouchEndBlur = (e) => {
-        const btn = e.target?.closest ? e.target.closest('button, a, [role="button"]') : null;
-        if (btn && typeof btn.blur === 'function') {
-          btn.blur();
-          setTimeout(() => {
-            if (typeof btn.blur === 'function') btn.blur();
-            if (document.activeElement && typeof document.activeElement.blur === 'function') {
-              document.activeElement.blur();
-            }
-          }, 40);
-        }
-      };
-      window.addEventListener('touchend', handleTouchEndBlur, { passive: true });
-      window.addEventListener('mouseup', handleTouchEndBlur, { passive: true });
-
-      // Lắng nghe thao tác kéo chuột toàn cục cho Modal Drag-to-Dismiss
-      window.addEventListener('mousemove', (e) => {
-        if (this.isDraggingModal) this.onModalDragMove(e);
       });
-      window.addEventListener('mouseup', (e) => {
-        if (this.isDraggingModal) this.onModalDragEnd(e);
+      window.addEventListener('focus', () => {
+        this.checkAndResetRecurringTasksLocally();
+        this.checkDueReminders();
       });
 
-      // 9. Lắng nghe phím tắt toàn cục (A11y & Power User: Esc -> Đóng modal, N -> Tạo việc mới, / -> Tìm kiếm)
+      // Lắng nghe phím tắt
       window.addEventListener('keydown', (e) => {
+        const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
         if (e.key === 'Escape') {
           this.closeAllModals();
-          return;
         }
-        const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
-        if (!isInput && this.authenticated) {
-          const anyModalOpen = this.showModal || this.showDeleteModal || this.showClearCompletedModal || this.showLogoutModal || this.showAboutModal || this.showDownloadModal || this.showTrashModal || this.showPomodoroModal || this.showAnalyticsModal || this.showLightbox || this.showUpdateModal;
+        if (!isInput) {
+          const anyModalOpen = this.showModal || this.showDeleteModal || this.showClearCompletedModal || this.showAboutModal || this.showTrashModal || this.showPomodoroModal || this.showAnalyticsModal || this.showLightbox;
           if (!anyModalOpen) {
             if (e.key === 'n' || e.key === 'N') {
               e.preventDefault();
@@ -2872,6 +2238,17 @@ function app() {
           }
         }
       });
+    },
+
+    refreshDataManual(e) {
+      if (e?.currentTarget?.blur) e.currentTarget.blur();
+      this.isRefreshing = true;
+      this.checkAndResetRecurringTasksLocally();
+      this.syncAllNativeLocalNotifications();
+      setTimeout(() => {
+        this.isRefreshing = false;
+        this.showToast('Đã làm mới dữ liệu cục bộ!', 'success');
+      }, 400);
     },
 
     closeAllModals() {
@@ -2917,19 +2294,6 @@ function app() {
       }
     },
 
-    async refreshDataManual(e) {
-      if (e?.currentTarget?.blur) e.currentTarget.blur();
-      if (document.activeElement && typeof document.activeElement.blur === 'function') {
-        document.activeElement.blur();
-      }
-      this.isRefreshing = true;
-      try {
-        await Promise.all([this.fetchTodos(), this.fetchCategories()]);
-      } finally {
-        this.isRefreshing = false;
-      }
-    },
-
     async installPWA() {
       if (this.deferredInstallPrompt) {
         this.deferredInstallPrompt.prompt();
@@ -2958,7 +2322,6 @@ function app() {
       if (!action) {
         const existing = this.toasts.find(t => t.type === type && !t.action);
         if (existing) {
-          // Cùng loại thông báo: Xếp chồng (stacking) với badge đếm số lượng
           existing.count = (existing.count || 1) + 1;
           existing.message = message;
           if (existing.timer) clearTimeout(existing.timer);
@@ -2969,7 +2332,6 @@ function app() {
         }
       }
 
-      // Đẩy bớt nếu nhiều hơn 2 thông báo
       if (this.toasts.length >= 2) {
         const oldest = this.toasts.shift();
         if (oldest && oldest.timer) clearTimeout(oldest.timer);
@@ -3028,56 +2390,10 @@ function app() {
           this.removeToast(toast.id);
         }, 3000);
       }
-      toast.touchStartX = 0;
-      toast.touchStartY = 0;
-    },
-
-    startBackgroundAudioKeepAlive() {
-      try {
-        if (!this.bgAudio) {
-          // Âm thanh im lặng WAV 1-giây (8-bit mono 8kHz) loop ngầm để giữ WebKit Process không bị iOS ngủ đông
-          const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-          this.bgAudio = new Audio(silentWav);
-          this.bgAudio.loop = true;
-          this.bgAudio.volume = 0.001;
-        }
-        if (this.bgAudio.paused) {
-          this.bgAudio.play().catch(() => {});
-        }
-      } catch {}
-    },
-
-    playChime() {
-      try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContext) return;
-        if (!this.audioCtx) this.audioCtx = new AudioContext();
-        if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
-        const ctx = this.audioCtx;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(880.00, ctx.currentTime + 0.15);
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.55);
-      } catch (e) {
-        console.warn('Audio chime error:', e);
-      }
     },
 
     openAboutModal() {
       this.showAboutModal = true;
-    },
-
-    testInAppAlert() {
-      this.playChime();
-      if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
-      this.showToast('🔔 Âm thanh và thông báo nhắc việc đang hoạt động hoàn hảo!', 'info');
     },
 
     async copyToClipboard(text) {
@@ -3102,1270 +2418,11 @@ function app() {
       }
     },
 
-    // ─── Drag & Drop Reorder Handlers ───
-    onDragStart(e, todo) {
-      if (this.sortBy !== 'custom') return;
-      this.draggedTodo = todo;
-      try {
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', todo.id);
-      } catch {}
-    },
-
-    onDragOver(e, todo) {
-      if (this.sortBy !== 'custom' || !this.draggedTodo || this.draggedTodo.id === todo.id) return;
-      e.preventDefault();
-    },
-
-    async onDrop(e, targetTodo) {
-      if (this.sortBy !== 'custom' || !this.draggedTodo || this.draggedTodo.id === targetTodo.id) return;
-      e.preventDefault();
-      const list = [...this.todos];
-      const fromIdx = list.findIndex(t => t.id === this.draggedTodo.id);
-      const toIdx = list.findIndex(t => t.id === targetTodo.id);
-      if (fromIdx === -1 || toIdx === -1) return;
-
-      const [moved] = list.splice(fromIdx, 1);
-      list.splice(toIdx, 0, moved);
-      list.forEach((t, i) => { t.position = i; });
-      this.todos = list;
-      this.draggedTodo = null;
-      await this.persistReorder();
-    },
-
-    onDragEnd() {
-      this.draggedTodo = null;
-    },
-
-    async moveTodo(todo, direction) {
-      const currentList = this.filteredSortedTodos;
-      const idx = currentList.findIndex(t => t.id === todo.id);
-      if (idx === -1) return;
-      const targetIdx = idx + direction;
-      if (targetIdx < 0 || targetIdx >= currentList.length) return;
-
-      const targetTodo = currentList[targetIdx];
-      const list = [...this.todos];
-      const fromIdx = list.findIndex(t => t.id === todo.id);
-      const toIdx = list.findIndex(t => t.id === targetTodo.id);
-      if (fromIdx === -1 || toIdx === -1) return;
-
-      const [moved] = list.splice(fromIdx, 1);
-      list.splice(toIdx, 0, moved);
-      list.forEach((t, i) => { t.position = i; });
-      this.todos = list;
-      await this.persistReorder();
-    },
-
-    async persistReorder() {
-      try {
-        const items = this.todos.map((t, i) => ({ id: t.id, position: i }));
-        await this.api('/api/todos/reorder', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ items })
-        });
-      } catch (err) {
-        console.warn('Lỗi lưu thứ tự:', err);
-      }
-    },
-
-    confirmLogout(e) {
-      if (e?.currentTarget?.blur) e.currentTarget.blur();
-      if (document.activeElement && typeof document.activeElement.blur === 'function') {
-        document.activeElement.blur();
-      }
-      this.showLogoutModal = true;
-    },
-
-    async confirmLogoutAction() {
-      this.showLogoutModal = false;
-      await this.logout();
-    },
-
-    getCurrentLocalDatetime() {
-      return new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-    },
-
-    saveOfflineQueue() {
-      try {
-        localStorage.setItem('offline_queue', JSON.stringify(this.offlineQueue));
-      } catch {}
-    },
-
-    saveCachedTodos() {
-      try {
-        localStorage.setItem('cached_todos', JSON.stringify(this.todos));
-      } catch {}
-    },
-
-    addToOfflineQueue(action) {
-      this.offlineQueue.push({
-        id: 'queue_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-        timestamp: Date.now(),
-        ...action
-      });
-      this.saveOfflineQueue();
-      this.saveCachedTodos();
-    },
-
-    async syncOfflineQueue() {
-      if (this.isSyncing || this.offlineQueue.length === 0 || !navigator.onLine) return;
-      this.isSyncing = true;
-      let syncedCount = 0;
-
-      try {
-        while (this.offlineQueue.length > 0) {
-          const item = this.offlineQueue[0];
-          try {
-            if (item.type === 'CREATE') {
-              const res = await this.api('/api/todos', { method: 'POST', body: JSON.stringify(item.body) });
-              if (res && res.todo) {
-                const idx = this.todos.findIndex(t => t.id === item.tempId);
-                if (idx !== -1) {
-                  this.todos[idx] = res.todo;
-                }
-              }
-            } else if (item.type === 'UPDATE') {
-              await this.api('/api/todos/' + item.todoId, { method: 'PUT', body: JSON.stringify(item.body) });
-            } else if (item.type === 'TOGGLE') {
-              await this.api('/api/todos/' + item.todoId + '/toggle', { method: 'PATCH' });
-            } else if (item.type === 'PIN') {
-              await this.api('/api/todos/' + item.todoId + '/pin', { method: 'PATCH' });
-            } else if (item.type === 'DELETE') {
-              await this.api('/api/todos/' + item.todoId, { method: 'DELETE' });
-            }
-            this.offlineQueue.shift();
-            this.saveOfflineQueue();
-            this.saveCachedTodos();
-            syncedCount++;
-          } catch (err) {
-            console.warn('[Offline Sync] Item failed:', item, err);
-            if (!navigator.onLine || String(err.message).toLowerCase().includes('fetch') || String(err.message).toLowerCase().includes('network')) {
-              this.isOffline = true;
-              break;
-            } else {
-              this.offlineQueue.shift();
-              this.saveOfflineQueue();
-            }
-          }
-        }
-      } finally {
-        this.isSyncing = false;
-        if (syncedCount > 0) {
-          this.showToast('Đã đồng bộ dữ liệu lên Cloud', 'success');
-          await this.fetchTodos(true);
-          await this.fetchCategories();
-        }
-      }
-    },
-
-    // ── QUÉT KIỂM TRA NHẮC NHỞ THEO MỨC ĐỘ ƯU TIÊN (Low: 5p, Medium: 15p, High: 30p, lặp mỗi 5p) ──
-    getPriorityWarningMinutes(priority) {
-      const p = String(priority || '').toLowerCase();
-      if (p === 'low') return 5;
-      if (p === 'medium') return 15;
-      if (p === 'high') return 30;
-      return 15;
-    },
-
-    isImminent(todo) {
-      if (!todo || !todo.due_date || todo.is_completed) return false;
-      const d = this.parseDateSafe(todo.due_date);
-      if (!d) return false;
-      const diffMs = d.getTime() - Date.now();
-      const warningMs = this.getPriorityWarningMinutes(todo.priority) * 60 * 1000;
-      return diffMs > 0 && diffMs <= warningMs;
-    },
-
-    isWithin30Minutes(todo) {
-      return this.isImminent(todo);
-    },
-
-    getMinutesRemaining(todo) {
-      if (!todo || !todo.due_date) return null;
-      const d = this.parseDateSafe(todo.due_date);
-      if (!d) return null;
-      return Math.ceil((d.getTime() - Date.now()) / (60 * 1000));
-    },
-
-    async checkAppVersion(manual = false) {
-      try {
-        const versionUrl = cleanBaseUrl(API_BASE) + '/api/version';
-        const res = await fetch(versionUrl, { cache: 'no-store' });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.version && data.version !== this.appVersion) {
-          console.log('Phát hiện bản mới:', data.version, 'Bản hiện tại:', this.appVersion);
-          this.newVersionInfo = data.version;
-          this.showUpdateModal = true;
-        } else if (manual) {
-          this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + this.appVersion + ')! 🎉', 'success');
-        }
-      } catch (err) {
-        console.warn('checkAppVersion error:', err);
-      }
-    },
-
-    startBackgroundTimerWorker() {
-      try {
-        if (typeof Worker !== 'undefined') {
-          const blobCode = 'let timer = null; self.onmessage = function(e) { if (e.data === "START") { if (timer) clearInterval(timer); timer = setInterval(function() { self.postMessage("TICK"); }, 4000); } else if (e.data === "STOP") { if (timer) clearInterval(timer); } };';
-          const blob = new Blob([blobCode], { type: 'application/javascript' });
-          const workerUrl = URL.createObjectURL(blob);
-          this.bgWorker = new Worker(workerUrl);
-          this.bgWorker.onmessage = (e) => {
-            if (e.data === 'TICK' && this.authenticated) {
-              this.checkDueReminders();
-            }
-          };
-          this.bgWorker.postMessage('START');
-        }
-      } catch (e) {
-        console.warn('Dedicated Web Worker timer not available:', e);
-      }
-    },
-
-    checkDueReminders() {
-      if (!this.todos || this.todos.length === 0) return;
-      const now = Date.now();
-      const FIVE_MINUTES_MS = 5 * 60 * 1000; // 5 phút = 300,000ms
-
-      this.todos.forEach(todo => {
-        if (todo.is_completed || !todo.due_date) return;
-        const d = this.parseDateSafe(todo.due_date);
-        if (!d) return;
-
-        const timeLeftMs = d.getTime() - now;
-        const minutesLeft = Math.ceil(timeLeftMs / (60 * 1000));
-        const warningWindow = this.getPriorityWarningMinutes(todo.priority);
-
-        // Khung thông báo: Low <= 5p, Medium <= 15p, High <= 30p
-        if (minutesLeft >= 0 && minutesLeft <= warningWindow) {
-          const lastTime = this.lastNotifiedTimes[todo.id] || 0;
-          // Chỉ High và Medium mới lặp lại mỗi 5 phút; Low chỉ thông báo 1 lần duy nhất
-          const isRecurring = (todo.priority === 'High' || todo.priority === 'Medium');
-          const shouldNotify = isRecurring ? (now - lastTime >= FIVE_MINUTES_MS) : (!lastTime);
-
-          if (shouldNotify) {
-            this.lastNotifiedTimes[todo.id] = now;
-
-            this.playChime();
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
-
-            // Toast cảnh báo trực tiếp trong app
-            this.showToast('⏰ Sắp hết hạn trong ' + minutesLeft + ' phút! Việc "' + todo.title + '"', 'warning');
-          }
-        }
-      });
-    },
-
-    getNotificationId(idStr) {
-      if (!idStr) return 1;
-      let hash = 0;
-      const s = String(idStr);
-      for (let i = 0; i < s.length; i++) {
-        hash = ((hash << 5) - hash) + s.charCodeAt(i);
-        hash |= 0;
-      }
-      return (Math.abs(hash) % 2147483647) || 1;
-    },
-
-    async initNativeLocalNotifications() {
-      if (!window.Capacitor?.isPluginAvailable?.('LocalNotifications')) return;
-      try {
-        const LN = window.Capacitor.Plugins.LocalNotifications;
-        const perm = await LN.checkPermissions();
-        if (perm.display !== 'granted') {
-          await LN.requestPermissions();
-        }
-        LN.addListener('localNotificationActionPerformed', (notification) => {
-          const todoId = notification?.notification?.extra?.todoId;
-          if (todoId) {
-            this.cancelNativeLocalNotification(todoId);
-          }
-          if (this.authenticated) {
-            this.fetchTodos(true);
-          }
-        });
-      } catch (e) {
-        console.warn('Native LocalNotifications init error:', e);
-      }
-    },
-
-    getDailyBriefingPayloads() {
-      const now = new Date();
-      const next6am = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 0, 0, 0);
-      if (next6am.getTime() <= now.getTime()) {
-        next6am.setDate(next6am.getDate() + 1);
-      }
-
-      const next6pm = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0, 0);
-      if (next6pm.getTime() <= now.getTime()) {
-        next6pm.setDate(next6pm.getDate() + 1);
-      }
-
-      const pendingTodos = Array.isArray(this.todos) ? this.todos.filter(t => !t.is_completed) : [];
-      const pendingCount = pendingTodos.length;
-      const highCount = pendingTodos.filter(t => t.priority === 'High').length;
-
-      let morningBody = pendingCount > 0
-        ? ('Bạn có ' + pendingCount + ' việc cần làm hôm nay' + (highCount > 0 ? (' (' + highCount + ' việc khẩn cấp)') : '') + '. Chúc bạn ngày mới hiệu quả!')
-        : 'Bạn chưa có việc nào hôm nay. Hãy bắt đầu lên kế hoạch ngay!';
-
-      let eveningBody = pendingCount > 0
-        ? ('Còn ' + pendingCount + ' việc chưa hoàn thành' + (highCount > 0 ? (' (' + highCount + ' việc khẩn cấp)') : '') + '. Hãy kiểm tra và hoàn thành nhé!')
-        : 'Tuyệt vời! Bạn đã hoàn thành toàn bộ mục tiêu hôm nay. Nghỉ ngơi thôi nào! 🎉';
-
-      return [
-        {
-          id: 999006,
-          title: '☀️ Chào buổi sáng! Kế hoạch hôm nay',
-          body: morningBody,
-          schedule: { at: next6am, every: 'day', allowWhileIdle: true },
-          sound: 'beep.caf',
-          extra: { type: 'daily_briefing_morning' }
-        },
-        {
-          id: 999018,
-          title: '🌙 Chào buổi tối! Tổng kết & việc tối nay',
-          body: eveningBody,
-          schedule: { at: next6pm, every: 'day', allowWhileIdle: true },
-          sound: 'beep.caf',
-          extra: { type: 'daily_briefing_evening' }
-        }
-      ];
-    },
-
-    async scheduleNativeLocalNotification(todo) {
-      if (!window.Capacitor?.isPluginAvailable?.('LocalNotifications')) return;
-      if (!todo || !todo.due_date || todo.is_completed) return;
-      const d = this.parseDateSafe(todo.due_date);
-      if (!d) return;
-
-      const offsetMinutes = Number(todo.reminder_offset) || 0;
-      const dueTime = d.getTime();
-      const startAt = dueTime - (offsetMinutes * 60 * 1000);
-      const now = Date.now();
-
-      // Priority repeating intervals: High = 1m, Medium = 3m, Low = 5m
-      const priority = todo.priority || 'Medium';
-      const intervalMs = (priority === 'High') ? 60 * 1000 : (priority === 'Medium' ? 3 * 60 * 1000 : 5 * 60 * 1000);
-
-      const baseId = ((this.getNotificationId(todo.id) % 90000) + 1000) * 10;
-      const notifications = [];
-
-      // Lên lịch nhắc lặp liên tục (tối đa 8 lần)
-      for (let i = 0; i < 8; i++) {
-        const triggerTime = startAt + (i * intervalMs);
-        if (triggerTime > dueTime + (intervalMs * 2)) break;
-        if (triggerTime > now) {
-          const priorityPrefix = priority === 'High' ? '🚨 [KHẨN CẤP] ' : (priority === 'Medium' ? '⚡ [ƯU TIÊN] ' : '⏰ Nhắc việc: ');
-          const pad = (n) => String(n).padStart(2, '0');
-          const dueTimeStr = d ? (pad(d.getHours()) + ':' + pad(d.getMinutes())) : '';
-          const repeatSuffix = i > 0 ? (' (Nhắc lặp lần ' + (i + 1) + ')') : '';
-          notifications.push({
-            id: baseId + i,
-            title: priorityPrefix + (todo.title || 'Công việc cần làm'),
-            body: 'Hạn: ' + dueTimeStr + (todo.category ? (' • ' + todo.category) : '') + repeatSuffix,
-            schedule: { at: new Date(triggerTime), allowWhileIdle: true },
-            sound: 'beep.caf',
-            extra: { todoId: todo.id, baseId: baseId }
-          });
-        }
-      }
-
-      if (notifications.length === 0) return;
-
-      try {
-        const LN = window.Capacitor.Plugins.LocalNotifications;
-        await this.cancelNativeLocalNotification(todo.id);
-        await LN.schedule({ notifications });
-      } catch (e) {
-        console.warn('scheduleNativeLocalNotification error:', e);
-      }
-    },
-
-    async cancelNativeLocalNotification(todoId) {
-      if (!window.Capacitor?.isPluginAvailable?.('LocalNotifications')) return;
-      if (!todoId) return;
-      try {
-        const LN = window.Capacitor.Plugins.LocalNotifications;
-        const baseId = ((this.getNotificationId(todoId) % 90000) + 1000) * 10;
-        const toCancel = [];
-        for (let i = 0; i < 10; i++) {
-          toCancel.push({ id: baseId + i });
-        }
-        await LN.cancel({ notifications: toCancel }).catch(() => {});
-      } catch (e) {
-        console.warn('cancelNativeLocalNotification error:', e);
-      }
-    },
-
-    async syncAllNativeLocalNotifications() {
-      if (!window.Capacitor?.isPluginAvailable?.('LocalNotifications')) return;
-      try {
-        const LN = window.Capacitor.Plugins.LocalNotifications;
-        const pending = await LN.getPending();
-        if (pending && pending.notifications && pending.notifications.length > 0) {
-          await LN.cancel({ notifications: pending.notifications.map(n => ({ id: n.id })) }).catch(() => {});
-        }
-
-        const now = Date.now();
-        const allToSchedule = [];
-
-        // 1. Cố định 2 mốc Daily Briefing 06:00 và 18:00
-        const briefings = this.getDailyBriefingPayloads();
-        allToSchedule.push(...briefings);
-
-        // 2. Lên lịch nhắc việc lặp theo độ ưu tiên (tối đa 50 thông báo để tổng <= 52 trên iOS)
-        if (Array.isArray(this.todos)) {
-          const validTodos = this.todos.filter(t => !t.is_completed && t.due_date);
-          const taskNotifications = [];
-
-          for (const t of validTodos) {
-            const d = this.parseDateSafe(t.due_date);
-            if (!d) continue;
-
-            const offsetMinutes = Number(t.reminder_offset) || 0;
-            const dueTime = d.getTime();
-            const startAt = dueTime - (offsetMinutes * 60 * 1000);
-            const priority = t.priority || 'Medium';
-            const intervalMs = (priority === 'High') ? 60 * 1000 : (priority === 'Medium' ? 3 * 60 * 1000 : 5 * 60 * 1000);
-            const baseId = ((this.getNotificationId(t.id) % 90000) + 1000) * 10;
-
-            for (let i = 0; i < 8; i++) {
-              const triggerTime = startAt + (i * intervalMs);
-              if (triggerTime > dueTime + (intervalMs * 2)) break;
-              if (triggerTime > now) {
-                const priorityPrefix = priority === 'High' ? '🚨 [KHẨN CẤP] ' : (priority === 'Medium' ? '⚡ [ƯU TIÊN] ' : '⏰ Nhắc việc: ');
-                const pad = (n) => String(n).padStart(2, '0');
-                const dueTimeStr = d ? (pad(d.getHours()) + ':' + pad(d.getMinutes())) : '';
-                const repeatSuffix = i > 0 ? (' (Nhắc lặp lần ' + (i + 1) + ')') : '';
-                taskNotifications.push({
-                  id: baseId + i,
-                  title: priorityPrefix + (t.title || 'Công việc cần làm'),
-                  body: 'Hạn: ' + dueTimeStr + (t.category ? (' • ' + t.category) : '') + repeatSuffix,
-                  schedule: { at: new Date(triggerTime), allowWhileIdle: true },
-                  sound: 'beep.caf',
-                  extra: { todoId: t.id, baseId: baseId }
-                });
-              }
-            }
-          }
-
-          taskNotifications.sort((a, b) => a.schedule.at.getTime() - b.schedule.at.getTime());
-          allToSchedule.push(...taskNotifications.slice(0, 50));
-        }
-
-        if (allToSchedule.length > 0) {
-          await LN.schedule({ notifications: allToSchedule });
-        }
-      } catch (e) {
-        console.warn('syncAllNativeLocalNotifications error:', e);
-      }
-    },
-
-    async api(url, options = {}) {
-      const base = cleanBaseUrl(API_BASE);
-      const fullUrl = url.startsWith('http') ? url : (base ? (base + (url.startsWith('/') ? url : '/' + url)) : url);
-      const token = this.authToken || localStorage.getItem('todo_auth_token');
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
-        ...options.headers
-      };
-
-      const res = await fetch(fullUrl, {
-        credentials: 'include',
-        ...options,
-        headers,
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Có lỗi xảy ra.');
-      }
-      return data;
-    },
-
-    parseDateSafe(dateStr) {
-      if (!dateStr) return null;
-      const s = String(dateStr).trim();
-      if (!s) return null;
-      if (s.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(s)) {
-        const d = new Date(s);
-        if (isNaN(d.getTime())) return null;
-        d.setSeconds(0, 0);
-        return d;
-      }
-      const match = s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
-      if (match) {
-        const d = new Date(
-          parseInt(match[1], 10),
-          parseInt(match[2], 10) - 1,
-          parseInt(match[3], 10),
-          parseInt(match[4], 10),
-          parseInt(match[5], 10),
-          0,
-          0
-        );
-        if (!isNaN(d.getTime())) return d;
-      }
-      const fallback = new Date(s);
-      if (isNaN(fallback.getTime())) return null;
-      fallback.setSeconds(0, 0);
-      return fallback;
-    },
-
-    checkAndResetRecurringTasksLocally() {
-      if (!Array.isArray(this.todos) || this.todos.length === 0) return;
-      const now = new Date();
-      const todayStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-
-      // Thứ 2 tuần hiện tại
-      const currentDay = now.getDay();
-      const distToMonday = currentDay === 0 ? -6 : 1 - currentDay;
-      const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + distToMonday);
-      const currentMondayStr = monday.getFullYear() + '-' + String(monday.getMonth() + 1).padStart(2, '0') + '-' + String(monday.getDate()).padStart(2, '0');
-
-      let changed = false;
-      for (const t of this.todos) {
-        if (t.repeat_mode === 'daily') {
-          if (t.due_date) {
-            const d = this.parseDateSafe(t.due_date);
-            if (d) {
-              const taskDateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-              if (taskDateStr < todayStr) {
-                t.is_completed = 0;
-                d.setFullYear(now.getFullYear(), now.getMonth(), now.getDate());
-                const hours = String(d.getHours()).padStart(2, '0');
-                const mins = String(d.getMinutes()).padStart(2, '0');
-                t.due_date = todayStr + 'T' + hours + ':' + mins;
-                changed = true;
-              }
-            }
-          } else if (t.is_completed) {
-            t.is_completed = 0;
-            changed = true;
-          }
-        } else if (t.repeat_mode === 'weekly') {
-          if (t.due_date) {
-            const d = this.parseDateSafe(t.due_date);
-            if (d) {
-              const tDay = d.getDay();
-              const tDist = tDay === 0 ? -6 : 1 - tDay;
-              const tMon = new Date(d.getFullYear(), d.getMonth(), d.getDate() + tDist);
-              const tMonStr = tMon.getFullYear() + '-' + String(tMon.getMonth() + 1).padStart(2, '0') + '-' + String(tMon.getDate()).padStart(2, '0');
-              if (tMonStr < currentMondayStr) {
-                t.is_completed = 0;
-                const dayOffset = tDay === 0 ? 6 : tDay - 1;
-                const targetDate = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + dayOffset);
-                const targetStr = targetDate.getFullYear() + '-' + String(targetDate.getMonth() + 1).padStart(2, '0') + '-' + String(targetDate.getDate()).padStart(2, '0');
-                const hours = String(d.getHours()).padStart(2, '0');
-                const mins = String(d.getMinutes()).padStart(2, '0');
-                t.due_date = targetStr + 'T' + hours + ':' + mins;
-                changed = true;
-              }
-            }
-          } else if (t.is_completed) {
-            t.is_completed = 0;
-            changed = true;
-          }
-        }
-      }
-      if (changed) {
-        this.saveCachedTodos();
-        this.syncAllNativeLocalNotifications();
-      }
-    },
-
-    isOverdue(todo) {
-      if (!todo.due_date || todo.is_completed) return false;
-      const d = this.parseDateSafe(todo.due_date);
-      if (!d) return false;
-      const now = new Date();
-      now.setSeconds(0, 0);
-      return d.getTime() < now.getTime();
-    },
-
-    formatDateDisplay(dateStr) {
-      const d = this.parseDateSafe(dateStr);
-      if (!d) return '';
-
-      const now = new Date();
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-      const startOfTarget = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-      const diffDays = Math.round((startOfTarget - startOfToday) / (24 * 3600 * 1000));
-
-      const timeStr = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-      const dateFormatted = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
-      if (diffDays === 0) {
-        return 'Hôm nay, ' + timeStr;
-      } else if (diffDays === 1) {
-        return 'Ngày mai, ' + timeStr;
-      } else if (diffDays === -1) {
-        return 'Hôm qua, ' + timeStr;
-      } else if (diffDays > 1 && diffDays <= 7) {
-        return diffDays + ' ngày nữa (' + timeStr + ')';
-      } else if (diffDays < -1 && diffDays >= -7) {
-        return Math.abs(diffDays) + ' ngày trước';
-      }
-      return dateFormatted + ' ' + timeStr;
-    },
-
-    formatTodoDueDate(todo) {
-      if (!todo || !todo.due_date) return '';
-      const d = this.parseDateSafe(todo.due_date);
-      if (!d) return '';
-
-      const timeStr = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-      const pad = (n) => String(n).padStart(2, '0');
-      const toDateKey = (dt) => dt.getFullYear() + '-' + pad(dt.getMonth() + 1) + '-' + pad(dt.getDate());
-
-      const mode = todo.repeat_mode || 'none';
-      if (mode === 'daily') {
-        return 'Hàng ngày, ' + timeStr;
-      }
-      if (mode === 'weekly') {
-        const dayNames = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
-        return 'Hàng tuần (' + dayNames[d.getDay()] + '), ' + timeStr;
-      }
-
-      const now = new Date();
-      const targetKey = toDateKey(d);
-      const todayKey = toDateKey(now);
-
-      const yest = new Date(now);
-      yest.setDate(yest.getDate() - 1);
-      const yestKey = toDateKey(yest);
-
-      const tomo = new Date(now);
-      tomo.setDate(tomo.getDate() + 1);
-      const tomoKey = toDateKey(tomo);
-
-      let datePrefix = '';
-      if (targetKey === todayKey) {
-        datePrefix = 'Hôm nay';
-      } else if (targetKey === yestKey) {
-        datePrefix = 'Hôm qua';
-      } else if (targetKey === tomoKey) {
-        datePrefix = 'Ngày mai';
-      } else {
-        const day = pad(d.getDate());
-        const month = pad(d.getMonth() + 1);
-        const year = d.getFullYear();
-        datePrefix = (year === now.getFullYear()) ? (day + '/' + month) : (day + '/' + month + '/' + year);
-      }
-      return datePrefix + ', ' + timeStr;
-    },
-
-    toLocalDatetimeInput(dateStr) {
-      const d = this.parseDateSafe(dateStr);
-      if (!d) return '';
-      const pad = (n) => String(n).padStart(2, '0');
-      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-    },
-
-    setQuickDate(type) {
-      const now = new Date();
-      const pad = (n) => String(n).padStart(2, '0');
-      const format = (d, h, m) => {
-        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(h) + ':' + pad(m);
-      };
-
-      let val = '';
-      if (type === 'today-12') {
-        val = format(now, 12, 0);
-      } else if (type === 'today-21') {
-        val = format(now, 21, 0);
-      } else if (type === 'tomorrow-06') {
-        const tomorrow = new Date(now);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        val = format(tomorrow, 6, 0);
-      } else if (type === 'weekend') {
-        const weekend = new Date(now);
-        const day = weekend.getDay();
-        const diff = (0 - day + 7) % 7 || 7;
-        weekend.setDate(weekend.getDate() + diff);
-        val = format(weekend, 8, 0);
-      }
-      this.todoForm.due_datetime = val;
-    },
-
-    async checkAuth() {
-      try {
-        const data = await this.api('/api/auth/me');
-        if (data.authenticated) {
-          this.authenticated = true;
-          this.currentUser = data.user;
-          try {
-            localStorage.setItem('cached_user', JSON.stringify(data.user));
-          } catch {}
-          await this.fetchCategories();
-          await this.fetchTodos();
-        } else {
-          this.authenticated = false;
-          this.currentUser = null;
-          try {
-            localStorage.removeItem('cached_user');
-          } catch {}
-        }
-      } catch (e) {
-        if (!navigator.onLine) {
-          this.isOffline = true;
-        }
-      }
-    },
-
-    async handleAuth() {
-      this.authLoading = true;
-      try {
-        const url = this.authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
-        const body = this.authMode === 'login'
-          ? { email: this.authForm.email, password: this.authForm.password }
-          : { ...this.authForm };
-
-        const data = await this.api(url, { method: 'POST', body: JSON.stringify(body) });
-        this.authenticated = true;
-        this.currentUser = data.user;
-        if (data.token) {
-          this.authToken = data.token;
-          try {
-            localStorage.setItem('todo_auth_token', data.token);
-            if (window.Capacitor?.Plugins?.Preferences) {
-              window.Capacitor.Plugins.Preferences.set({ key: 'todo_auth_token', value: data.token }).catch(() => {});
-            }
-          } catch {}
-        }
-        try {
-          localStorage.setItem('cached_user', JSON.stringify(data.user));
-        } catch {}
-        this.showToast(this.authMode === 'login' ? 'Đăng nhập thành công!' : 'Tạo tài khoản thành công!');
-        this.authForm = { email: '', username: '', password: '' };
-        await this.fetchCategories();
-        await this.fetchTodos();
-      } catch (err) {
-        this.showToast(err.message, 'error');
-      } finally {
-        this.authLoading = false;
-      }
-    },
-
-    async logout() {
-      try {
-        await this.api('/api/auth/logout', { method: 'POST' });
-      } catch {}
-      this.authenticated = false;
-      this.currentUser = null;
-      this.todos = [];
-      this.authToken = '';
-      try {
-        localStorage.removeItem('todo_auth_token');
-        if (window.Capacitor?.Plugins?.Preferences) {
-          window.Capacitor.Plugins.Preferences.remove({ key: 'todo_auth_token' }).catch(() => {});
-        }
-        localStorage.removeItem('cached_user');
-        localStorage.removeItem('cached_todos');
-        localStorage.removeItem('cached_categories');
-        localStorage.removeItem('offline_queue');
-      } catch {}
-      this.showToast('Đã đăng xuất an toàn.', 'info');
-    },
-
-    async fetchTodos(isSilent = false) {
-      if (!navigator.onLine) {
-        this.isOffline = true;
-        return;
-      }
-      if (!isSilent) this.todosLoading = true;
-      try {
-        const data = await this.api('/api/todos');
-        if (this.offlineQueue.length === 0) {
-          this.todos = data.todos;
-          this.saveCachedTodos();
-        }
-        this.checkDueReminders();
-        this.fetchAnalyticsSilently();
-        this.syncAllNativeLocalNotifications();
-      } catch (err) {
-        if (!isSilent) this.showToast(err.message, 'error');
-      } finally {
-        if (!isSilent) this.todosLoading = false;
-      }
-    },
-
-    async fetchCategories() {
-      if (!navigator.onLine) return;
-      try {
-        const data = await this.api('/api/categories');
-        this.categories = data.categories;
-        try {
-          localStorage.setItem('cached_categories', JSON.stringify(data.categories));
-        } catch {}
-      } catch {}
-    },
-
     setViewMode(mode) {
       this.viewMode = mode;
       try {
         localStorage.setItem('viewMode', mode);
       } catch {}
-    },
-
-    getSubtasks(todo) {
-      if (!todo) return [];
-      if (Array.isArray(todo.subtasks)) return todo.subtasks;
-      if (typeof todo.subtasks === 'string') {
-        try {
-          return JSON.parse(todo.subtasks || '[]');
-        } catch {
-          return [];
-        }
-      }
-      return [];
-    },
-
-    getTags(todo) {
-      if (!todo) return [];
-      if (Array.isArray(todo.tags)) return todo.tags;
-      if (typeof todo.tags === 'string') {
-        try {
-          return JSON.parse(todo.tags || '[]');
-        } catch {
-          return [];
-        }
-      }
-      return [];
-    },
-
-    async toggleSubtask(todo, subtaskId) {
-      const subtasks = this.getSubtasks(todo);
-      const st = subtasks.find(s => String(s.id) === String(subtaskId));
-      if (!st) return;
-      st.is_completed = st.is_completed ? 0 : 1;
-      todo.subtasks = subtasks;
-      this.saveCachedTodos();
-
-      if (!navigator.onLine) {
-        this.showToast('Đang ngoại tuyến - đã lưu tạm checklist', 'info');
-        return;
-      }
-
-      try {
-        await this.api('/api/todos/' + todo.id + '/subtasks/' + subtaskId + '/toggle', { method: 'PATCH' });
-      } catch (err) {
-        console.warn('Subtask toggle error:', err);
-      }
-    },
-
-    addSubtask() {
-      const val = (this.newSubtaskInput || '').trim();
-      if (!val) return;
-      if (!Array.isArray(this.todoForm.subtasks)) {
-        this.todoForm.subtasks = [];
-      }
-      this.todoForm.subtasks.push({
-        id: 'st_' + Date.now(),
-        title: val,
-        is_completed: 0
-      });
-      this.newSubtaskInput = '';
-    },
-
-    removeSubtask(idx) {
-      if (Array.isArray(this.todoForm.subtasks)) {
-        this.todoForm.subtasks.splice(idx, 1);
-      }
-    },
-
-    addTag() {
-      const val = (this.newTagInput || '').replace(/^#/, '').trim().toLowerCase();
-      if (!val) return;
-      if (!Array.isArray(this.todoForm.tags)) {
-        this.todoForm.tags = [];
-      }
-      if (!this.todoForm.tags.includes(val)) {
-        this.todoForm.tags.push(val);
-      }
-      this.newTagInput = '';
-    },
-
-    removeTag(idx) {
-      if (Array.isArray(this.todoForm.tags)) {
-        this.todoForm.tags.splice(idx, 1);
-      }
-    },
-
-    normalizeVietnameseVoice(rawText) {
-      if (!rawText) return '';
-      let s = ' ' + String(rawText).trim() + ' ';
-      // 1. Nhầm l/n
-      s = s.replace(/(?:^|[ ])nàm(?:$|[ ])/gi, ' làm ')
-           .replace(/(?:^|[ ])lói(?:$|[ ])/gi, ' nói ')
-           .replace(/(?:^|[ ])lấu(?:$|[ ])/gi, ' nấu ')
-           .replace(/(?:^|[ ])lấy(?:$|[ ])/gi, ' lấy ')
-           .replace(/(?:^|[ ])lên(?:$|[ ])/gi, ' lên ')
-           .replace(/(?:^|[ ])nên(?:$|[ ])/gi, ' nên ');
-      // 2. Nhầm s/x
-      s = s.replace(/(?:^|[ ])xắp[ ]*xếp(?:$|[ ])/gi, ' sắp xếp ')
-           .replace(/(?:^|[ ])xáng(?:$|[ ])/gi, ' sáng ')
-           .replace(/(?:^|[ ])buổi[ ]*xáng(?:$|[ ])/gi, ' buổi sáng ')
-           .replace(/(?:^|[ ])đọc[ ]*xách(?:$|[ ])/gi, ' đọc sách ');
-      // 3. Nhầm tr/ch
-      s = s.replace(/(?:^|[ ])chực[ ]*nhật(?:$|[ ])/gi, ' trực nhật ')
-           .replace(/(?:^|[ ])chực(?:$|[ ])/gi, ' trực ');
-      // 4. Phương ngữ
-      s = s.replace(/(?:^|[ ])(?:chìu|chều)(?:$|[ ])/gi, ' chiều ')
-           .replace(/(?:^|[ ])rưởi(?:$|[ ])/gi, ' rưỡi ')
-           .replace(/(?:^|[ ])kơm(?:$|[ ])/gi, ' cơm ')
-           .replace(/(?:^|[ ])buổi[ ]*chìu(?:$|[ ])/gi, ' buổi chiều ')
-           .replace(/(?:^|[ ])buổi[ ]*chều(?:$|[ ])/gi, ' buổi chiều ');
-      return s.replace(/[ ]+/g, ' ').trim();
-    },
-
-    // ─── TÍCH HỢP MICRO NHẬN DIỆN GIỌNG NÓI TIẾNG VIỆT ───
-    applyVoiceTranscriptToTodo(rawText) {
-      if (!rawText || !rawText.trim()) return;
-      const text = this.normalizeVietnameseVoice(rawText).trim();
-      const lower = text.toLowerCase();
-
-      // 1. Mức độ ưu tiên: nếu có chữ gấp, khẩn cấp, khẩn, ngay -> High. Mặc định là Medium
-      let priority = 'Medium';
-      if (/gấp|khẩn\s*cấp|khẩn|ngay\s*lập\s*tức|hỏa\s*tốc|quan\s*trọng/.test(lower)) {
-        priority = 'High';
-      }
-
-      // 2. Nhắc nhở & Lặp lại: Đúng giờ (0), Không lặp ('none')
-      const reminderOffset = 0;
-      const repeatMode = 'none';
-
-      // 3. Phân loại Danh mục theo ý nghĩa
-      const catList = Array.isArray(this.categories) && this.categories.length > 0
-        ? this.categories
-        : ['Personal', 'Work'];
-      const findCat = (keywords) => catList.find(c => keywords.some(k => c.toLowerCase().includes(k.toLowerCase())));
-
-      let targetCat = 'Personal';
-      if (/ăn|cơm|uống|ngủ|tắm|dạo|chơi|xem\s*phim|game|cá\s*nhân|nhà|gia\s*đình|bạn\s*bè|nghỉ\s*ngơi|nấu/.test(lower)) {
-        targetCat = findCat(['Personal', 'Cá nhân', 'Đời sống']) || (catList.includes('Personal') ? 'Personal' : catList[0]);
-      } else if (/họp|báo\s*cáo|dự\s*án|khách|hợp\s*đồng|công\s*việc|task|code|deadline|email|mail|sếp|công\s*ty|văn\s*phòng/.test(lower)) {
-        targetCat = findCat(['Work', 'Công việc', 'Job', 'Dự án']) || (catList.includes('Work') ? 'Work' : catList[0]);
-      } else if (/học|bài\s*tập|thi|ôn\s*tập|đọc\s*sách|sách|khóa\s*học|nghiên\s*cứu|tiếng\s*anh/.test(lower)) {
-        targetCat = findCat(['Study', 'Học tập', 'Education']) || findCat(['Work', 'Công việc']) || catList[0];
-      } else if (/thuốc|khám|bác\s*sĩ|bệnh|chạy\s*bộ|gym|thể\s*dục|yoga|sức\s*khỏe|uống\s*nước/.test(lower)) {
-        targetCat = findCat(['Health', 'Sức khỏe']) || findCat(['Personal', 'Cá nhân']) || catList[0];
-      } else if (/mua|sắm|chợ|siêu\s*thị|order|đặt\s*hàng|shopping/.test(lower)) {
-        targetCat = findCat(['Shopping', 'Mua sắm']) || findCat(['Personal', 'Cá nhân']) || catList[0];
-      } else if (/tiền|lương|hóa\s*đơn|thanh\s*toán|chuyển\s*khoản|ngân\s*hàng|nợ/.test(lower)) {
-        targetCat = findCat(['Finance', 'Tài chính']) || findCat(['Personal', 'Cá nhân']) || catList[0];
-      } else {
-        targetCat = findCat(['Personal', 'Cá nhân']) || catList[0] || 'Personal';
-      }
-
-      // 4. Nhận diện Ngày & Giờ (Time & Date)
-      const now = new Date();
-      let targetDate = new Date(now);
-      const isTomorrow = /ngày\s*mai|mai\b/.test(lower);
-      const isDayAfter = /ngày[ ]*kia/.test(lower);
-      if (isTomorrow) {
-        targetDate.setDate(targetDate.getDate() + 1);
-      } else if (isDayAfter) {
-        targetDate.setDate(targetDate.getDate() + 2);
-      }
-
-      let hour = null;
-      let minute = 0;
-      let hasTime = false;
-
-      // 0. Kém: 7h kém 15 / 7 giờ kém 15
-      const kemMatch = lower.match(/(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ)?[ ]*kém[ ]*([0-9]{1,2})/);
-      // 1. Buổi trưa: 10-13h trưa / trưa 10-13h
-      const truaMatch = lower.match(/(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)?([0-9]{1,2})?[ ]*(?:rưỡi)?[ ]*trưa|trưa[ ]*(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)?([0-9]{1,2})?/);
-      // 2. Buổi chiều: 1-6h chiều / chiều 1-6h
-      const chieuMatch = lower.match(/(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)?([0-9]{1,2})?[ ]*(?:rưỡi)?[ ]*chiều|chiều[ ]*(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)?([0-9]{1,2})?/);
-      // 3. Buổi tối: 6-11h tối / tối 6-11h
-      const toiMatch = lower.match(/(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)?([0-9]{1,2})?[ ]*(?:rưỡi)?[ ]*tối|tối[ ]*(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)?([0-9]{1,2})?/);
-      // 4. Buổi sáng: 1-11h sáng / sáng 1-11h
-      const sangMatch = lower.match(/(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)?([0-9]{1,2})?[ ]*(?:rưỡi)?[ ]*sáng|sáng[ ]*(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)?([0-9]{1,2})?/);
-      // 5. Buổi đêm: 9-12h đêm / đêm 9-12h
-      const demMatch = lower.match(/(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)?([0-9]{1,2})?[ ]*(?:rưỡi)?[ ]*đêm|đêm[ ]*(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)?([0-9]{1,2})?/);
-      // 6. Giờ chung: 14h, 15:30, 9h rưỡi, lúc 9 giờ
-      const generalTimeMatch = lower.match(/(?:lúc|vào)?[ ]*([0-9]{1,2})(?:h|:|[ ]*giờ[ ]*)([0-9]{1,2})?(?:[ ]*phút)?(?:[ ]*rưỡi)?/);
-
-      if (kemMatch) {
-        hasTime = true;
-        hour = parseInt(kemMatch[1], 10) - 1;
-        minute = 60 - parseInt(kemMatch[2], 10);
-        if (hour < 0) hour = 23;
-        if ((lower.includes('chiều') || lower.includes('tối')) && hour < 12) {
-          hour += 12;
-        }
-      } else if (truaMatch) {
-        hasTime = true;
-        hour = parseInt(truaMatch[1] || truaMatch[3], 10);
-        minute = truaMatch[2] || truaMatch[4] ? parseInt(truaMatch[2] || truaMatch[4], 10) : (lower.includes('rưỡi') ? 30 : 0);
-        if (hour <= 3) hour += 12;
-      } else if (chieuMatch) {
-        hasTime = true;
-        hour = parseInt(chieuMatch[1] || chieuMatch[3], 10);
-        minute = chieuMatch[2] || chieuMatch[4] ? parseInt(chieuMatch[2] || chieuMatch[4], 10) : (lower.includes('rưỡi') ? 30 : 0);
-        if (hour < 12) hour += 12;
-      } else if (toiMatch) {
-        hasTime = true;
-        hour = parseInt(toiMatch[1] || toiMatch[3], 10);
-        minute = toiMatch[2] || toiMatch[4] ? parseInt(toiMatch[2] || toiMatch[4], 10) : (lower.includes('rưỡi') ? 30 : 0);
-        if (hour < 12) hour += 12;
-      } else if (sangMatch) {
-        hasTime = true;
-        hour = parseInt(sangMatch[1] || sangMatch[3], 10);
-        minute = sangMatch[2] || sangMatch[4] ? parseInt(sangMatch[2] || sangMatch[4], 10) : (lower.includes('rưỡi') ? 30 : 0);
-      } else if (demMatch) {
-        hasTime = true;
-        hour = parseInt(demMatch[1] || demMatch[3], 10);
-        minute = demMatch[2] || demMatch[4] ? parseInt(demMatch[2] || demMatch[4], 10) : (lower.includes('rưỡi') ? 30 : 0);
-        if (hour === 12) hour = 0;
-        else if (hour < 12) hour += 12;
-      } else if (generalTimeMatch) {
-        hasTime = true;
-        hour = parseInt(generalTimeMatch[1], 10);
-        minute = generalTimeMatch[2] ? parseInt(generalTimeMatch[2], 10) : (lower.includes('rưỡi') ? 30 : 0);
-      }
-
-      const pad = (n) => String(n).padStart(2, '0');
-      if (hasTime && hour !== null) {
-        targetDate.setHours(hour, minute, 0, 0);
-        const dueDatetimeStr = targetDate.getFullYear() + '-' + pad(targetDate.getMonth() + 1) + '-' + pad(targetDate.getDate()) + 'T' + pad(hour) + ':' + pad(minute);
-        this.todoForm.due_datetime = dueDatetimeStr;
-        this.todoForm.daily_time = pad(hour) + ':' + pad(minute);
-        this.todoForm.weekly_time = pad(hour) + ':' + pad(minute);
-      } else if (isTomorrow || isDayAfter) {
-        const curH = now.getHours();
-        const curM = now.getMinutes();
-        targetDate.setHours(curH, curM, 0, 0);
-        const dueDatetimeStr = targetDate.getFullYear() + '-' + pad(targetDate.getMonth() + 1) + '-' + pad(targetDate.getDate()) + 'T' + pad(curH) + ':' + pad(curM);
-        this.todoForm.due_datetime = dueDatetimeStr;
-      } else {
-        // Nếu không nói giờ: giữ nguyên thời gian hiện tại
-        if (!this.todoForm.due_datetime) {
-          this.todoForm.due_datetime = this.getCurrentLocalDatetime();
-        }
-      }
-
-      // 5. Tách lấy Tiêu đề & Mô tả sạch sẽ
-      let cleanTitle = text;
-      cleanTitle = cleanTitle.replace(/[0-9]{1,2}(?:[ ]*h|[ ]*giờ|:)?[ ]*kém[ ]*[0-9]{1,2}(?:[ ]*(?:trưa|chiều|tối|sáng|đêm))?/gi, ' ');
-      cleanTitle = cleanTitle.replace(/(?:vào[ ]*lúc|lúc|vào)[ ][0-9]{1,2}(?:[ ]*h|[ ]*giờ|:)?(?:[ ]*[0-9]{1,2})?(?:[ ]*(?:trưa|chiều|tối|sáng|đêm))?/gi, ' ');
-      cleanTitle = cleanTitle.replace(/(?:sáng|trưa|chiều|tối|đêm)(?:[ ]*(?:vào[ ]*lúc|lúc))?[ ][0-9]{1,2}(?:[ ]*h|[ ]*giờ|:)?(?:[ ]*[0-9]{1,2})?/gi, ' ');
-      cleanTitle = cleanTitle.replace(/[0-9]{1,2}(?:[ ]*h|[ ]*giờ|:)(?:[ ]*[0-9]{1,2})?(?:[ ]*(?:trưa|chiều|tối|sáng|đêm))?/gi, ' ');
-      cleanTitle = cleanTitle.replace(/(?:^|[ ])(?:tối|chiều|sáng|trưa|đêm|rưỡi|kém|hôm[ ]*nay|ngày[ ]*mai|mai|ngày[ ]*kia|gấp|khẩn[ ]*cấp|khẩn|ngay[ ]*lập[ ]*tức|hỏa[ ]*tốc|quan[ ]*trọng)(?:$|[ ])/gi, ' ');
-      cleanTitle = cleanTitle.replace(/^(?:hãy|tạo[ ]*việc|thêm[ ]*việc|nhắc[ ]*tôi|nhắc)[ ]+/gi, ' ');
-      cleanTitle = cleanTitle.replace(/(?:^|[ ])(?:vào[ ]*lúc|lúc|vào)(?:$|[ ])/gi, ' ');
-      cleanTitle = cleanTitle.replace(/[ ]+/g, ' ').trim();
-
-      if (!cleanTitle) cleanTitle = text;
-      cleanTitle = cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1);
-      const cleanDesc = cleanTitle.charAt(0).toLowerCase() + cleanTitle.slice(1);
-
-      this.todoForm.title = cleanTitle;
-      this.todoForm.description = cleanDesc;
-      this.todoForm.category = targetCat;
-      this.todoForm.priority = priority;
-      this.todoForm.reminder_offset = reminderOffset;
-      this.todoForm.repeat_mode = repeatMode;
-
-      this.editingTodo = null;
-      this.customCategoryMode = false;
-      this.showModal = true;
-      this.showToast('🎤 Đã nhận diện: ' + cleanTitle + ' (' + targetCat + ', ' + priority + (hour !== null ? (', ' + pad(hour) + ':' + pad(minute)) : '') + ')', 'success');
-    },
-
-    async startVoiceInput() {
-      // Nếu đang ghi âm thì nhấn lần nữa để dừng và hoàn tất
-      if (this.isListeningVoice || this.isRecordingVoiceMedia) {
-        this.stopVoiceRecording();
-        return;
-      }
-
-      const isNative = !!(window.Capacitor?.isNativePlatform && window.Capacitor.isNativePlatform());
-
-      // 1. Nếu đang chạy trong App Native iOS (.ipa):
-      // Trong iOS WKWebView, Apple chặn/giới hạn Web Speech API mà không hiện thanh địa chỉ.
-      // Do đó, trên App Native luôn kích hoạt trực tiếp micro qua getUserMedia + Whisper AI!
-      if (isNative) {
-        await this.startMediaRecorderVoice();
-        return;
-      }
-
-      // 2. Trên trình duyệt Web máy tính / Android Chrome: Thử dùng Web Speech API
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        try {
-          const recognition = new SpeechRecognition();
-          recognition.lang = 'vi-VN';
-          recognition.continuous = false;
-          recognition.interimResults = false;
-
-          this.isListeningVoice = true;
-          this.showToast('🎤 Đang lắng nghe... Hãy nói tiêu đề công việc', 'info');
-
-          recognition.onresult = (event) => {
-            const transcript = event.results[0]?.[0]?.transcript;
-            if (transcript) {
-              this.applyVoiceTranscriptToTodo(transcript);
-            }
-          };
-
-          recognition.onerror = (err) => {
-            console.warn('[SpeechRecognition] error:', err);
-            this.isListeningVoice = false;
-            if (err.error === 'no-speech') {
-              this.showToast('Chưa nhận được giọng nói, bạn hãy thử nói lại gần micro hơn nhé', 'info');
-              return;
-            }
-            if (err.error === 'not-allowed' || err.error === 'service-not-allowed' || err.error === 'permission-denied') {
-              this.showToast('Vui lòng cấp quyền Micro trên trình duyệt để ghi âm giọng nói', 'error');
-              return;
-            }
-            if (err.error === 'aborted') {
-              return;
-            }
-            // Fallback sang Whisper AI
-            this.startMediaRecorderVoice();
-          };
-
-          recognition.onend = () => {
-            this.isListeningVoice = false;
-          };
-
-          recognition.start();
-          return;
-        } catch (err) {
-          console.warn('[SpeechRecognition] Start error, fallback to Whisper AI:', err);
-          this.isListeningVoice = false;
-        }
-      }
-
-      // 3. Fallback ghi âm và nhận diện qua Cloudflare Workers AI Whisper
-      await this.startMediaRecorderVoice();
-    },
-
-    async startMediaRecorderVoice() {
-      const isNative = !!(window.Capacitor?.isNativePlatform && window.Capacitor.isNativePlatform());
-
-      const getUserMedia = (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
-        ? (c) => navigator.mediaDevices.getUserMedia(c)
-        : (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia)
-          ? (c) => new Promise((res, rej) => (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia).call(navigator, c, res, rej))
-          : null;
-
-      if (!getUserMedia) {
-        const msg = isNative
-          ? 'Vui lòng kiểm tra quyền Micro trong Cài đặt iPhone > ToDoList'
-          : 'Micro yêu cầu kết nối bảo mật HTTPS hoặc cấp quyền trong trình duyệt';
-        this.showToast(msg, 'error');
-        return;
-      }
-
-      try {
-        const stream = await getUserMedia({ audio: true });
-        this.audioChunks = [];
-        this.audioStream = stream;
-
-        // Ưu tiên các định dạng codec tương thích cao (mp4, webm, aac)
-        let mimeType = '';
-        if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported) {
-          if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
-          else if (MediaRecorder.isTypeSupported('audio/webm')) mimeType = 'audio/webm';
-          else if (MediaRecorder.isTypeSupported('audio/aac')) mimeType = 'audio/aac';
-        }
-
-        this.mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-
-        this.mediaRecorder.ondataavailable = (e) => {
-          if (e.data && e.data.size > 0) {
-            this.audioChunks.push(e.data);
-          }
-        };
-
-        this.mediaRecorder.onstop = async () => {
-          if (this.audioStream) {
-            this.audioStream.getTracks().forEach(t => t.stop());
-            this.audioStream = null;
-          }
-          this.isRecordingVoiceMedia = false;
-          this.isListeningVoice = false;
-          clearInterval(this.voiceTimerInterval);
-
-          if (this.audioChunks.length === 0) return;
-          const actualMime = this.mediaRecorder.mimeType || 'audio/mp4';
-          const audioBlob = new Blob(this.audioChunks, { type: actualMime });
-          const fileExt = actualMime.includes('webm') ? 'voice.webm' : (actualMime.includes('mp4') ? 'voice.mp4' : 'voice.aac');
-
-          this.showToast('🔄 Đang nhận diện tiếng Việt qua Whisper AI...', 'info');
-
-          try {
-            const formData = new FormData();
-            formData.append('file', audioBlob, fileExt);
-            const transcribeUrl = cleanBaseUrl(API_BASE) + '/api/ai/transcribe';
-            const res = await fetch(transcribeUrl, {
-              method: 'POST',
-              body: formData,
-              credentials: 'include',
-              headers: this.authToken ? { 'Authorization': 'Bearer ' + this.authToken } : {}
-            });
-            const data = await res.json();
-            if (data.success && data.text) {
-              const text = data.text.trim();
-              this.applyVoiceTranscriptToTodo(text);
-            } else {
-              this.showToast('Không nhận diện được nội dung: ' + (data.error || 'Vui lòng nói rõ hơn'), 'error');
-            }
-          } catch (err) {
-            this.showToast('Lỗi nhận diện giọng nói: ' + (err.message || err), 'error');
-          }
-        };
-
-        this.mediaRecorder.start(250);
-        this.isRecordingVoiceMedia = true;
-        this.isListeningVoice = true;
-        this.voiceRecordingSeconds = 0;
-        this.showToast('🔴 Đang ghi âm (Whisper AI)... Nhấn lại nút Micro để dừng', 'info');
-
-        this.voiceTimerInterval = setInterval(() => {
-          this.voiceRecordingSeconds++;
-          if (this.voiceRecordingSeconds >= 20) {
-            this.stopVoiceRecording();
-          }
-        }, 1000);
-      } catch (err) {
-        this.isListeningVoice = false;
-        this.isRecordingVoiceMedia = false;
-        console.warn('Microphone start error:', err);
-        const isPerm = err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || err.name === 'SecurityError';
-        if (isPerm) {
-          const msg = isNative
-            ? 'Vui lòng vào Cài đặt iPhone > ToDoList > Bật quyền Micro để sử dụng tính năng này.'
-            : 'Vui lòng cho phép quyền truy cập Micro trên trình duyệt để ghi âm giọng nói.';
-          this.showToast(msg, 'error');
-        } else {
-          this.showToast('Không thể mở micro: ' + (err.message || err.name || 'Lỗi thiết bị'), 'error');
-        }
-      }
-    },
-
-    async stopVoiceRecording() {
-      clearInterval(this.voiceTimerInterval);
-      if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-        try {
-          this.mediaRecorder.stop();
-        } catch {}
-      } else if (this.audioStream) {
-        this.audioStream.getTracks().forEach(t => t.stop());
-        this.audioStream = null;
-        this.isRecordingVoiceMedia = false;
-        this.isListeningVoice = false;
-      }
     },
 
     prevCalendarMonth() {
@@ -4391,1325 +2448,6 @@ function app() {
         return parts[2] + '/' + parts[1] + '/' + parts[0];
       }
       return this.selectedCalendarDate;
-    },
-
-    async handleImportJsonFile(event) {
-      const file = event?.target?.files?.[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const text = String(e.target?.result || '');
-          const data = await this.api('/api/import/json', {
-            method: 'POST',
-            body: text
-          });
-          if (data && data.success) {
-            this.showToast('Khôi phục thành công ' + data.count + ' công việc! 🎉', 'success');
-            this.showBackupModal = false;
-            await this.fetchTodos();
-            await this.fetchCategories();
-          } else {
-            this.showToast(data?.error || 'Lỗi khôi phục dữ liệu', 'error');
-          }
-        } catch (err) {
-          this.showToast('Lỗi đọc file sao lưu: ' + err.message, 'error');
-        }
-      };
-      reader.readAsText(file);
-    },
-
-    openCreateModal() {
-      this.editingTodo = null;
-      this.customCategoryMode = false;
-      this.newSubtaskInput = '';
-      this.newTagInput = '';
-      const now = new Date();
-      const pad = (n) => String(n).padStart(2, '0');
-      const localNow = this.getCurrentLocalDatetime();
-      const currentTime = pad(now.getHours()) + ':' + pad(now.getMinutes());
-      this.todoForm = {
-        title: '',
-        description: '',
-        category: 'Personal',
-        priority: 'Medium',
-        repeat_mode: 'none',
-        due_datetime: localNow,
-        daily_time: currentTime,
-        weekly_day: now.getDay(),
-        weekly_time: currentTime,
-        is_pinned: false,
-        subtasks: [],
-        tags: [],
-        reminder_offset: 0,
-        actual_minutes: 0
-      };
-      this.editingTodoImages = [];
-      this.showModal = true;
-    },
-
-    openEditModal(todo, e) {
-      if (e?.currentTarget?.blur) e.currentTarget.blur();
-      if (document.activeElement && typeof document.activeElement.blur === 'function') {
-        document.activeElement.blur();
-      }
-      this.editingTodo = todo;
-      this.customCategoryMode = false;
-      this.newSubtaskInput = '';
-      this.newTagInput = '';
-      const d = this.parseDateSafe(todo.due_date);
-      const pad = (n) => String(n).padStart(2, '0');
-      const timeStr = d ? pad(d.getHours()) + ':' + pad(d.getMinutes()) : '18:00';
-      const dayVal = d ? d.getDay() : 1;
-
-      this.todoForm = {
-        title: todo.title,
-        description: todo.description || '',
-        category: todo.category,
-        priority: todo.priority,
-        repeat_mode: todo.repeat_mode || 'none',
-        due_datetime: this.toLocalDatetimeInput(todo.due_date),
-        daily_time: timeStr,
-        weekly_day: dayVal,
-        weekly_time: timeStr,
-        is_pinned: Boolean(todo.is_pinned),
-        subtasks: this.getSubtasks(todo).map(st => ({ ...st })),
-        tags: [...this.getTags(todo)],
-        reminder_offset: todo.reminder_offset || 0,
-        actual_minutes: todo.actual_minutes || 0
-      };
-      this.editingTodoImages = [];
-      if (todo.id && !todo.id.startsWith('temp_')) {
-        this.fetchTodoImages(todo.id);
-      }
-      this.showModal = true;
-    },
-
-    async saveTodo() {
-      this.todoSaving = true;
-      try {
-        let dueDateISO = null;
-        const mode = this.todoForm.repeat_mode || 'none';
-
-        if (mode === 'none') {
-          if (this.todoForm.due_datetime) {
-            const d = this.parseDateSafe(this.todoForm.due_datetime);
-            if (d && !isNaN(d.getTime())) {
-              dueDateISO = d.toISOString();
-            }
-          }
-        } else if (mode === 'daily') {
-          const [h, m] = (this.todoForm.daily_time || '18:00').split(':').map(Number);
-          const now = new Date();
-          const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h || 0, m || 0, 0, 0);
-          if (target.getTime() <= now.getTime()) {
-            target.setDate(target.getDate() + 1);
-          }
-          dueDateISO = target.toISOString();
-        } else if (mode === 'weekly') {
-          const [h, m] = (this.todoForm.weekly_time || '18:00').split(':').map(Number);
-          const now = new Date();
-          const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h || 0, m || 0, 0, 0);
-          const currentDay = now.getDay();
-          const targetDay = Number(this.todoForm.weekly_day ?? 1);
-          let daysUntil = (targetDay - currentDay + 7) % 7;
-          if (daysUntil === 0 && target.getTime() <= now.getTime()) {
-            daysUntil = 7;
-          }
-          target.setDate(target.getDate() + daysUntil);
-          dueDateISO = target.toISOString();
-        }
-
-        const body = {
-          title: this.todoForm.title,
-          description: this.todoForm.description,
-          category: this.todoForm.category,
-          priority: this.todoForm.priority,
-          repeat_mode: mode,
-          due_date: dueDateISO,
-          is_pinned: this.todoForm.is_pinned ? 1 : 0,
-          pomodoro_mode: this.todoForm.pomodoro_mode ? 1 : 0,
-          subtasks: this.todoForm.subtasks || [],
-          tags: this.todoForm.tags || [],
-          reminder_offset: this.todoForm.reminder_offset || 0,
-          estimated_minutes: Number(this.todoForm.estimated_minutes) || 0,
-          actual_minutes: Number(this.todoForm.actual_minutes) || 0
-        };
-
-        if (this.editingTodo) {
-          const editId = this.editingTodo.id;
-          const idx = this.todos.findIndex(t => t.id === editId);
-          if (idx !== -1) {
-            Object.assign(this.todos[idx], body, { updated_at: new Date().toISOString() });
-            this.saveCachedTodos();
-            this.scheduleNativeLocalNotification(this.todos[idx]);
-          }
-
-          if (!navigator.onLine) {
-            this.addToOfflineQueue({ type: 'UPDATE', todoId: editId, body });
-            this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
-          } else {
-            try {
-              await this.api('/api/todos/' + editId, { method: 'PUT', body: JSON.stringify(body) });
-              this.showToast('Đã cập nhật công việc!');
-              await this.fetchTodos(true);
-            } catch (err) {
-              this.addToOfflineQueue({ type: 'UPDATE', todoId: editId, body });
-              this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
-            }
-          }
-        } else {
-          const tempId = 'temp_' + Date.now();
-          const newTodo = {
-            id: tempId,
-            user_id: this.currentUser?.id || 'temp',
-            title: body.title,
-            description: body.description,
-            category: body.category,
-            priority: body.priority,
-            repeat_mode: body.repeat_mode,
-            due_date: body.due_date,
-            is_pinned: body.is_pinned,
-            subtasks: body.subtasks,
-            tags: body.tags,
-            reminder_offset: body.reminder_offset,
-            estimated_minutes: body.estimated_minutes,
-            actual_minutes: body.actual_minutes,
-            status: 'todo',
-            is_completed: 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-          this.todos.unshift(newTodo);
-          this.saveCachedTodos();
-          this.scheduleNativeLocalNotification(newTodo);
-
-          if (!navigator.onLine) {
-            this.addToOfflineQueue({ type: 'CREATE', tempId, body });
-            this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
-          } else {
-            try {
-              const res = await this.api('/api/todos', { method: 'POST', body: JSON.stringify(body) });
-              if (res && res.todo) {
-                const idx = this.todos.findIndex(t => t.id === tempId);
-                if (idx !== -1) this.todos[idx] = res.todo;
-                this.saveCachedTodos();
-                this.cancelNativeLocalNotification(tempId);
-                this.scheduleNativeLocalNotification(res.todo);
-
-                if (this.editingTodoImages && this.editingTodoImages.length > 0) {
-                  for (const img of this.editingTodoImages) {
-                    if (img.image_data) {
-                      await this.api('/api/todos/' + res.todo.id + '/images', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                          image_data: img.image_data,
-                          file_name: img.file_name || 'image.jpg'
-                        })
-                      }).catch(() => {});
-                    }
-                  }
-                  await this.fetchTodoImages(res.todo.id);
-                }
-              }
-              this.showToast('Đã tạo công việc mới!');
-              await this.fetchCategories();
-            } catch (err) {
-              this.addToOfflineQueue({ type: 'CREATE', tempId, body });
-              this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
-            }
-          }
-        }
-        this.showModal = false;
-      } catch (err) {
-        this.showToast(err.message, 'error');
-      } finally {
-        this.todoSaving = false;
-      }
-    },
-
-    hasUncompletedSubtasks(todo) {
-      if (!todo) return false;
-      const subtasks = this.getSubtasks(todo);
-      return subtasks.some(st => !st.is_completed);
-    },
-
-    getUncompletedSubtasksCount(todo) {
-      if (!todo) return 0;
-      const subtasks = this.getSubtasks(todo);
-      return subtasks.filter(st => !st.is_completed).length;
-    },
-
-    closeCompletionModal() {
-      this.showCompletionModal = false;
-      this.completingTodo = null;
-      this.completingProofPhoto = null;
-      this.completingPhotoName = '';
-      this.completingUploadingPhoto = false;
-    },
-
-    async toggleTodo(todo, e) {
-      if (e?.currentTarget?.blur) e.currentTarget.blur();
-      if (document.activeElement && typeof document.activeElement.blur === 'function') {
-        document.activeElement.blur();
-      }
-      // Nếu việc chưa làm:
-      if (!todo.is_completed) {
-        // Yêu cầu 5: Kiểm tra nếu việc con (subtasks) chưa hoàn thành thì chặn lại
-        const uncompletedCount = this.getUncompletedSubtasksCount(todo);
-        if (uncompletedCount > 0) {
-          this.showToast('⚠️ Chưa thể hoàn thành: còn ' + uncompletedCount + ' việc con chưa xong!', 'error');
-          return;
-        }
-
-        this.completingTodo = todo;
-        this.completingProofPhoto = null;
-        this.completingPhotoName = '';
-        this.showCompletionModal = true;
-        return;
-      }
-      // Nếu đã xong mà bấm lại: chuyển về đang chờ
-      await this.executeToggleTodo(todo, 0);
-    },
-
-    async confirmCompleteTask() {
-      if (!this.completingTodo) return;
-      const todo = this.completingTodo;
-      const proofPhoto = this.completingProofPhoto;
-      const photoName = this.completingPhotoName;
-
-      // Kiểm tra lại nếu có việc con chưa xong
-      const uncompletedCount = this.getUncompletedSubtasksCount(todo);
-      if (uncompletedCount > 0) {
-        this.showToast('⚠️ Không thể hoàn thành: còn ' + uncompletedCount + ' việc con chưa xong!', 'error');
-        this.closeCompletionModal();
-        return;
-      }
-
-      // Yêu cầu 1: ĐÓNG CỬA SỔ CONFIRM NGAY LẬP TỨC để đảm bảo không bị hiện lại hay treo modal
-      this.closeCompletionModal();
-
-      try {
-        // Tải ảnh minh chứng nếu có
-        if (proofPhoto) {
-          try {
-            const fileName = photoName || ('proof_' + Date.now() + '.jpg');
-            await this.api('/api/todos/' + todo.id + '/images', {
-              method: 'POST',
-              body: JSON.stringify({
-                image_data: proofPhoto,
-                file_name: fileName
-              })
-            });
-            if (!this.todoImagesMap[todo.id]) this.todoImagesMap[todo.id] = [];
-            this.todoImagesMap[todo.id].push({
-              id: 'img_' + Date.now(),
-              image_data: proofPhoto,
-              file_name: fileName
-            });
-          } catch (imgErr) {
-            console.warn('Lỗi lưu ảnh minh chứng:', imgErr);
-          }
-        }
-
-        await this.executeToggleTodo(todo, 1);
-        try { this.playChime(); } catch {}
-        try { this.triggerConfetti(); } catch {}
-      } catch (err) {
-        console.error('Lỗi khi lưu trạng thái hoàn thành:', err);
-        this.showToast(err.message || 'Lỗi khi cập nhật công việc', 'error');
-      }
-    },
-
-    async executeToggleTodo(todo, targetStatus) {
-      const prevStatus = todo.is_completed;
-      todo.is_completed = targetStatus;
-
-      if (targetStatus === 1) {
-        this.cancelNativeLocalNotification(todo.id);
-      } else {
-        this.scheduleNativeLocalNotification(todo);
-      }
-
-      if (targetStatus === 1 && todo.repeat_mode && todo.repeat_mode !== 'none' && todo.due_date) {
-        const d = new Date(todo.due_date);
-        if (!isNaN(d.getTime())) {
-          const increment = todo.repeat_mode === 'daily' ? 1 : 7;
-          d.setDate(d.getDate() + increment);
-          while (d.getTime() < Date.now()) {
-            d.setDate(d.getDate() + increment);
-          }
-          todo.due_date = d.toISOString();
-        }
-      }
-      this.saveCachedTodos();
-
-      if (!navigator.onLine) {
-        this.addToOfflineQueue({ type: 'TOGGLE', todoId: todo.id });
-        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
-        return;
-      }
-
-      try {
-        const res = await this.api('/api/todos/' + todo.id + '/toggle', { method: 'PATCH' });
-        if (res && res.todo) {
-          Object.assign(todo, res.todo);
-          this.saveCachedTodos();
-        }
-        this.showToast(todo.is_completed ? 'Hoàn thành xuất sắc! 🎉' : 'Đã chuyển sang đang chờ.', 'info', {
-          label: 'Hoàn tác',
-          onClick: () => this.executeToggleTodo(todo, prevStatus)
-        });
-        await this.fetchTodos(true);
-      } catch (err) {
-        this.addToOfflineQueue({ type: 'TOGGLE', todoId: todo.id });
-        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
-      }
-    },
-
-    async togglePin(todo, e) {
-      if (e?.currentTarget?.blur) e.currentTarget.blur();
-      if (document.activeElement && typeof document.activeElement.blur === 'function') {
-        document.activeElement.blur();
-      }
-      todo.is_pinned = todo.is_pinned ? 0 : 1;
-      this.saveCachedTodos();
-      this.showToast(todo.is_pinned ? '📌 Đã ghim lên đầu' : 'Đã bỏ ghim', 'info');
-
-      if (!navigator.onLine) {
-        this.addToOfflineQueue({ type: 'PIN', todoId: todo.id });
-        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
-        return;
-      }
-
-      try {
-        const res = await this.api('/api/todos/' + todo.id + '/pin', { method: 'PATCH' });
-        if (res && res.todo) {
-          todo.is_pinned = res.todo.is_pinned;
-          this.saveCachedTodos();
-        }
-        await this.fetchTodos(true);
-      } catch (err) {
-        this.addToOfflineQueue({ type: 'PIN', todoId: todo.id });
-        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
-      }
-    },
-
-    async duplicateTodo(todo, e) {
-      if (e?.currentTarget?.blur) e.currentTarget.blur();
-      if (document.activeElement && typeof document.activeElement.blur === 'function') {
-        document.activeElement.blur();
-      }
-      const tempId = 'temp_' + Date.now();
-      const body = {
-        title: todo.title + ' (Bản sao)',
-        description: todo.description || '',
-        category: todo.category,
-        priority: todo.priority,
-        repeat_mode: todo.repeat_mode || 'none',
-        due_date: todo.due_date,
-        is_pinned: 0
-      };
-
-      const newTodo = {
-        id: tempId,
-        user_id: this.currentUser?.id || 'temp',
-        ...body,
-        is_completed: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      this.todos.unshift(newTodo);
-      this.saveCachedTodos();
-
-      if (!navigator.onLine) {
-        this.addToOfflineQueue({ type: 'CREATE', tempId, body });
-        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
-        return;
-      }
-
-      try {
-        const res = await this.api('/api/todos', { method: 'POST', body: JSON.stringify(body) });
-        if (res && res.todo) {
-          const idx = this.todos.findIndex(t => t.id === tempId);
-          if (idx !== -1) this.todos[idx] = res.todo;
-          this.saveCachedTodos();
-        }
-        this.showToast('Đã nhân bản công việc!');
-      } catch (err) {
-        this.addToOfflineQueue({ type: 'CREATE', tempId, body });
-        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
-      }
-    },
-
-    confirmDelete(todo, e) {
-      if (e?.currentTarget?.blur) e.currentTarget.blur();
-      if (document.activeElement && typeof document.activeElement.blur === 'function') {
-        document.activeElement.blur();
-      }
-      this.deletingTodo = todo;
-      this.showDeleteModal = true;
-    },
-
-    async deleteTodo() {
-      this.todoSaving = true;
-      const targetTodo = this.deletingTodo;
-      const targetId = targetTodo?.id;
-      if (!targetId) {
-        this.todoSaving = false;
-        return;
-      }
-
-      this.lastDeletedTodo = { ...targetTodo };
-      this.todos = this.todos.filter(t => t.id !== targetId);
-      this.saveCachedTodos();
-      this.cancelNativeLocalNotification(targetId);
-      this.showDeleteModal = false;
-      this.deletingTodo = null;
-
-      if (!navigator.onLine) {
-        this.addToOfflineQueue({ type: 'DELETE', todoId: targetId });
-        this.showToast('Đã chuyển vào thùng rác (ngoại tuyến)', 'info', {
-          label: 'Hoàn tác',
-          onClick: () => this.restoreTodo(this.lastDeletedTodo)
-        });
-        this.todoSaving = false;
-        return;
-      }
-
-      try {
-        await this.api('/api/todos/' + targetId, { method: 'DELETE' });
-        this.showToast('Đã chuyển công việc vào thùng rác!', 'info', {
-          label: 'Hoàn tác',
-          onClick: () => this.restoreTodo(this.lastDeletedTodo)
-        });
-      } catch (err) {
-        this.addToOfflineQueue({ type: 'DELETE', todoId: targetId });
-        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
-      } finally {
-        this.todoSaving = false;
-      }
-    },
-
-    confirmClearCompleted() {
-      this.showClearCompletedModal = true;
-    },
-
-    async clearCompleted() {
-      this.todoSaving = true;
-      const completedTodos = this.todos.filter(t => t.is_completed);
-      this.todos = this.todos.filter(t => !t.is_completed);
-      this.saveCachedTodos();
-      this.showClearCompletedModal = false;
-
-      if (!navigator.onLine) {
-        completedTodos.forEach(t => this.addToOfflineQueue({ type: 'DELETE', todoId: t.id }));
-        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
-        this.todoSaving = false;
-        return;
-      }
-
-      try {
-        await this.api('/api/todos/clear-completed', { method: 'POST' });
-        this.showToast('Đã dọn dẹp tất cả việc đã hoàn thành!');
-      } catch (err) {
-        completedTodos.forEach(t => this.addToOfflineQueue({ type: 'DELETE', todoId: t.id }));
-        this.showToast('Đang ngoại tuyến - đã lưu tạm', 'info');
-      } finally {
-        this.todoSaving = false;
-      }
-    },
-
-    // ─── THÙNG RÁC & HOÀN TÁC (TRASH & UNDO) ───
-    async openTrashModal() {
-      this.showTrashModal = true;
-      await this.fetchTrashTodos();
-    },
-
-    async fetchTrashTodos() {
-      this.trashLoading = true;
-      try {
-        const res = await this.api('/api/trash');
-        this.trashTodos = res.todos || [];
-      } catch (err) {
-        this.showToast('Lỗi tải thùng rác: ' + err.message, 'error');
-      } finally {
-        this.trashLoading = false;
-      }
-    },
-
-    async restoreTodo(todo) {
-      if (!todo || !todo.id) return;
-      try {
-        await this.api('/api/todos/' + todo.id + '/restore', { method: 'POST' });
-        this.trashTodos = this.trashTodos.filter(t => t.id !== todo.id);
-        this.showToast('Đã khôi phục công việc: "' + todo.title + '" 🎉', 'success');
-        await this.fetchTodos(true);
-      } catch (err) {
-        this.showToast('Lỗi khôi phục: ' + err.message, 'error');
-      }
-    },
-
-    // ─── HỘP THOẠI XÁC NHẬN CHUẨN (CONFIRMATION DIALOG) ───
-    askConfirm(options = {}) {
-      return new Promise((resolve) => {
-        this.confirmDialog = {
-          show: true,
-          title: options.title || 'Xác nhận',
-          message: options.message || 'Bạn có chắc chắn muốn thực hiện hành động này không?',
-          confirmText: options.confirmText || 'Đồng ý',
-          cancelText: options.cancelText || 'Hủy',
-          icon: options.icon || (options.isDanger !== false ? '⚠️' : '❓'),
-          isDanger: options.isDanger !== false,
-          resolve
-        };
-      });
-    },
-
-    closeConfirm(result) {
-      if (this.confirmDialog && typeof this.confirmDialog.resolve === 'function') {
-        this.confirmDialog.resolve(Boolean(result));
-        this.confirmDialog.resolve = null;
-      }
-      this.confirmDialog.show = false;
-    },
-
-    async deletePermanently(todo) {
-      if (!todo || !todo.id) return;
-      const ok = await this.askConfirm({
-        title: 'Xóa vĩnh viễn công việc?',
-        message: 'Bạn có chắc chắn muốn xóa vĩnh viễn "' + (todo.title || 'công việc này') + '"? Dữ liệu sẽ không thể khôi phục!',
-        confirmText: 'Xóa vĩnh viễn',
-        isDanger: true,
-        icon: '🗑️'
-      });
-      if (!ok) return;
-
-      try {
-        await this.api('/api/todos/' + todo.id + '?permanent=true', { method: 'DELETE' });
-        this.trashTodos = this.trashTodos.filter(t => t.id !== todo.id);
-        this.showToast('Đã xóa vĩnh viễn công việc', 'info');
-      } catch (err) {
-        this.showToast('Lỗi xóa vĩnh viễn: ' + err.message, 'error');
-      }
-    },
-
-    async emptyTrash() {
-      if (this.trashTodos.length === 0) return;
-      const ok = await this.askConfirm({
-        title: 'Dọn sạch thùng rác?',
-        message: 'Bạn có chắc chắn muốn dọn sạch toàn bộ thùng rác? Toàn bộ công việc trong thùng rác sẽ bị xóa vĩnh viễn!',
-        confirmText: 'Dọn sạch tất cả',
-        isDanger: true,
-        icon: '🗑️'
-      });
-      if (!ok) return;
-
-      try {
-        await this.api('/api/trash/empty', { method: 'DELETE' });
-        this.trashTodos = [];
-        this.showToast('Đã dọn sạch thùng rác!', 'info');
-      } catch (err) {
-        this.showToast('Lỗi dọn thùng rác: ' + err.message, 'error');
-      }
-    },
-
-    async restoreAllTrash() {
-      if (this.trashTodos.length === 0) return;
-      try {
-        await this.api('/api/trash/restore-all', { method: 'POST' });
-        this.trashTodos = [];
-        this.showToast('Đã khôi phục tất cả công việc từ thùng rác! 🎉', 'success');
-        await this.fetchTodos(true);
-      } catch (err) {
-        this.showToast('Lỗi khôi phục: ' + err.message, 'error');
-      }
-    },
-
-    // ─── WEB AUDIO & AMBIENT SOUNDS (FOCUS MODE) ───
-    initAudioContext() {
-      if (!this.audioCtx) {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (AudioCtx) {
-          this.audioCtx = new AudioCtx();
-        }
-      }
-      if (this.audioCtx && this.audioCtx.state === 'suspended') {
-        this.audioCtx.resume().catch(() => {});
-      }
-      return this.audioCtx;
-    },
-
-    playChime() {
-      try {
-        const ctx = this.initAudioContext();
-        if (!ctx) return;
-        const now = ctx.currentTime;
-        const tones = [659.25, 880];
-        tones.forEach((freq, idx) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, now + idx * 0.18);
-          gain.gain.setValueAtTime(0, now + idx * 0.18);
-          gain.gain.linearRampToValueAtTime(0.3, now + idx * 0.18 + 0.04);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.18 + 0.8);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(now + idx * 0.18);
-          osc.stop(now + idx * 0.18 + 0.85);
-        });
-      } catch (e) {
-        console.warn('playChime error:', e);
-      }
-    },
-
-    stopAmbientSound() {
-      if (this.ambientNodes) {
-        try {
-          this.ambientNodes.source?.stop?.();
-          this.ambientNodes.gain?.disconnect?.();
-        } catch {}
-        this.ambientNodes = null;
-      }
-      this.ambientSound = 'none';
-    },
-
-    playAmbientSound(type) {
-      if (this.ambientSound === type && type !== 'none') {
-        this.stopAmbientSound();
-        return;
-      }
-      this.stopAmbientSound();
-      if (type === 'none') return;
-
-      const ctx = this.initAudioContext();
-      if (!ctx) return;
-
-      try {
-        const bufferSize = 2 * ctx.sampleRate;
-        const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        const output = noiseBuffer.getChannelData(0);
-
-        if (type === 'white') {
-          for (let i = 0; i < bufferSize; i++) {
-            output[i] = Math.random() * 2 - 1;
-          }
-        } else if (type === 'rain') {
-          let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
-          for (let i = 0; i < bufferSize; i++) {
-            const white = Math.random() * 2 - 1;
-            b0 = 0.99886 * b0 + white * 0.0555179;
-            b1 = 0.99332 * b1 + white * 0.0750759;
-            b2 = 0.96900 * b2 + white * 0.1538520;
-            b3 = 0.86650 * b3 + white * 0.3104856;
-            b4 = 0.55000 * b4 + white * 0.5329522;
-            b5 = -0.7616 * b5 - white * 0.0168980;
-            output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
-            b6 = white * 0.115926;
-          }
-        }
-
-        const whiteNoiseSource = ctx.createBufferSource();
-        whiteNoiseSource.buffer = noiseBuffer;
-        whiteNoiseSource.loop = true;
-
-        const filter = ctx.createBiquadFilter();
-        filter.type = type === 'rain' ? 'lowpass' : 'bandpass';
-        filter.frequency.value = type === 'rain' ? 850 : 1200;
-        filter.Q.value = 1.0;
-
-        const gainNode = ctx.createGain();
-        gainNode.gain.setValueAtTime((this.ambientVolume || 50) / 100 * 0.25, ctx.currentTime);
-
-        whiteNoiseSource.connect(filter);
-        filter.connect(gainNode);
-        gainNode.connect(ctx.destination);
-
-        whiteNoiseSource.start();
-        this.ambientNodes = { source: whiteNoiseSource, gain: gainNode, filter };
-        this.ambientSound = type;
-      } catch (err) {
-        console.warn('Error starting ambient sound:', err);
-      }
-    },
-
-    setAmbientVolume(val) {
-      this.ambientVolume = Math.max(0, Math.min(100, Number(val) || 0));
-      if (this.ambientNodes && this.ambientNodes.gain && this.audioCtx) {
-        this.ambientNodes.gain.gain.setValueAtTime((this.ambientVolume / 100) * 0.25, this.audioCtx.currentTime);
-      }
-    },
-
-    // ─── POMODORO FOCUS TIMER ───
-    async togglePomodoroMode(todo, e) {
-      if (e?.stopPropagation) e.stopPropagation();
-      if (e?.currentTarget?.blur) e.currentTarget.blur();
-      const newMode = !Boolean(todo.pomodoro_mode);
-      todo.pomodoro_mode = newMode ? 1 : 0;
-      this.saveCachedTodos();
-      try {
-        await this.api('/api/todos/' + todo.id, {
-          method: 'PUT',
-          body: JSON.stringify({ pomodoro_mode: newMode ? 1 : 0 })
-        });
-        this.showToast(newMode ? '🍅 Đã bật Pomodoro cho: ' + todo.title : 'Đã tắt Pomodoro: ' + todo.title, 'info');
-      } catch (err) {
-        this.showToast('Lỗi cập nhật Pomodoro: ' + (err?.message || err), 'error');
-      }
-    },
-
-    openPomodoro() {
-      this.showPomodoroModal = true;
-    },
-
-    setPomodoroMode(mode) {
-      this.pomodoroMode = mode;
-      clearInterval(this.pomodoroInterval);
-      this.pomodoroRunning = false;
-      if (mode === 'focus') {
-        this.pomodoroTimeLeft = 25 * 60;
-        this.pomodoroTotalTime = 25 * 60;
-      } else if (mode === 'shortBreak') {
-        this.pomodoroTimeLeft = 5 * 60;
-        this.pomodoroTotalTime = 5 * 60;
-      } else if (mode === 'longBreak') {
-        this.pomodoroTimeLeft = 15 * 60;
-        this.pomodoroTotalTime = 15 * 60;
-      }
-    },
-
-    togglePomodoro() {
-      if (this.pomodoroRunning) {
-        this.pausePomodoro();
-      } else {
-        this.startPomodoro();
-      }
-    },
-
-    startPomodoro() {
-      this.initAudioContext();
-      this.pomodoroRunning = true;
-      clearInterval(this.pomodoroInterval);
-      this.pomodoroInterval = setInterval(() => {
-        if (this.pomodoroTimeLeft > 0) {
-          this.pomodoroTimeLeft--;
-        } else {
-          this.onPomodoroComplete();
-        }
-      }, 1000);
-    },
-
-    pausePomodoro() {
-      this.pomodoroRunning = false;
-      clearInterval(this.pomodoroInterval);
-    },
-
-    resetPomodoro() {
-      this.pausePomodoro();
-      this.setPomodoroMode(this.pomodoroMode);
-    },
-
-    async onPomodoroComplete() {
-      this.pausePomodoro();
-      this.playChime();
-
-      if (this.pomodoroMode === 'focus') {
-        this.showToast('🎉 Hoàn thành phiên Pomodoro 25 phút! Hãy nghỉ ngơi nào.', 'success');
-        this.setPomodoroMode('shortBreak');
-      } else {
-        this.showToast('⏰ Hết giờ nghỉ ngơi! Sẵn sàng cho phiên tập trung tiếp theo.', 'info');
-        this.setPomodoroMode('focus');
-      }
-    },
-
-    async trackTimeForTodo(todo, addedMinutes) {
-      if (!todo || !todo.id) return;
-      const currentActual = Number(todo.actual_minutes) || 0;
-      const newActual = currentActual + addedMinutes;
-      todo.actual_minutes = newActual;
-      this.saveCachedTodos();
-
-      try {
-        await this.api('/api/todos/' + todo.id, {
-          method: 'PUT',
-          body: JSON.stringify({ actual_minutes: newActual })
-        });
-        this.showToast('Đã ghi nhận +' + addedMinutes + ' phút tập trung cho: ' + todo.title, 'success');
-      } catch (err) {
-        console.warn('Failed to update actual_minutes:', err);
-      }
-    },
-
-    formatTimer(seconds) {
-      const m = Math.floor(seconds / 60);
-      const s = seconds % 60;
-      return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
-    },
-
-    // ─── STOPWATCH (BẤM GIỜ) ───
-    startStopwatch() {
-      if (this.stopwatchRunning) return;
-      this.initAudioContext();
-      this.stopwatchRunning = true;
-      this.stopwatchStartTime = Date.now() - (this.stopwatchTime || 0);
-      this.stopwatchInterval = setInterval(() => {
-        this.stopwatchTime = Date.now() - this.stopwatchStartTime;
-      }, 50);
-    },
-
-    pauseStopwatch() {
-      this.stopwatchRunning = false;
-      if (this.stopwatchInterval) {
-        clearInterval(this.stopwatchInterval);
-        this.stopwatchInterval = null;
-      }
-    },
-
-    resetStopwatch() {
-      this.pauseStopwatch();
-      this.stopwatchTime = 0;
-      this.stopwatchLaps = [];
-    },
-
-    lapStopwatch() {
-      if (!this.stopwatchTime) return;
-      const currentMs = this.stopwatchTime;
-      const prevTotal = this.stopwatchLaps.length > 0 ? this.stopwatchLaps[0].totalTime : 0;
-      this.stopwatchLaps.unshift({
-        lapNumber: this.stopwatchLaps.length + 1,
-        splitTime: currentMs - prevTotal,
-        totalTime: currentMs
-      });
-    },
-
-    formatStopwatch(ms) {
-      if (!ms || ms < 0) ms = 0;
-      const pad = (n, len = 2) => String(n).padStart(len, '0');
-      const totalSeconds = Math.floor(ms / 1000);
-      const m = Math.floor(totalSeconds / 60);
-      const s = totalSeconds % 60;
-      const milli = Math.floor((ms % 1000) / 100);
-      return pad(m) + ':' + pad(s) + '.' + milli;
-    },
-
-    // ─── COUNTDOWN TIMER (HẸN GIỜ) ───
-    setCountdownPreset(sec) {
-      this.pauseCountdown();
-      this.countdownDuration = sec;
-      this.countdownTimeLeft = sec;
-    },
-
-    startCountdown() {
-      if (this.countdownRunning || this.countdownTimeLeft <= 0) return;
-      this.initAudioContext();
-      this.countdownRunning = true;
-      this.countdownInterval = setInterval(() => {
-        if (this.countdownTimeLeft > 0) {
-          this.countdownTimeLeft--;
-        } else {
-          this.pauseCountdown();
-          this.playChime();
-          this.showToast('⏳ Hết giờ hẹn!', 'warning');
-          if (window.Capacitor?.isPluginAvailable?.('LocalNotifications')) {
-            window.Capacitor.Plugins.LocalNotifications.schedule({
-              notifications: [{
-                id: 99999,
-                title: '⏳ Hẹn giờ kết thúc',
-                body: 'Thời gian hẹn giờ của bạn đã kết thúc!',
-                schedule: { at: new Date() },
-                sound: 'beep.caf'
-              }]
-            }).catch(() => {});
-          }
-        }
-      }, 1000);
-    },
-
-    pauseCountdown() {
-      this.countdownRunning = false;
-      if (this.countdownInterval) {
-        clearInterval(this.countdownInterval);
-        this.countdownInterval = null;
-      }
-    },
-
-    resetCountdown() {
-      this.pauseCountdown();
-      this.countdownTimeLeft = this.countdownDuration || 300;
-    },
-
-    formatCountdown(sec) {
-      if (!sec || sec < 0) sec = 0;
-      const pad = (n) => String(n).padStart(2, '0');
-      const m = Math.floor(sec / 60);
-      const s = sec % 60;
-      return pad(m) + ':' + pad(s);
-    },
-
-    // ─── NĂNG SUẤT & THỐNG KÊ (ANALYTICS BẢO TOÀN LỊCH SỬ) ───
-    async openAnalytics() {
-      this.showAnalyticsModal = true;
-      this.analyticsLoading = true;
-      try {
-        const data = await this.api('/api/analytics');
-        this.analyticsData = data;
-        if (data && data.streak !== undefined) {
-          this.historicalStreak = data.streak;
-        }
-        if (data && data.total_completed_lifetime !== undefined) {
-          this.completedHistoryCount = data.total_completed_lifetime;
-        }
-      } catch (err) {
-        this.showToast('Lỗi tải dữ liệu phân tích: ' + err.message, 'error');
-      } finally {
-        this.analyticsLoading = false;
-      }
-    },
-
-    async fetchAnalyticsSilently() {
-      try {
-        const data = await this.api('/api/analytics');
-        if (data && data.streak !== undefined) {
-          this.historicalStreak = data.streak;
-        }
-        if (data && data.total_completed_lifetime !== undefined) {
-          this.completedHistoryCount = data.total_completed_lifetime;
-        }
-      } catch {}
-    },
-
-    // ─── ĐÍNH KÈM HÌNH ẢNH MINH CHỨNG (CANVAS COMPRESSION <= 40KB & LIGHTBOX) ───
-    async handleImageUpload(event, todoId) {
-      const files = event?.target?.files;
-      if (!files || files.length === 0) return;
-      const targetId = todoId || this.activePhotoTodoId || this.editingTodo?.id;
-      this.todoImagesMap = this.todoImagesMap || {};
-
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        if (!file.type.startsWith('image/')) continue;
-
-        this.showToast('📷 Đang xử lý & nén ảnh minh chứng...', 'info');
-        try {
-          const base64Data = await this.compressImageCanvas(file, 640, 0.55);
-
-          if (targetId && !targetId.startsWith('temp_')) {
-            const res = await this.api('/api/todos/' + targetId + '/images', {
-              method: 'POST',
-              body: JSON.stringify({
-                image_data: base64Data,
-                file_name: file.name
-              })
-            });
-            if (res && res.image) {
-              if (!this.todoImagesMap[targetId]) this.todoImagesMap[targetId] = [];
-              this.todoImagesMap[targetId].push(res.image);
-              this.editingTodoImages = this.editingTodoImages || [];
-              this.editingTodoImages.push(res.image);
-              this.showToast('Đã lưu ảnh minh chứng hoàn thành! 📸', 'success');
-            }
-          } else {
-            const tempImg = {
-              id: 'temp_img_' + Date.now() + '_' + i,
-              image_data: base64Data,
-              file_name: file.name
-            };
-            this.editingTodoImages = this.editingTodoImages || [];
-            this.editingTodoImages.push(tempImg);
-          }
-        } catch (err) {
-          this.showToast('Lỗi xử lý ảnh: ' + (err?.message || err), 'error');
-        }
-      }
-      if (event.target) event.target.value = '';
-    },
-
-    compressImageCanvas(file, maxWidth = 640, quality = 0.55) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = new Image();
-          img.onload = () => {
-            let width = img.width;
-            let height = img.height;
-            if (width > maxWidth) {
-              height = Math.round((height * maxWidth) / width);
-              width = maxWidth;
-            }
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-            const dataUrl = canvas.toDataURL('image/jpeg', quality);
-            resolve(dataUrl);
-          };
-          img.onerror = reject;
-          img.src = e.target.result;
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    },
-
-    async fetchTodoImages(todoId) {
-      if (!todoId || todoId.startsWith('temp_')) return;
-      this.todoImagesMap = this.todoImagesMap || {};
-      try {
-        const res = await this.api('/api/todos/' + todoId + '/images');
-        if (res && res.images) {
-          this.todoImagesMap[todoId] = res.images;
-          this.editingTodoImages = [...res.images];
-        }
-      } catch (err) {
-        console.warn('Error fetching todo images:', err);
-      }
-    },
-
-    getTodoImages(todoId) {
-      this.todoImagesMap = this.todoImagesMap || {};
-      return this.todoImagesMap[todoId] || [];
-    },
-
-    async deleteImage(todoId, imageId) {
-      this.todoImagesMap = this.todoImagesMap || {};
-      this.editingTodoImages = this.editingTodoImages || [];
-      if (imageId && imageId.startsWith('temp_img_')) {
-        this.editingTodoImages = this.editingTodoImages.filter(img => img.id !== imageId);
-        return;
-      }
-      const confirmed = await this.askConfirm({
-        title: 'Xóa ảnh minh chứng?',
-        message: 'Bạn có chắc chắn muốn xóa ảnh minh chứng này khỏi công việc không?',
-        confirmText: 'Xóa ảnh',
-        isDanger: true
-      });
-      if (!confirmed) return;
-
-      try {
-        await this.api('/api/todos/' + todoId + '/images/' + imageId, { method: 'DELETE' });
-        if (this.todoImagesMap[todoId]) {
-          this.todoImagesMap[todoId] = this.todoImagesMap[todoId].filter(img => img.id !== imageId);
-        }
-        this.editingTodoImages = this.editingTodoImages.filter(img => img.id !== imageId);
-        this.showToast('Đã xóa ảnh minh chứng', 'info');
-      } catch (err) {
-        this.showToast('Lỗi xóa ảnh: ' + err.message, 'error');
-      }
-    },
-
-    openLightbox(imageData) {
-      this.lightboxImage = imageData;
-      this.showLightbox = true;
-    },
-
-    formatDateShort(dateStr) {
-      if (!dateStr) return '';
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return '';
-      const pad = (n) => String(n).padStart(2, '0');
-      return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-    },
-
-    // ===== BỔ SUNG NATIVE CAPACITOR & OTA UPDATE METHODS =====
-    async chooseOrCapturePhoto(todoId) {
-      this.activePhotoTodoId = todoId;
-      if (window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('Camera')) {
-        try {
-          const Camera = window.Capacitor.Plugins.Camera;
-          const photo = await Camera.getPhoto({
-            quality: 70,
-            allowEditing: false,
-            resultType: 'base64',
-            source: 'PROMPT'
-          });
-          if (photo) {
-            const format = photo.format || 'jpeg';
-            const base64Data = photo.dataUrl || (photo.base64String ? ('data:image/' + format + ';base64,' + photo.base64String) : null);
-            if (base64Data) {
-              await this.attachBase64Image(base64Data, todoId, 'camera_photo_' + Date.now() + '.' + format);
-              return;
-            }
-          }
-        } catch (err) {
-          if (err && err.message && (err.message.includes('cancelled') || err.message.includes('User cancelled'))) {
-            return;
-          }
-          console.warn('Capacitor Camera fallback:', err);
-          document.getElementById('todo-camera-input')?.click();
-        }
-      } else {
-        document.getElementById('todo-camera-input')?.click();
-      }
-    },
-
-    async chooseOrCaptureProofForCompletion(mode) {
-      if (window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('Camera')) {
-        try {
-          const Camera = window.Capacitor.Plugins.Camera;
-          const photo = await Camera.getPhoto({
-            quality: 70,
-            allowEditing: false,
-            resultType: 'base64',
-            source: (mode === 'camera') ? 'CAMERA' : 'PHOTOS'
-          });
-          if (photo) {
-            const format = photo.format || 'jpeg';
-            const base64Data = photo.dataUrl || (photo.base64String ? ('data:image/' + format + ';base64,' + photo.base64String) : null);
-            if (base64Data) {
-              this.completingProofPhoto = base64Data;
-              this.completingPhotoName = 'proof_' + Date.now() + '.' + format;
-              return;
-            }
-          }
-        } catch (err) {
-          if (err && err.message && (err.message.includes('cancelled') || err.message.includes('User cancelled'))) {
-            return;
-          }
-          console.warn('Capacitor camera fallback:', err);
-        }
-      }
-
-      if (mode === 'camera') {
-        document.getElementById('todo-camera-input')?.click();
-      } else {
-        document.getElementById('todo-image-input')?.click();
-      }
-    },
-
-    async handleProofImageSelected(event) {
-      const files = event?.target?.files;
-      if (!files || files.length === 0) return;
-      const file = files[0];
-      if (!file.type.startsWith('image/')) return;
-      try {
-        this.showToast('📷 Đang xử lý & nén ảnh...', 'info');
-        const base64Data = await this.compressImageCanvas(file, 640, 0.55);
-        if (this.showCompletionModal) {
-          this.completingProofPhoto = base64Data;
-          this.completingPhotoName = file.name || ('proof_' + Date.now() + '.jpg');
-        } else {
-          const targetId = this.activePhotoTodoId || this.editingTodo?.id;
-          if (targetId) {
-            await this.attachBase64Image(base64Data, targetId, file.name);
-          }
-        }
-      } catch (err) {
-        this.showToast('Lỗi xử lý ảnh: ' + (err?.message || err), 'error');
-      } finally {
-        if (event.target) event.target.value = '';
-      }
-    },
-
-    async attachBase64Image(base64Data, todoId, fileName) {
-      const targetId = todoId || this.activePhotoTodoId || this.editingTodo?.id;
-      this.todoImagesMap = this.todoImagesMap || {};
-      this.editingTodoImages = this.editingTodoImages || [];
-      const name = fileName || ('photo_' + Date.now() + '.jpg');
-
-      if (targetId && !targetId.startsWith('temp_')) {
-        try {
-          this.imageUploading = true;
-          this.showToast('📷 Đang lưu ảnh minh chứng...', 'info');
-          const res = await this.api('/api/todos/' + targetId + '/images', {
-            method: 'POST',
-            body: JSON.stringify({
-              image_data: base64Data,
-              file_name: name
-            })
-          });
-          if (res && res.image) {
-            if (!this.todoImagesMap[targetId]) this.todoImagesMap[targetId] = [];
-            this.todoImagesMap[targetId].push(res.image);
-            this.editingTodoImages.push(res.image);
-            this.showToast('Đã lưu ảnh minh chứng hoàn thành! 📸', 'success');
-          }
-        } catch (e) {
-          this.showToast('Lỗi tải ảnh: ' + (e?.message || e), 'error');
-        } finally {
-          this.imageUploading = false;
-          this.activePhotoTodoId = null;
-        }
-      } else {
-        const tempImg = {
-          id: 'temp_img_' + Date.now(),
-          image_data: base64Data,
-          file_name: name
-        };
-        this.editingTodoImages.push(tempImg);
-        this.activePhotoTodoId = null;
-        this.showToast('Đã chọn ảnh thành công!', 'success');
-      }
-    },
-
-    async checkMaintenanceStatus() {
-      try {
-        const res = await this.api('/api/app-status');
-        if (res) {
-          this.isUnderMaintenance = Boolean(res.maintenance ?? res.isUnderMaintenance ?? false);
-          if (res.maintenance_message || res.message) {
-            this.maintenanceMessage = res.maintenance_message || res.message;
-          }
-        }
-      } catch (e) {
-        console.warn('checkMaintenanceStatus error:', e);
-      }
-    },
-
-    async checkNativeOtaUpdate() {
-      if (!window.Capacitor) return;
-      try {
-        const updater = window.Capacitor.Plugins?.CapacitorUpdater || window.Capacitor.Plugins?.CapgoUpdater;
-        if (!updater) return;
-
-        if (updater.notifyAppReady) {
-          await updater.notifyAppReady();
-        }
-
-        const res = await this.api('/api/app-status');
-        const bundleUrl = res?.latest_bundle?.url || res?.otaBundleUrl;
-        const bundleVersion = res?.latest_bundle?.version || res?.otaBundleVersion;
-        if (bundleUrl && bundleVersion) {
-          const currentVersion = this.appVersion || '2.0.0';
-          if (bundleVersion !== currentVersion && updater.download && updater.set) {
-            console.log('Downloading OTA bundle update:', bundleVersion);
-            const version = await updater.download({
-              url: bundleUrl,
-              version: bundleVersion,
-            });
-            if (version) {
-              await updater.set(version);
-              console.log('OTA bundle update ready. Will apply on restart.');
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('OTA check error:', e);
-      }
-    },
-
-    async getCurrentLocation() {
-      if (window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('Geolocation')) {
-        try {
-          const { Geolocation } = window.Capacitor.Plugins;
-          const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
-          return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-        } catch (e) {
-          console.warn('Capacitor Geolocation error:', e);
-        }
-      }
-      if ('geolocation' in navigator) {
-        return new Promise((resolve) => {
-          navigator.geolocation.getCurrentPosition(
-            (p) => resolve({ latitude: p.coords.latitude, longitude: p.coords.longitude }),
-            () => resolve(null),
-            { enableHighAccuracy: true, timeout: 5000 }
-          );
-        });
-      }
-      return null;
     }
   };
 }

@@ -1,5 +1,5 @@
 // ============================================================
-// Utility Functions — Streak, DateTime formatting & NLP
+// Utility Functions — Streak, DateTime formatting & Local NLP
 // ============================================================
 
 export interface ParsedTask {
@@ -30,45 +30,10 @@ export function formatVnDateTime(dateInput: string | Date | number): string {
 }
 
 /**
- * Chuẩn hóa phát âm, nói ngọng, phương ngữ và từ lóng tiếng Việt phổ biến
- */
-export function normalizeVietnameseVoice(rawText: string): string {
-  if (!rawText) return '';
-  let s = String(rawText).trim();
-
-  // 1. Chuẩn hóa nhầm lẫn l/n
-  s = s.replace(/\bnàm\b/gi, 'làm')
-       .replace(/\blói\b/gi, 'nói')
-       .replace(/\blấu\b/gi, 'nấu')
-       .replace(/\blấy\b/gi, 'lấy')
-       .replace(/\blên\b/gi, 'lên')
-       .replace(/\bnên\b/gi, 'nên');
-
-  // 2. Chuẩn hóa nhầm lẫn s/x
-  s = s.replace(/\bxắp\s*xếp\b/gi, 'sắp xếp')
-       .replace(/\bxáng\b/gi, 'sáng')
-       .replace(/\bbuổi\s*xáng\b/gi, 'buổi sáng')
-       .replace(/\bđọc\s*xách\b/gi, 'đọc sách');
-
-  // 3. Chuẩn hóa tr/ch
-  s = s.replace(/\bchực\b/gi, 'trực')
-       .replace(/\bchực\s*nhật\b/gi, 'trực nhật');
-
-  // 4. Chuẩn hóa giọng địa phương, nói tắt & ký tự gõ sai
-  s = s.replace(/\b(chìu|chều)\b/gi, 'chiều')
-       .replace(/\brưởi\b/gi, 'rưỡi')
-       .replace(/\bkơm\b/gi, 'cơm')
-       .replace(/\bbuổi\s*chìu\b/gi, 'buổi chiều')
-       .replace(/\bbuổi\s*chều\b/gi, 'buổi chiều');
-
-  return s;
-}
-
-/**
  * Phân tích cú pháp văn bản tiếng Việt để tự động nhận diện Tiêu đề, Hạn chót, Mức độ ưu tiên và Thẻ #tag
  */
 export function parseTaskFromText(rawText: string): ParsedTask {
-  let text = normalizeVietnameseVoice(rawText || '').trim();
+  let text = String(rawText || '').trim();
   if (text.startsWith('/add')) {
     text = text.substring(4).trim();
   }

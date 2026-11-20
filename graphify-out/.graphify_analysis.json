@@ -4,97 +4,102 @@
       "capacitor_config",
       "capacitor_config_config",
       "package",
-      "package_allowscripts",
-      "package_allowscripts_esbuild",
-      "package_allowscripts_sharp",
-      "package_allowscripts_workerd",
       "package_dependencies",
+      "package_dependencies_capacitor_app",
       "package_dependencies_capacitor_camera",
       "package_dependencies_capacitor_cli",
       "package_dependencies_capacitor_core",
       "package_dependencies_capacitor_geolocation",
       "package_dependencies_capacitor_ios",
+      "package_dependencies_capacitor_local_notifications",
       "package_dependencies_capacitor_preferences",
       "package_dependencies_capacitor_splash_screen",
       "package_dependencies_capacitor_status_bar",
-      "package_dependencies_capacitor_voice_recorder",
-      "package_dependencies_capgo_capacitor_updater",
-      "package_dependencies_hono",
       "package_devdependencies",
-      "package_devdependencies_cloudflare_workers_types",
       "package_devdependencies_playwright_test",
       "package_devdependencies_tsx",
       "package_devdependencies_typescript",
-      "package_devdependencies_wrangler",
       "package_name",
       "package_private",
       "package_version",
+      "ref_capacitor_app",
       "ref_capacitor_camera",
       "ref_capacitor_cli",
       "ref_capacitor_core",
       "ref_capacitor_geolocation",
       "ref_capacitor_ios",
+      "ref_capacitor_local_notifications",
       "ref_capacitor_preferences",
       "ref_capacitor_splash_screen",
       "ref_capacitor_status_bar",
-      "ref_capacitor_voice_recorder",
-      "ref_capgo_capacitor_updater",
-      "ref_cloudflare_workers_types",
-      "ref_hono",
       "ref_playwright_test",
       "ref_tsx",
-      "ref_typescript",
-      "ref_wrangler"
+      "ref_typescript"
     ],
     "1": [
-      "src_index",
-      "src_index_app",
-      "src_index_checkandsenddailybriefings",
-      "src_index_checkandsendreminders",
-      "src_index_ensuredbcolumns",
-      "src_index_getdefaultuserid",
-      "src_index_getvndateparts",
-      "src_index_normalizedate",
-      "src_index_removecompletionhistory",
-      "src_index_resetrecurringtasks",
-      "src_index_scheduled",
-      "src_index_ts_docref_rfc_5545",
-      "src_index_variables",
-      "src_telegram",
-      "src_telegram_answercallbackquery",
-      "src_telegram_buildeveningbriefing",
-      "src_telegram_buildhelpresponse",
-      "src_telegram_buildmorningbriefing",
-      "src_telegram_buildnightsummary",
-      "src_telegram_buildoverduetasksresponse",
-      "src_telegram_buildstatsresponse",
-      "src_telegram_buildtaskremindercontent",
-      "src_telegram_buildtodaytasksresponse",
-      "src_telegram_calculatestreak",
-      "src_telegram_cleartelegramchathistory",
-      "src_telegram_deletetelegrammessage",
-      "src_telegram_deletetelegrammessages",
-      "src_telegram_downloadtelegramfile",
-      "src_telegram_edittelegrammessage",
-      "src_telegram_escapehtml",
-      "src_telegram_formatvndatetime",
-      "src_telegram_parsedtask",
-      "src_telegram_sendorupdatetelegramtaskreminder",
-      "src_telegram_sendtelegrammessage",
-      "src_telegram_sendtelegramtaskreminder",
-      "src_telegram_sendtelegramtestmessage",
-      "src_types_env",
-      "test_telegram_test",
-      "test_telegram_test_runtests",
-      "test_telegram_test_runtests_test",
-      "test_v3_features_test",
-      "test_v3_features_test_run"
+      "github_workflows_build_ios_ipa",
+      "github_workflows_build_ios_ipa_build_ipa_name",
+      "github_workflows_build_ios_ipa_build_ipa_runs_on",
+      "github_workflows_build_ios_ipa_build_ipa_steps",
+      "github_workflows_build_ios_ipa_jobs",
+      "github_workflows_build_ios_ipa_jobs_build_ipa",
+      "github_workflows_build_ios_ipa_name",
+      "github_workflows_build_ios_ipa_on",
+      "github_workflows_build_ios_ipa_on_push",
+      "github_workflows_build_ios_ipa_on_workflow_dispatch",
+      "github_workflows_build_ios_ipa_push_branches",
+      "github_workflows_build_ios_ipa_steps_name",
+      "github_workflows_build_ios_ipa_steps_run",
+      "github_workflows_build_ios_ipa_steps_uses",
+      "github_workflows_build_ios_ipa_steps_with",
+      "github_workflows_build_ios_ipa_with_cache",
+      "github_workflows_build_ios_ipa_with_name",
+      "github_workflows_build_ios_ipa_with_node_version",
+      "github_workflows_build_ios_ipa_with_path",
+      "github_workflows_build_ios_ipa_with_retention_days"
     ],
     "2": [
+      "ref_node_assert",
+      "src_client_notifications",
+      "src_client_notifications_formatvntime",
+      "src_client_notifications_getnotificationid",
+      "src_client_notifications_getprioritywarningminutes",
+      "src_client_notifications_getvndateparts",
+      "src_client_notifications_parsedatesafe",
+      "src_utils",
+      "src_utils_calculatestreak",
+      "src_utils_formatvndatetime",
+      "src_utils_parsedtask",
+      "src_utils_parsetaskfromtext",
+      "test_recurring_test",
+      "test_recurring_test_test",
+      "test_v3_features_test",
+      "test_v3_features_test_run",
+      "test_v3_features_test_run_calculaterepeatingschedule",
+      "test_v3_features_test_run_getnotificationid"
+    ],
+    "3": [
+      "ref_node_fs",
+      "ref_node_path",
+      "ref_node_vm",
+      "scripts_build",
+      "scripts_build_build",
+      "scripts_build_vendor_libs",
+      "scripts_generate_all_icons",
+      "scripts_generate_all_icons_generateallicons",
+      "src_client_audio_timer",
+      "src_client_audio_timer_audiotimerscript",
+      "src_client_notifications_notificationsscript",
+      "src_client_storage",
+      "src_client_storage_storagescript",
+      "src_frontend",
+      "src_frontend_renderhtml",
+      "src_sw",
+      "src_sw_renderserviceworker"
+    ],
+    "4": [
       "any",
       "bool",
-      "capacitor",
-      "ios_app_app_appdelegate",
       "ios_app_app_appdelegate_appdelegate",
       "ios_app_app_appdelegate_appdelegate_application",
       "ios_app_app_appdelegate_appdelegate_applicationdidbecomeactive",
@@ -105,99 +110,15 @@
       "ios_app_app_appdelegate_swift_uiscene",
       "ios_app_app_appdelegate_swift_uiscenesession",
       "ios_app_app_appdelegate_swift_uiwindow",
-      "ios_app_app_scenedelegate",
-      "ios_app_app_scenedelegate_scenedelegate",
-      "ios_app_app_scenedelegate_scenedelegate_scene",
-      "ios_app_app_scenedelegate_swift_uiscene",
-      "ios_app_app_scenedelegate_swift_uiscenesession",
-      "ios_app_app_scenedelegate_swift_uiwindow",
-      "nsuseractivity",
-      "set",
       "uiapplication",
       "uiapplicationdelegate",
-      "uikit",
-      "uiopenurlcontext",
-      "uiresponder",
-      "uisceneconfiguration",
-      "uiwindowscenedelegate"
-    ],
-    "3": [
-      "src_auth",
-      "src_auth_base64urldecode",
-      "src_auth_base64urldecodetobuffer",
-      "src_auth_base64urlencode",
-      "src_auth_base64urlencodebuffer",
-      "src_auth_buffertohex",
-      "src_auth_clearsessioncookie",
-      "src_auth_createjwt",
-      "src_auth_generateid",
-      "src_auth_generatesalt",
-      "src_auth_getjwtkey",
-      "src_auth_hashpassword",
-      "src_auth_hextobuffer",
-      "src_auth_parsecookies",
-      "src_auth_setsessioncookie",
-      "src_auth_verifyjwt",
-      "src_auth_verifypassword",
-      "src_index_recordcompletionhistory",
-      "src_index_requireauth",
-      "test_auth_test",
-      "test_auth_test_runtests",
-      "test_auth_test_runtests_assert"
-    ],
-    "4": [
-      "generate_icons",
-      "generate_icons_fs",
-      "generate_icons_run",
-      "generate_icons_sharp",
-      "ref_fs",
-      "ref_node_fs",
-      "ref_node_path",
-      "ref_node_vm",
-      "ref_sharp",
-      "scripts_build",
-      "scripts_build_build",
-      "scripts_build_vendor_libs",
-      "scripts_generate_all_icons",
-      "scripts_generate_all_icons_generateallicons",
-      "src_frontend",
-      "src_frontend_renderhtml",
-      "src_sw",
-      "src_sw_renderserviceworker",
-      "update_icon",
-      "update_icon_b64",
-      "update_icon_fs"
+      "uisceneconfiguration"
     ],
     "5": [
-      "github_workflows_build_ipa",
-      "github_workflows_build_ipa_build_ios_name",
-      "github_workflows_build_ipa_build_ios_runs_on",
-      "github_workflows_build_ipa_build_ios_steps",
-      "github_workflows_build_ipa_jobs",
-      "github_workflows_build_ipa_jobs_build_ios",
-      "github_workflows_build_ipa_name",
-      "github_workflows_build_ipa_on",
-      "github_workflows_build_ipa_on_push",
-      "github_workflows_build_ipa_on_workflow_dispatch",
-      "github_workflows_build_ipa_push_branches",
-      "github_workflows_build_ipa_push_paths",
-      "github_workflows_build_ipa_steps_name",
-      "github_workflows_build_ipa_steps_run",
-      "github_workflows_build_ipa_steps_uses",
-      "github_workflows_build_ipa_steps_with",
-      "github_workflows_build_ipa_with_cache",
-      "github_workflows_build_ipa_with_name",
-      "github_workflows_build_ipa_with_node_version",
-      "github_workflows_build_ipa_with_path",
-      "github_workflows_build_ipa_with_retention_days"
-    ],
-    "6": [
       "tsconfig",
       "tsconfig_compileroptions",
       "tsconfig_compileroptions_esmoduleinterop",
       "tsconfig_compileroptions_forceconsistentcasinginfilenames",
-      "tsconfig_compileroptions_jsx",
-      "tsconfig_compileroptions_jsximportsource",
       "tsconfig_compileroptions_lib",
       "tsconfig_compileroptions_module",
       "tsconfig_compileroptions_moduleresolution",
@@ -207,9 +128,24 @@
       "tsconfig_compileroptions_skiplibcheck",
       "tsconfig_compileroptions_strict",
       "tsconfig_compileroptions_target",
-      "tsconfig_compileroptions_types",
       "tsconfig_exclude",
       "tsconfig_include"
+    ],
+    "6": [
+      "capacitor",
+      "ios_app_app_appdelegate",
+      "ios_app_app_scenedelegate",
+      "ios_app_app_scenedelegate_scenedelegate",
+      "ios_app_app_scenedelegate_scenedelegate_scene",
+      "ios_app_app_scenedelegate_swift_uiscene",
+      "ios_app_app_scenedelegate_swift_uiscenesession",
+      "ios_app_app_scenedelegate_swift_uiwindow",
+      "nsuseractivity",
+      "set",
+      "uikit",
+      "uiopenurlcontext",
+      "uiresponder",
+      "uiwindowscenedelegate"
     ],
     "7": [
       "src_export",
@@ -219,50 +155,36 @@
       "src_export_generateics",
       "src_export_ts_docref_rfc_5545",
       "src_export_validateandparseimportjson",
-      "src_telegram_parsetaskfromtext",
       "src_types",
       "src_types_completionhistory",
-      "src_types_jwtpayload",
       "src_types_subtask",
       "src_types_todo",
       "src_types_todoimage",
-      "src_types_user",
       "test_v2_features_test",
       "test_v2_features_test_run"
     ],
     "8": [
+      "generate_icons",
+      "generate_icons_fs",
+      "generate_icons_run",
+      "generate_icons_sharp",
+      "ref_fs",
+      "ref_sharp",
+      "update_icon",
+      "update_icon_b64",
+      "update_icon_fs"
+    ],
+    "9": [
       "package_scripts",
       "package_scripts_build",
       "package_scripts_cap_open",
       "package_scripts_cap_sync",
-      "package_scripts_db_create",
-      "package_scripts_db_init_local",
-      "package_scripts_db_init_remote",
-      "package_scripts_db_migrate_remote",
-      "package_scripts_db_seed_local",
-      "package_scripts_db_seed_remote",
-      "package_scripts_deploy",
-      "package_scripts_dev",
       "package_scripts_test"
-    ],
-    "9": [
-      "ref_node_assert",
-      "test_api_test",
-      "test_api_test_run",
-      "test_recurring_test",
-      "test_recurring_test_prepare",
-      "test_recurring_test_test",
-      "test_webhook_test",
-      "test_webhook_test_run",
-      "test_webhook_test_test",
-      "test_webhook_test_tests"
     ],
     "10": [
       "src_icon",
       "src_icon_geticonpngbytes",
-      "src_icon_icon_192_png_base64",
-      "src_iosprofile",
-      "src_iosprofile_generateiosmobileconfig"
+      "src_icon_icon_192_png_base64"
     ],
     "11": [
       "ios_app_capapp_spm_package",
@@ -273,17 +195,17 @@
     ]
   },
   "cohesion": {
-    "0": 0.06236786469344609,
-    "1": 0.13937282229965156,
-    "2": 0.08620689655172414,
-    "3": 0.22510822510822512,
-    "4": 0.12380952380952381,
-    "5": 0.09523809523809523,
-    "6": 0.1111111111111111,
-    "7": 0.2426470588235294,
-    "8": 0.15384615384615385,
-    "9": 0.2222222222222222,
-    "10": 0.5,
+    "0": 0.08199643493761141,
+    "1": 0.1,
+    "2": 0.20915032679738563,
+    "3": 0.16911764705882354,
+    "4": 0.18095238095238095,
+    "5": 0.13333333333333333,
+    "6": 0.15384615384615385,
+    "7": 0.31868131868131866,
+    "8": 0.25,
+    "9": 0.4,
+    "10": 0.6666666666666666,
     "11": 1.0,
     "12": 1.0
   },
@@ -291,22 +213,7 @@
     {
       "id": "tsconfig_compileroptions",
       "label": "compilerOptions",
-      "degree": 15
-    },
-    {
-      "id": "package_scripts",
-      "label": "scripts",
-      "degree": 13
-    },
-    {
-      "id": "src_telegram_escapehtml",
-      "label": "escapeHtml()",
-      "degree": 11
-    },
-    {
-      "id": "test_auth_test_runtests",
-      "label": "runTests()",
-      "degree": 11
+      "degree": 12
     },
     {
       "id": "ios_app_app_appdelegate_appdelegate",
@@ -314,29 +221,44 @@
       "degree": 10
     },
     {
-      "id": "src_telegram_formatvndatetime",
-      "label": "formatVnDateTime()",
-      "degree": 10
-    },
-    {
-      "id": "test_telegram_test_runtests",
-      "label": "runTests()",
-      "degree": 10
-    },
-    {
-      "id": "src_index_checkandsenddailybriefings",
-      "label": "checkAndSendDailyBriefings()",
-      "degree": 9
-    },
-    {
-      "id": "src_telegram_sendorupdatetelegramtaskreminder",
-      "label": "sendOrUpdateTelegramTaskReminder()",
+      "id": "test_v3_features_test_run",
+      "label": "run()",
       "degree": 8
     },
     {
-      "id": "src_telegram_sendtelegrammessage",
-      "label": "sendTelegramMessage()",
+      "id": "test_v2_features_test_run",
+      "label": "run()",
       "degree": 8
+    },
+    {
+      "id": "github_workflows_build_ios_ipa_steps_with",
+      "label": "with",
+      "degree": 6
+    },
+    {
+      "id": "ios_app_app_scenedelegate_scenedelegate",
+      "label": "SceneDelegate",
+      "degree": 5
+    },
+    {
+      "id": "src_client_notifications_getvndateparts",
+      "label": "getVnDateParts()",
+      "degree": 5
+    },
+    {
+      "id": "src_utils_calculatestreak",
+      "label": "calculateStreak()",
+      "degree": 5
+    },
+    {
+      "id": "src_utils_parsetaskfromtext",
+      "label": "parseTaskFromText()",
+      "degree": 5
+    },
+    {
+      "id": "src_export_generateics",
+      "label": "generateIcs()",
+      "degree": 5
     }
   ],
   "surprises": [
@@ -345,7 +267,7 @@
       "target": "calculateStreak()",
       "source_files": [
         "test/v2_features.test.ts",
-        "src/telegram.ts"
+        "src/utils.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
@@ -353,21 +275,32 @@
     },
     {
       "source": "run()",
+      "target": "parseTaskFromText()",
+      "source_files": [
+        "test/v2_features.test.ts",
+        "src/utils.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "connects across different repos/directories; bridges separate communities"
+    },
+    {
+      "source": "run()",
+      "target": "formatVnTime()",
+      "source_files": [
+        "test/v3_features.test.ts",
+        "src/client/notifications.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "connects across different repos/directories"
+    },
+    {
+      "source": "run()",
       "target": "getVnDateParts()",
       "source_files": [
         "test/v3_features.test.ts",
-        "src/index.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "connects across different repos/directories"
-    },
-    {
-      "source": "runTests()",
-      "target": "answerCallbackQuery()",
-      "source_files": [
-        "test/telegram.test.ts",
-        "src/telegram.ts"
+        "src/client/notifications.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
@@ -375,62 +308,18 @@
     },
     {
       "source": "run()",
-      "target": "buildEveningBriefing()",
+      "target": "parseDateSafe()",
       "source_files": [
         "test/v3_features.test.ts",
-        "src/telegram.ts"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "connects across different repos/directories"
-    },
-    {
-      "source": "run()",
-      "target": "buildMorningBriefing()",
-      "source_files": [
-        "test/v3_features.test.ts",
-        "src/telegram.ts"
+        "src/client/notifications.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
       "why": "connects across different repos/directories"
     }
   ],
-  "questions": [
-    {
-      "type": "bridge_node",
-      "question": "Why does `hono` connect `Community 0` to `Community 1`?",
-      "why": "High betweenness centrality (0.222) - this node is a cross-community bridge."
-    },
-    {
-      "type": "isolated_nodes",
-      "question": "What connects `RFC-5545`, `PackageDescription`, `RFC-5545` to the rest of the system?",
-      "why": "3 weakly-connected nodes found - possible missing edges."
-    },
-    {
-      "type": "low_cohesion",
-      "question": "Should `Community 0` be split into smaller, more focused modules?",
-      "why": "Cohesion score 0.06236786469344609 - nodes in this community are weakly interconnected."
-    },
-    {
-      "type": "bridge_node",
-      "question": "Why does `scripts` connect `Community 8` to `Community 0`?",
-      "why": "High betweenness centrality (0.067) - this node is a cross-community bridge."
-    },
-    {
-      "type": "low_cohesion",
-      "question": "Should `Community 1` be split into smaller, more focused modules?",
-      "why": "Cohesion score 0.13937282229965156 - nodes in this community are weakly interconnected."
-    },
-    {
-      "type": "low_cohesion",
-      "question": "Should `Community 2` be split into smaller, more focused modules?",
-      "why": "Cohesion score 0.08620689655172414 - nodes in this community are weakly interconnected."
-    },
-    {
-      "type": "low_cohesion",
-      "question": "Should `Community 4` be split into smaller, more focused modules?",
-      "why": "Cohesion score 0.12380952380952381 - nodes in this community are weakly interconnected."
-    }
-  ]
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
 }

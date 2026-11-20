@@ -1,18 +1,10 @@
 {
-  "name": "cloudflare-todo-list",
-  "version": "2.5.0",
+  "name": "todolist-local",
+  "version": "3.0.0",
   "private": true,
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "db:create": "wrangler d1 create todo-db",
-    "db:init:local": "wrangler d1 execute todo-db --local --file=./schema.sql",
-    "db:init:remote": "wrangler d1 execute todo-db --remote --file=./schema.sql",
-    "db:migrate:remote": "wrangler d1 execute todo-db --remote --file=./migration_pinned.sql",
-    "db:seed:local": "wrangler d1 execute todo-db --local --file=./seed.sql",
-    "db:seed:remote": "wrangler d1 execute todo-db --remote --file=./seed.sql",
-    "test": "tsx test/auth.test.ts && tsx test/recurring.test.ts && tsx test/api.test.ts && tsx test/v2_features.test.ts && tsx test/v3_features.test.ts",
     "build": "tsx scripts/build.ts",
+    "test": "tsx test/recurring.test.ts && tsx test/v2_features.test.ts && tsx test/v3_features.test.ts",
     "cap:sync": "npm run build && cap sync ios",
     "cap:open": "cap open ios"
   },
@@ -26,21 +18,11 @@
     "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.2",
-    "@capacitor/status-bar": "^8.0.4",
-    "@capgo/capacitor-updater": "^8.54.2",
-    "capacitor-voice-recorder": "^7.0.6",
-    "hono": "^4.6.0"
+    "@capacitor/status-bar": "^8.0.4"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20241106.0",
     "@playwright/test": "^1.65.1",
     "tsx": "^4.23.15",
-    "typescript": "^5.6.0",
-    "wrangler": "^3.91.0"
-  },
-  "allowScripts": {
-    "esbuild": true,
-    "workerd": true,
-    "sharp": true
+    "typescript": "^5.6.0"
   }
 }
