@@ -2,6 +2,7 @@ import { storageScript } from './client/storage';
 import { notificationsScript } from './client/notifications';
 import { audioTimerScript } from './client/audio-timer';
 import { otaUpdaterScript } from './client/ota-updater';
+import { APP_VERSION } from './version';
 
 // ============================================================
 // Frontend SPA — To-Do List (Alpine.js + Tailwind CSS + PWA)
@@ -73,6 +74,15 @@ export function renderHTML(): string {
     })();
   </script>
 
+  <script>
+    (function(){
+      var origWarn = console.warn;
+      console.warn = function() {
+        if (arguments[0] && typeof arguments[0] === 'string' && arguments[0].indexOf('cdn.tailwindcss.com') !== -1) return;
+        return origWarn.apply(console, arguments);
+      };
+    })();
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script>
@@ -472,7 +482,7 @@ export function renderHTML(): string {
         <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </span>
-        <input x-model="searchQuery" type="text" placeholder="Tìm kiếm công việc nhanh (phím / để tìm)..."
+        <input id="search-input" name="searchQuery" x-model="searchQuery" type="text" placeholder="Tìm kiếm công việc nhanh (phím / để tìm)..."
                aria-label="Tìm kiếm công việc"
                class="w-full pl-9 pr-14 py-2 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/50 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-xs sm:text-sm font-medium" />
         <div class="absolute inset-y-0 right-0 pr-2.5 flex items-center gap-1">
@@ -539,7 +549,7 @@ export function renderHTML(): string {
 
       <!-- Secondary Filters (Danh mục, Ưu tiên, Sắp xếp) & Dọn dẹp -->
       <div class="flex items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800 overflow-x-auto no-scrollbar text-xs">
-        <select x-model="filterCategory"
+        <select id="filter-category" name="filterCategory" x-model="filterCategory"
                 aria-label="Lọc theo danh mục"
                 class="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
           <option value="all">📁 Danh mục (Tất cả)</option>
@@ -548,7 +558,7 @@ export function renderHTML(): string {
           </template>
         </select>
 
-        <select x-model="filterPriority"
+        <select id="filter-priority" name="filterPriority" x-model="filterPriority"
                 aria-label="Lọc theo mức độ ưu tiên"
                 class="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
           <option value="all">⚡ Ưu tiên (Tất cả)</option>
@@ -557,7 +567,7 @@ export function renderHTML(): string {
           <option value="Low">🟢 Thấp (Low)</option>
         </select>
 
-        <select x-model="sortBy"
+        <select id="filter-sort-by" name="sortBy" x-model="sortBy"
                 aria-label="Sắp xếp danh sách công việc"
                 class="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
           <option value="due_date-asc">📅 Hạn: Gần → Xa</option>
@@ -679,7 +689,7 @@ export function renderHTML(): string {
                     role="checkbox"
                     :aria-checked="Boolean(todo.is_completed)"
                     :aria-label="todo.is_completed ? ('Đánh dấu chưa hoàn thành: ' + todo.title) : (isOverdue(todo) ? ('Xác nhận đã xong việc quá hạn: ' + todo.title) : ('Đánh dấu hoàn thành: ' + todo.title))"
-                    class="mt-0.5 flex-shrink-0 w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all duration-150 cursor-pointer shadow-xs active:scale-90"
+                    class="mt-0.5 flex-shrink-0 w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all duration-150 cursor-pointer shadow-xs active:scale-90 touch-manipulation"
                     :class="{
                       'bg-emerald-500 border-emerald-500 text-white shadow-emerald-500/20': todo.is_completed,
                       'bg-rose-50 dark:bg-rose-950/80 border-rose-500 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900 overdue-glow': !todo.is_completed && isOverdue(todo),
@@ -697,22 +707,22 @@ export function renderHTML(): string {
 
             <div class="flex-1 min-w-0">
               <div class="flex items-start justify-between gap-2">
-                <div class="flex items-center gap-2 flex-wrap">
-                  <span x-show="Boolean(todo.is_pinned)" x-cloak class="inline-flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/70 px-2 py-0.5 rounded-lg border border-amber-200 dark:border-amber-800">
+                <div class="flex items-center gap-2 flex-wrap min-w-0">
+                  <span x-show="Boolean(todo.is_pinned)" x-cloak class="inline-flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/70 px-2 py-0.5 rounded-lg border border-amber-200 dark:border-amber-800 flex-shrink-0">
                     <svg class="w-3 h-3 text-amber-500" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
                     Đã ghim
                   </span>
 
-                  <!-- Cả việc Đã xong lẫn Quá hạn đều bị gạch ngang tên theo yêu cầu -->
-                  <h3 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white break-words"
+                  <!-- Cả việc Đã xong lẫn Quá hạn đều bị gạch ngang tên theo yêu cầu, hỗ trợ text siêu dài không vỡ layout -->
+                  <h3 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white break-words [overflow-wrap:anywhere] leading-snug"
                       :class="(todo.is_completed || isOverdue(todo)) && 'line-through-anim opacity-75'" x-text="todo.title"></h3>
                 </div>
 
-                <div class="flex-shrink-0 flex items-center gap-0.5 sm:gap-1">
+                <div class="flex-shrink-0 flex items-center gap-1 sm:gap-1.5">
                   <!-- Ghim (Pushpin Solid) -->
                   <button @click="togglePin(todo, $event)"
                           :aria-label="todo.is_pinned ? ('Bỏ ghim: ' + todo.title) : ('Ghim lên đầu: ' + todo.title)"
-                          class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl inline-flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-90"
+                          class="w-8 h-8 rounded-xl inline-flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-90 touch-manipulation cursor-pointer"
                           :class="todo.is_pinned ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'" :title="todo.is_pinned ? 'Bỏ ghim' : 'Ghim lên đầu'">
                     <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
                   </button>
@@ -720,21 +730,21 @@ export function renderHTML(): string {
                   <!-- Nhân bản (Copy Layer) -->
                   <button @click="duplicateTodo(todo, $event)"
                           :aria-label="'Nhân bản công việc: ' + todo.title"
-                          class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl inline-flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-blue-500 transition active:scale-90" title="Nhân bản">
+                          class="w-8 h-8 rounded-xl inline-flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-blue-500 transition active:scale-90 touch-manipulation cursor-pointer" title="Nhân bản">
                     <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                   </button>
 
                   <!-- Chỉnh sửa (Pen Icon) -->
                   <button @click="openEditModal(todo, $event)"
                           :aria-label="'Chỉnh sửa công việc: ' + todo.title"
-                          class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl inline-flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-brand-600 transition active:scale-90" title="Sửa">
+                          class="w-8 h-8 rounded-xl inline-flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-brand-600 transition active:scale-90 touch-manipulation cursor-pointer" title="Sửa">
                     <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                   </button>
 
                   <!-- Xoá (Trash Icon) -->
                   <button @click="confirmDelete(todo, $event)"
                           :aria-label="'Xóa công việc: ' + todo.title"
-                          class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl inline-flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-500 transition active:scale-90" title="Xóa">
+                          class="w-8 h-8 rounded-xl inline-flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-500 transition active:scale-90 touch-manipulation cursor-pointer" title="Xóa">
                     <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                   </button>
                 </div>
@@ -790,7 +800,7 @@ export function renderHTML(): string {
                 </span>
 
                 <!-- Thẻ #tags -->
-                <template x-for="tg in getTags(todo)" :key="tg">
+                <template x-for="(tg, tgIdx) in getTags(todo)" :key="tg + '_' + tgIdx">
                   <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                     #<span x-text="tg"></span>
                   </span>
@@ -847,11 +857,11 @@ export function renderHTML(): string {
                 </div>
                 <!-- Subtasks List (Direct Tick) -->
                 <div x-show="todo._expandedSubtasks" class="space-y-1.5 pl-2">
-                  <template x-for="st in getSubtasks(todo)" :key="st.id">
+                  <template x-for="(st, sIdx) in getSubtasks(todo)" :key="st.id || sIdx">
                     <label class="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none py-0.5">
-                      <input type="checkbox" :checked="Boolean(st.is_completed)" @change="toggleSubtask(todo, st.id)"
-                             class="rounded text-brand-600 focus:ring-brand-500 w-3.5 h-3.5 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 cursor-pointer" />
-                      <span :class="st.is_completed && 'line-through text-slate-400 dark:text-slate-500'" x-text="st.title"></span>
+                      <input type="checkbox" :id="'st_card_' + (st.id || sIdx)" :name="'st_card_' + (st.id || sIdx)" aria-label="Đánh dấu việc con" :checked="Boolean(st.is_completed)" @change="toggleSubtask(todo, st.id)"
+                             class="rounded text-brand-600 focus:ring-brand-500 w-4 h-4 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 cursor-pointer touch-manipulation" />
+                      <span :class="st.is_completed && 'line-through text-slate-400 dark:text-slate-500'" class="break-words [overflow-wrap:anywhere]" x-text="st.title"></span>
                     </label>
                   </template>
                 </div>
@@ -999,7 +1009,6 @@ export function renderHTML(): string {
     </div>
   </div>
 </div>
-  </div>
 </div>
 
 <!-- ═══════ CREATE / EDIT MODAL ═══════ -->
@@ -1042,7 +1051,7 @@ export function renderHTML(): string {
             1. Tiêu đề công việc <span class="text-rose-500">*</span>
           </label>
           </div>
-        <input id="todo-title-input" x-model="todoForm.title" type="text" required placeholder="Ví dụ: Làm bài tập, Họp đối tác, Tập gym..."
+        <input id="todo-title-input" name="title" aria-label="Tiêu đề công việc" x-model="todoForm.title" type="text" required placeholder="Ví dụ: Làm bài tập, Họp đối tác, Tập gym..."
                class="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 focus:ring-2 focus:ring-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-sm font-semibold text-slate-900 dark:text-white" />
       </div>
 
@@ -1051,7 +1060,7 @@ export function renderHTML(): string {
         <label for="todo-desc-input" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
           2. Ghi chú chi tiết
         </label>
-        <textarea id="todo-desc-input" x-model="todoForm.description" rows="2" placeholder="Ghi chú thêm nội dung hoặc link tài liệu..."
+        <textarea id="todo-desc-input" name="description" aria-label="Ghi chú chi tiết công việc" x-model="todoForm.description" rows="2" placeholder="Ghi chú thêm nội dung hoặc link tài liệu..."
                   class="w-full px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 focus:ring-2 focus:ring-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-sm resize-none text-slate-800 dark:text-slate-200"></textarea>
       </div>
 
@@ -1060,24 +1069,24 @@ export function renderHTML(): string {
         <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
           3. Việc con (Checklist)
         </label>
-        <div class="space-y-1.5 mb-2" x-show="todoForm.subtasks && todoForm.subtasks.length > 0">
+        <div class="space-y-1.5 mb-2 max-h-48 overflow-y-auto no-scrollbar" x-show="todoForm.subtasks && todoForm.subtasks.length > 0">
           <template x-for="(st, idx) in todoForm.subtasks" :key="st.id || idx">
             <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
-              <input type="checkbox" :checked="Boolean(st.is_completed)" @change="st.is_completed = st.is_completed ? 0 : 1"
-                     class="rounded text-brand-600 focus:ring-brand-500 w-4 h-4 cursor-pointer" />
-              <input type="text" x-model="st.title" placeholder="Tên việc con..."
-                     class="flex-1 bg-transparent text-xs font-semibold outline-none text-slate-800 dark:text-slate-200" />
-              <button type="button" @click="removeSubtask(idx)" class="p-1 text-slate-400 hover:text-rose-500 rounded-lg">
+              <input type="checkbox" :id="'st_chk_form_' + idx" name="form_subtask_completed" aria-label="Đánh dấu việc con đã xong" :checked="Boolean(st.is_completed)" @change="st.is_completed = st.is_completed ? 0 : 1"
+                     class="rounded text-brand-600 focus:ring-brand-500 w-4 h-4 cursor-pointer touch-manipulation" />
+              <input type="text" :id="'st_title_form_' + idx" name="form_subtask_title" aria-label="Tiêu đề việc con" x-model="st.title" placeholder="Tên việc con..."
+                     class="flex-1 bg-transparent text-xs font-semibold outline-none text-slate-800 dark:text-slate-200 break-words" />
+              <button type="button" @click="removeSubtask(idx)" aria-label="Xóa việc con này" class="p-1 text-slate-400 hover:text-rose-500 rounded-lg cursor-pointer">
                 <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
           </template>
         </div>
         <div class="flex gap-2">
-          <input type="text" x-model="newSubtaskInput" @keydown.enter.prevent="addSubtask()" placeholder="+ Thêm việc con (nhấn Enter)..."
+          <input type="text" id="new-subtask-input" name="newSubtaskInput" aria-label="Thêm việc con mới" x-model="newSubtaskInput" @keydown.enter.prevent="addSubtask()" placeholder="+ Thêm việc con (nhấn Enter)..."
                  class="flex-1 h-10 px-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-1 focus:ring-brand-500" />
-          <button type="button" @click="addSubtask()"
-                  class="h-10 px-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-xs active:scale-95 transition inline-flex items-center justify-center">
+          <button type="button" @click="addSubtask()" aria-label="Nút thêm việc con"
+                  class="h-10 px-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-xs active:scale-95 transition inline-flex items-center justify-center cursor-pointer">
             + Thêm
           </button>
         </div>
@@ -1088,13 +1097,13 @@ export function renderHTML(): string {
         <!-- Danh mục -->
         <div>
           <div class="flex items-center justify-between mb-1">
-            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">4. Danh mục</label>
-            <button type="button" @click="customCategoryMode = !customCategoryMode" class="text-[11px] text-brand-600 dark:text-brand-400 font-bold hover:underline">
+            <label for="todo-category-select" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">4. Danh mục</label>
+            <button type="button" @click="customCategoryMode = !customCategoryMode" class="text-[11px] text-brand-600 dark:text-brand-400 font-bold hover:underline cursor-pointer">
               <span x-text="customCategoryMode ? 'Chọn sẵn' : '+ Tạo mới'"></span>
             </button>
           </div>
           <div x-show="!customCategoryMode">
-            <select x-model="todoForm.category" aria-label="Chọn danh mục có sẵn"
+            <select id="todo-category-select" name="category" x-model="todoForm.category" aria-label="Chọn danh mục có sẵn"
                     class="w-full px-3 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold outline-none cursor-pointer">
               <template x-for="cat in categories" :key="cat">
                 <option :value="cat" x-text="cat"></option>
@@ -1102,15 +1111,15 @@ export function renderHTML(): string {
             </select>
           </div>
           <div x-show="customCategoryMode">
-            <input x-model="todoForm.category" type="text" placeholder="Nhập danh mục mới..." aria-label="Nhập danh mục mới"
+            <input id="todo-custom-category-input" name="customCategory" x-model="todoForm.category" type="text" placeholder="Nhập danh mục mới..." aria-label="Nhập danh mục mới"
                    class="w-full px-3 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold outline-none" />
           </div>
         </div>
 
         <!-- Mức độ ưu tiên (Tần suất nhắc chuông) -->
         <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">5. Ưu tiên</label>
-          <select x-model="todoForm.priority" aria-label="Mức độ ưu tiên"
+          <label for="todo-priority-select" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">5. Ưu tiên</label>
+          <select id="todo-priority-select" name="priority" x-model="todoForm.priority" aria-label="Mức độ ưu tiên"
                   class="w-full px-3 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold outline-none cursor-pointer">
             <option value="High">🔴 High</option>
             <option value="Medium">🟡 Medium</option>
@@ -1120,8 +1129,8 @@ export function renderHTML(): string {
 
         <!-- Tùy chỉnh mốc nhắc nhở (Reminder Offset) -->
         <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">6. Nhắc trước</label>
-          <select x-model.number="todoForm.reminder_offset" aria-label="Nhắc trước hạn"
+          <label for="todo-reminder-offset-select" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">6. Nhắc trước</label>
+          <select id="todo-reminder-offset-select" name="reminder_offset" x-model.number="todoForm.reminder_offset" aria-label="Nhắc trước hạn"
                   class="w-full px-3 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold outline-none cursor-pointer">
             <option :value="0">Đúng giờ</option>
             <option :value="5">Trước 5 phút</option>
@@ -1147,10 +1156,10 @@ export function renderHTML(): string {
           </template>
         </div>
         <div class="flex gap-2">
-          <input type="text" x-model="newTagInput" @keydown.enter.prevent="addTag()" placeholder="Nhập tag (ví dụ: gap, canhan, congty) rồi bấm + Thẻ..."
+          <input type="text" id="new-tag-input" name="newTagInput" aria-label="Nhập thẻ nhãn mới" x-model="newTagInput" @keydown.enter.prevent="addTag()" placeholder="Nhập tag (ví dụ: gap, canhan, congty) rồi bấm + Thẻ..."
                  class="flex-1 h-10 px-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-1 focus:ring-brand-500" />
-          <button type="button" @click="addTag()"
-                  class="h-10 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold rounded-xl text-xs active:scale-95 transition inline-flex items-center justify-center">
+          <button type="button" @click="addTag()" aria-label="Nút thêm thẻ"
+                  class="h-10 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold rounded-xl text-xs active:scale-95 transition inline-flex items-center justify-center cursor-pointer">
             + Thẻ
           </button>
         </div>
@@ -1184,7 +1193,7 @@ export function renderHTML(): string {
 
         <!-- Khi CHỌN KHÔNG LẶP: Nhập đầy đủ Giờ, Ngày Tháng Năm -->
         <div x-show="todoForm.repeat_mode === 'none'" class="w-full space-y-2">
-          <input x-model="todoForm.due_datetime" type="datetime-local" aria-label="Thời hạn hoàn thành"
+          <input id="due-datetime-input" name="due_datetime" x-model="todoForm.due_datetime" type="datetime-local" aria-label="Thời hạn hoàn thành"
                  class="block w-full max-w-full box-border appearance-none px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm font-semibold text-left outline-none" />
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <button type="button" @click="setQuickDate('today-12')" class="py-2 px-1 text-center text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-300 transition active:scale-95">Hôm nay 12:00</button>
@@ -1197,7 +1206,7 @@ export function renderHTML(): string {
         <div x-show="todoForm.repeat_mode === 'daily'" class="space-y-2">
           <div class="flex items-center gap-3">
             <span class="text-xs font-bold text-slate-600 dark:text-slate-400">Chọn giờ mỗi ngày:</span>
-            <input x-model="todoForm.daily_time" type="time" aria-label="Chọn giờ mỗi ngày"
+            <input id="daily-time-input" name="daily_time" x-model="todoForm.daily_time" type="time" aria-label="Chọn giờ mỗi ngày"
                    class="flex-1 px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm font-semibold outline-none" />
           </div>
           <div class="grid grid-cols-4 gap-2">
@@ -1231,7 +1240,7 @@ export function renderHTML(): string {
           </div>
           <div class="flex items-center gap-3">
             <span class="text-xs font-bold text-slate-600 dark:text-slate-400">Chọn giờ thực hiện:</span>
-            <input x-model="todoForm.weekly_time" type="time" aria-label="Chọn giờ thực hiện hàng tuần"
+            <input id="weekly-time-input" name="weekly_time" x-model="todoForm.weekly_time" type="time" aria-label="Chọn giờ thực hiện hàng tuần"
                    class="flex-1 px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm font-semibold outline-none" />
           </div>
         </div>
@@ -1239,7 +1248,7 @@ export function renderHTML(): string {
 
       <!-- Ghim công việc -->
       <div class="flex items-center gap-2 pt-1">
-        <input type="checkbox" id="pinCheck" x-model="todoForm.is_pinned" class="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer" />
+        <input type="checkbox" id="pinCheck" name="is_pinned" aria-label="Ghim công việc này lên đầu danh sách" x-model="todoForm.is_pinned" class="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer" />
         <label for="pinCheck" class="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer flex items-center gap-1.5 select-none">
           <svg class="w-3.5 h-3.5 text-amber-500" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
           Ghim công việc này lên đầu danh sách
@@ -1266,8 +1275,8 @@ export function renderHTML(): string {
 </div>
 
 <!-- Global Hidden Inputs for Camera and Photo Gallery Upload -->
-<input id="todo-camera-input" type="file" accept="image/*" capture="environment" class="hidden" @change="handleProofImageSelected($event)" />
-<input id="todo-image-input" type="file" accept="image/*" class="hidden" @change="handleProofImageSelected($event)" />
+<input id="todo-camera-input" name="todoCameraInput" aria-label="Chụp ảnh minh chứng kết quả" type="file" accept="image/*" capture="environment" class="hidden" @change="handleProofImageSelected($event)" />
+<input id="todo-image-input" name="todoImageInput" aria-label="Tải ảnh minh chứng kết quả" type="file" accept="image/*" class="hidden" @change="handleProofImageSelected($event)" />
 
 <!-- ═══════ MODAL XÁC NHẬN HOÀN THÀNH CÔNG VIỆC KÈM MINH CHỨNG (TÙY CHỌN) ═══════ -->
 <div x-show="showCompletionModal" x-cloak class="fixed inset-0 z-[125] flex items-center justify-center p-4"
@@ -1486,7 +1495,7 @@ export function renderHTML(): string {
           <span>Khôi phục từ file JSON</span>
           <p class="text-[11px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">Chọn file sao lưu từ iPhone để phục hồi danh sách công việc</p>
         </div>
-        <input type="file" accept=".json" class="hidden" @change="handleImportJsonFile($event)" />
+        <input id="import-json-input" name="importJsonInput" aria-label="Chọn tệp JSON sao lưu" type="file" accept=".json" class="hidden" @change="handleImportJsonFile($event)" />
       </label>
     </div>
   </div>
@@ -1746,7 +1755,7 @@ export function renderHTML(): string {
 
         <div x-show="ambientSound !== 'none'" class="flex items-center gap-3 pt-1">
           <span class="text-[11px] font-bold text-slate-400">Âm lượng:</span>
-          <input type="range" min="0" max="100" step="5" x-model.number="ambientVolume" @input="setAmbientVolume($event.target.value)"
+          <input id="ambient-volume-slider" name="ambientVolume" aria-label="Âm lượng âm thanh nền" type="range" min="0" max="100" step="5" x-model.number="ambientVolume" @input="setAmbientVolume($event.target.value)"
                  class="flex-1 accent-brand-600 cursor-pointer h-1.5 rounded-lg bg-slate-200 dark:bg-slate-700" />
           <span class="text-[11px] font-mono text-slate-400 w-10 text-right" x-text="ambientVolume + '%'"></span>
         </div>
@@ -1937,7 +1946,7 @@ function app() {
     toasts: [],
     toastId: 0,
     showAboutModal: false,
-    appVersion: '2.6.0',
+    appVersion: '${APP_VERSION}',
     isRefreshing: false,
 
     // ── GỘP CÁC MODULE CON ĐỘC LẬP ──

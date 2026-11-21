@@ -176,13 +176,30 @@ function getStorageModule() {
     // ─── HELPERS ───
     getSubtasks(todo) {
       if (!todo || !todo.subtasks) return [];
-      if (Array.isArray(todo.subtasks)) return todo.subtasks;
-      try {
-        const parsed = JSON.parse(todo.subtasks);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
+      let list = [];
+      if (Array.isArray(todo.subtasks)) {
+        list = todo.subtasks;
+      } else {
+        try {
+          const parsed = JSON.parse(todo.subtasks);
+          list = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
       }
+      const seenIds = new Set();
+      return list.map((st, idx) => {
+        if (!st || typeof st !== 'object') {
+          return { id: 'st_' + (todo.id || 't') + '_' + idx, title: String(st || ''), is_completed: 0 };
+        }
+        let id = st.id;
+        if (!id || seenIds.has(id)) {
+          id = 'st_' + (todo.id || 't') + '_' + idx + '_' + Math.random().toString(36).slice(2, 6);
+          st.id = id;
+        }
+        seenIds.add(id);
+        return st;
+      });
     },
 
     getTags(todo) {
@@ -359,6 +376,9 @@ function getStorageModule() {
 
     async toggleTodo(todo, e) {
       if (e?.stopPropagation) e.stopPropagation();
+      if (!todo || todo._isToggling) return;
+      todo._isToggling = true;
+      setTimeout(() => { delete todo._isToggling; }, 250);
       const newStatus = todo.is_completed ? 0 : 1;
 
       // Kiểm tra việc con trước khi hoàn thành
@@ -566,7 +586,7 @@ function getStorageModule() {
       try {
         const payload = {
           app: 'ToDoList-Local',
-          version: '3.0.0',
+          version: '3.1.0',
           exported_at: new Date().toISOString(),
           todos: this.todos,
           categories: this.categories,
@@ -620,7 +640,7 @@ function getStorageModule() {
       try {
         const payload = {
           app: 'ToDoList-Local',
-          version: '3.0.0',
+          version: '3.1.0',
           exported_at: new Date().toISOString(),
           todos: this.todos,
           categories: this.categories,
@@ -1044,7 +1064,7 @@ function getStorageModule() {
 
     checkAppVersion(manual = false) {
       if (manual) {
-        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.0.0') + ')! 🎉', 'success');
+        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.1.0') + ')! 🎉', 'success');
       }
     },
 
