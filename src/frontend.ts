@@ -2355,19 +2355,15 @@ function app() {
         this.currentTimeTick = Date.now();
       }, 1000);
 
-      this.reminderInterval = setInterval(() => {
-        this.checkDueReminders();
-      }, 10000);
-
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
           this.checkAndResetRecurringTasksLocally();
-          this.checkDueReminders();
+          this.syncAllNativeLocalNotifications();
         }
       });
       window.addEventListener('focus', () => {
         this.checkAndResetRecurringTasksLocally();
-        this.checkDueReminders();
+        this.syncAllNativeLocalNotifications();
       });
 
       // Lắng nghe phím tắt

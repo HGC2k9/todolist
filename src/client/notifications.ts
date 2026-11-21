@@ -106,6 +106,58 @@ export function getPriorityWarningMinutes(priority: string): number {
   return 15;
 }
 
+export function generateRollingTaskNotifications(
+  todo: { id: string; title: string; category?: string; priority?: string; due_date?: string; reminder_offset?: number },
+  nowMs: number,
+  maxPerTask: number = 200
+): any[] {
+  if (!todo || !todo.due_date) return [];
+  const d = parseDateSafe(todo.due_date);
+  if (!d) return [];
+
+  const dueTime = d.getTime();
+  const minuteEndMs = (d.getSeconds() === 0) ? (dueTime + 60 * 1000) : dueTime;
+  if (nowMs >= minuteEndMs) return [];
+
+  const offsetMinutes = Number(todo.reminder_offset) || 0;
+  const startAt = dueTime - (offsetMinutes * 60 * 1000);
+  const priority = todo.priority || 'Medium';
+  // High: 2 giây, Medium: 150 giây, Low: 300 giây
+  const intervalMs = (priority === 'High') ? (2 * 1000) : (priority === 'Medium' ? (150 * 1000) : (300 * 1000));
+  const baseId = ((getNotificationId(todo.id) % 80000) + 1000) * 10000;
+
+  const notifications = [];
+  const priorityPrefix = priority === 'High' ? '🚨 [KHẨN CẤP] ' : (priority === 'Medium' ? '⚡ [ƯU TIÊN] ' : '⏰ Nhắc việc: ');
+  const dueTimeStr = formatVnTime(d);
+
+  let startIndex = 0;
+  if (nowMs > startAt) {
+    startIndex = Math.max(0, Math.floor((nowMs - startAt) / intervalMs));
+  }
+
+  let count = 0;
+  for (let i = startIndex; count < maxPerTask; i++) {
+    const triggerTime = startAt + (i * intervalMs);
+    if (triggerTime >= minuteEndMs) break;
+
+    if (triggerTime > nowMs) {
+      const repeatSuffix = i > 0 ? (' (Nhắc lặp lần ' + (i + 1) + ')') : '';
+      notifications.push({
+        id: baseId + (i % 10000),
+        title: priorityPrefix + (todo.title || 'Công việc cần làm'),
+        body: 'Hạn: ' + dueTimeStr + (todo.category ? (' • ' + todo.category) : '') + repeatSuffix,
+        schedule: { at: new Date(triggerTime), allowWhileIdle: true },
+        sound: 'beep.caf',
+        extra: { todoId: todo.id, iteration: i + 1 },
+        triggerTime
+      });
+      count++;
+    }
+  }
+
+  return notifications;
+}
+
 export const notificationsScript = /*javascript*/ `
 function getNotificationsModule() {
   return {
@@ -440,14 +492,13 @@ function getNotificationsModule() {
     startBackgroundTimerWorker() {
       try {
         if (typeof Worker !== 'undefined') {
-          const blobCode = 'let timer = null; self.onmessage = function(e) { if (e.data === "START") { if (timer) clearInterval(timer); timer = setInterval(function() { self.postMessage("TICK"); }, 500); } else if (e.data === "STOP") { if (timer) clearInterval(timer); } };';
+          const blobCode = 'let timer = null; self.onmessage = function(e) { if (e.data === "START") { if (timer) clearInterval(timer); timer = setInterval(function() { self.postMessage("TICK"); }, 1000); } else if (e.data === "STOP") { if (timer) clearInterval(timer); } };';
           const blob = new Blob([blobCode], { type: 'application/javascript' });
           const workerUrl = URL.createObjectURL(blob);
           this.bgWorker = new Worker(workerUrl);
           this.bgWorker.onmessage = (e) => {
             if (e.data === 'TICK') {
               this.currentTimeTick = Date.now();
-              this.checkDueReminders();
             }
           };
           this.bgWorker.postMessage('START');
@@ -455,41 +506,6 @@ function getNotificationsModule() {
       } catch (e) {
         console.warn('Dedicated Web Worker timer not available:', e);
       }
-    },
-
-    checkDueReminders() {
-      if (!this.todos || this.todos.length === 0) return;
-      const now = Date.now();
-
-      this.todos.forEach(todo => {
-        if (todo.is_completed || !todo.due_date || todo.deleted_at) return;
-        const d = this.parseDateSafe(todo.due_date);
-        if (!d) return;
-
-        const timeLeftMs = d.getTime() - now;
-        const minutesLeft = Math.ceil(timeLeftMs / (60 * 1000));
-        const warningWindow = this.getPriorityWarningMinutes(todo.priority);
-
-        if (minutesLeft >= 0 && minutesLeft <= warningWindow) {
-          const lastTime = this.lastNotifiedTimes[todo.id] || 0;
-          // High: 1 giây, Medium: 150 giây, Low: 300 giây
-          const intervalMs = (todo.priority === 'High') ? (1000) : (todo.priority === 'Medium' ? (150 * 1000) : (300 * 1000));
-          const shouldNotify = !lastTime || (now - lastTime >= intervalMs);
-
-          if (shouldNotify) {
-            this.lastNotifiedTimes[todo.id] = now;
-            this.playChime();
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
-            this.showToast('⏰ Sắp hết hạn trong ' + minutesLeft + ' phút! Việc "' + todo.title + '"', 'warning');
-          }
-        }
-      });
-    },
-
-    testInAppAlert() {
-      this.playChime();
-      if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
-      this.showToast('🔔 Âm thanh và thông báo nhắc việc đang hoạt động hoàn hảo!', 'info');
     },
 
     getNotificationId(idStr) {
@@ -501,6 +517,54 @@ function getNotificationsModule() {
         hash |= 0;
       }
       return (Math.abs(hash) % 2147483647) || 1;
+    },
+
+    generateRollingTaskNotifications(todo, nowMs, maxPerTask = 100) {
+      if (!todo || !todo.due_date || todo.is_completed || todo.deleted_at) return [];
+      const d = this.parseDateSafe(todo.due_date);
+      if (!d) return [];
+
+      const dueTime = d.getTime();
+      const minuteEndMs = (d.getSeconds() === 0) ? (dueTime + 60 * 1000) : dueTime;
+      if (nowMs >= minuteEndMs) return [];
+
+      const offsetMinutes = Number(todo.reminder_offset) || 0;
+      const startAt = dueTime - (offsetMinutes * 60 * 1000);
+      const priority = todo.priority || 'Medium';
+      // High: 2 giây, Medium: 150 giây, Low: 300 giây
+      const intervalMs = (priority === 'High') ? (2 * 1000) : (priority === 'Medium' ? (150 * 1000) : (300 * 1000));
+      const baseId = ((this.getNotificationId(todo.id) % 80000) + 1000) * 10000;
+
+      const notifications = [];
+      const priorityPrefix = priority === 'High' ? '🚨 [KHẨN CẤP] ' : (priority === 'Medium' ? '⚡ [ƯU TIÊN] ' : '⏰ Nhắc việc: ');
+      const dueTimeStr = this.formatVnTime(d);
+
+      let startIndex = 0;
+      if (nowMs > startAt) {
+        startIndex = Math.max(0, Math.floor((nowMs - startAt) / intervalMs));
+      }
+
+      let count = 0;
+      for (let i = startIndex; count < maxPerTask; i++) {
+        const triggerTime = startAt + (i * intervalMs);
+        if (triggerTime >= minuteEndMs) break;
+
+        if (triggerTime > nowMs) {
+          const repeatSuffix = i > 0 ? (' (Nhắc lặp lần ' + (i + 1) + ')') : '';
+          notifications.push({
+            id: baseId + (i % 10000),
+            title: priorityPrefix + (todo.title || 'Công việc cần làm'),
+            body: 'Hạn: ' + dueTimeStr + (todo.category ? (' • ' + todo.category) : '') + repeatSuffix,
+            schedule: { at: new Date(triggerTime), allowWhileIdle: true },
+            sound: 'beep.caf',
+            extra: { todoId: todo.id, baseId: baseId, iteration: i + 1 },
+            triggerTime
+          });
+          count++;
+        }
+      }
+
+      return notifications;
     },
 
     getDailyBriefingPayloads() {
@@ -519,7 +583,7 @@ function getNotificationsModule() {
         eveningMs += 24 * 3600 * 1000;
       }
 
-      const pendingTodos = Array.isArray(this.todos) ? this.todos.filter(t => !t.is_completed) : [];
+      const pendingTodos = Array.isArray(this.todos) ? this.todos.filter(t => !t.is_completed && !t.deleted_at) : [];
       const pendingCount = pendingTodos.length;
       const highCount = pendingTodos.filter(t => t.priority === 'High').length;
 
@@ -559,12 +623,40 @@ function getNotificationsModule() {
         if (perm.display !== 'granted') {
           await LN.requestPermissions();
         }
+
+        // Lắng nghe sự kiện thông báo được gửi đến thiết bị (Rolling Queue replenishment)
+        LN.addListener('localNotificationReceived', () => {
+          this.syncAllNativeLocalNotifications();
+        });
+
+        // Lắng nghe sự kiện người dùng bấm vào thông báo
         LN.addListener('localNotificationActionPerformed', (notification) => {
           const todoId = notification?.notification?.extra?.todoId;
           if (todoId) {
-            this.cancelNativeLocalNotification(todoId);
+            this.syncAllNativeLocalNotifications();
           }
         });
+
+        // Lắng nghe khi app trở lại trạng thái active
+        if (window.Capacitor?.Plugins?.App) {
+          window.Capacitor.Plugins.App.addListener('appStateChange', (state) => {
+            if (state.isActive) {
+              this.syncAllNativeLocalNotifications();
+            }
+          });
+        }
+
+        // Lắng nghe visibilitychange và focus của cửa sổ WebView
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') {
+            this.syncAllNativeLocalNotifications();
+          }
+        });
+        window.addEventListener('focus', () => {
+          this.syncAllNativeLocalNotifications();
+        });
+
+        await this.syncAllNativeLocalNotifications();
       } catch (e) {
         console.warn('Native LocalNotifications init error:', e);
       }
@@ -572,48 +664,7 @@ function getNotificationsModule() {
 
     async scheduleNativeLocalNotification(todo) {
       if (!window.Capacitor?.isPluginAvailable?.('LocalNotifications')) return;
-      if (!todo || !todo.due_date || todo.is_completed) return;
-      const d = this.parseDateSafe(todo.due_date);
-      if (!d) return;
-
-      const offsetMinutes = Number(todo.reminder_offset) || 0;
-      const dueTime = d.getTime();
-      const startAt = dueTime - (offsetMinutes * 60 * 1000);
-      const now = Date.now();
-
-      const priority = todo.priority || 'Medium';
-      // High: 1 giây, Medium: 150 giây, Low: 300 giây
-      const intervalMs = (priority === 'High') ? (1000) : (priority === 'Medium' ? (150 * 1000) : (300 * 1000));
-      const baseId = ((this.getNotificationId(todo.id) % 90000) + 1000) * 10;
-      const notifications = [];
-
-      for (let i = 0; i < 8; i++) {
-        const triggerTime = startAt + (i * intervalMs);
-        if (triggerTime > dueTime + (intervalMs * 2)) break;
-        if (triggerTime > now) {
-          const priorityPrefix = priority === 'High' ? '🚨 [KHẨN CẤP] ' : (priority === 'Medium' ? '⚡ [ƯU TIÊN] ' : '⏰ Nhắc việc: ');
-          const dueTimeStr = d ? this.formatVnTime(d) : '';
-          const repeatSuffix = i > 0 ? (' (Nhắc lặp lần ' + (i + 1) + ')') : '';
-          notifications.push({
-            id: baseId + i,
-            title: priorityPrefix + (todo.title || 'Công việc cần làm'),
-            body: 'Hạn: ' + dueTimeStr + (todo.category ? (' • ' + todo.category) : '') + repeatSuffix,
-            schedule: { at: new Date(triggerTime), allowWhileIdle: true },
-            sound: 'beep.caf',
-            extra: { todoId: todo.id, baseId: baseId }
-          });
-        }
-      }
-
-      if (notifications.length === 0) return;
-
-      try {
-        const LN = window.Capacitor.Plugins.LocalNotifications;
-        await this.cancelNativeLocalNotification(todo.id);
-        await LN.schedule({ notifications });
-      } catch (e) {
-        console.warn('scheduleNativeLocalNotification error:', e);
-      }
+      this.syncAllNativeLocalNotifications();
     },
 
     async cancelNativeLocalNotification(todoId) {
@@ -621,19 +672,38 @@ function getNotificationsModule() {
       if (!todoId) return;
       try {
         const LN = window.Capacitor.Plugins.LocalNotifications;
-        const baseId = ((this.getNotificationId(todoId) % 90000) + 1000) * 10;
-        const toCancel = [];
-        for (let i = 0; i < 10; i++) {
-          toCancel.push({ id: baseId + i });
+        const pending = await LN.getPending();
+        if (pending && pending.notifications && pending.notifications.length > 0) {
+          const baseId = ((this.getNotificationId(todoId) % 80000) + 1000) * 10000;
+          const toCancel = pending.notifications
+            .filter(n => n.extra?.todoId === todoId || (n.id >= baseId && n.id < baseId + 10000))
+            .map(n => ({ id: n.id }));
+          if (toCancel.length > 0) {
+            await LN.cancel({ notifications: toCancel }).catch(() => {});
+          }
         }
-        await LN.cancel({ notifications: toCancel }).catch(() => {});
+        this.syncAllNativeLocalNotifications();
       } catch (e) {
         console.warn('cancelNativeLocalNotification error:', e);
       }
     },
 
-    async syncAllNativeLocalNotifications() {
+    _isSyncingLocalNotifications: false,
+    _syncTimeout: null,
+
+    syncAllNativeLocalNotifications() {
       if (!window.Capacitor?.isPluginAvailable?.('LocalNotifications')) return;
+      if (this._syncTimeout) clearTimeout(this._syncTimeout);
+      this._syncTimeout = setTimeout(() => {
+        this._doSyncAllNativeLocalNotifications();
+      }, 50);
+    },
+
+    async _doSyncAllNativeLocalNotifications() {
+      if (!window.Capacitor?.isPluginAvailable?.('LocalNotifications')) return;
+      if (this._isSyncingLocalNotifications) return;
+      this._isSyncingLocalNotifications = true;
+
       try {
         const LN = window.Capacitor.Plugins.LocalNotifications;
         const pending = await LN.getPending();
@@ -641,51 +711,39 @@ function getNotificationsModule() {
           await LN.cancel({ notifications: pending.notifications.map(n => ({ id: n.id })) }).catch(() => {});
         }
 
+        if (this.notificationsEnabled === false) return;
+
         const now = Date.now();
         const allToSchedule = [];
 
-        // 1. Cố định 2 mốc Daily Briefing 06:00 và 18:00
+        // 1. Cố định 2 slot Daily Briefing 06:00 và 18:00
         const briefings = this.getDailyBriefingPayloads();
         allToSchedule.push(...briefings);
 
-        // 2. Lên lịch nhắc việc lặp theo độ ưu tiên (tối đa 50 thông báo để tổng <= 52 trên iOS)
+        // 2. Rolling Queue: Tối đa 60 slot cho các việc sắp đến hạn nhất (Tổng <= 64 slot của iOS)
         if (Array.isArray(this.todos)) {
-          const validTodos = this.todos.filter(t => !t.is_completed && t.due_date);
-          const taskNotifications = [];
+          const validTodos = this.todos.filter(t => !t.is_completed && !t.deleted_at && t.due_date);
+          const candidateNotifications = [];
 
           for (const t of validTodos) {
-            const d = this.parseDateSafe(t.due_date);
-            if (!d) continue;
-
-            const offsetMinutes = Number(t.reminder_offset) || 0;
-            const dueTime = d.getTime();
-            const startAt = dueTime - (offsetMinutes * 60 * 1000);
-            const priority = t.priority || 'Medium';
-            // High: 1 giây, Medium: 150 giây, Low: 300 giây
-            const intervalMs = (priority === 'High') ? (1000) : (priority === 'Medium' ? (150 * 1000) : (300 * 1000));
-            const baseId = ((this.getNotificationId(t.id) % 90000) + 1000) * 10;
-
-            for (let i = 0; i < 8; i++) {
-              const triggerTime = startAt + (i * intervalMs);
-              if (triggerTime > dueTime + (intervalMs * 2)) break;
-              if (triggerTime > now) {
-                const priorityPrefix = priority === 'High' ? '🚨 [KHẨN CẤP] ' : (priority === 'Medium' ? '⚡ [ƯU TIÊN] ' : '⏰ Nhắc việc: ');
-                const dueTimeStr = d ? this.formatVnTime(d) : '';
-                const repeatSuffix = i > 0 ? (' (Nhắc lặp lần ' + (i + 1) + ')') : '';
-                taskNotifications.push({
-                  id: baseId + i,
-                  title: priorityPrefix + (t.title || 'Công việc cần làm'),
-                  body: 'Hạn: ' + dueTimeStr + (t.category ? (' • ' + t.category) : '') + repeatSuffix,
-                  schedule: { at: new Date(triggerTime), allowWhileIdle: true },
-                  sound: 'beep.caf',
-                  extra: { todoId: t.id, baseId: baseId }
-                });
-              }
-            }
+            const taskNotifs = this.generateRollingTaskNotifications(t, now, 100);
+            candidateNotifications.push(...taskNotifs);
           }
 
-          taskNotifications.sort((a, b) => a.schedule.at.getTime() - b.schedule.at.getTime());
-          allToSchedule.push(...taskNotifications.slice(0, 50));
+          // Sắp xếp các mốc nhắc lặp theo thời gian kích hoạt tăng dần
+          candidateNotifications.sort((a, b) => a.triggerTime - b.triggerTime);
+
+          // Cắt tối đa 60 thông báo tiếp theo
+          const top60 = candidateNotifications.slice(0, 60).map(n => ({
+            id: n.id,
+            title: n.title,
+            body: n.body,
+            schedule: n.schedule,
+            sound: n.sound,
+            extra: n.extra
+          }));
+
+          allToSchedule.push(...top60);
         }
 
         if (allToSchedule.length > 0) {
@@ -693,6 +751,8 @@ function getNotificationsModule() {
         }
       } catch (e) {
         console.warn('syncAllNativeLocalNotifications error:', e);
+      } finally {
+        this._isSyncingLocalNotifications = false;
       }
     }
   };

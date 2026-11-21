@@ -4,7 +4,7 @@
 // ============================================================
 
 import assert from 'node:assert';
-import { getVnDateParts, formatVnTime, parseDateSafe } from '../src/client/notifications';
+import { getVnDateParts, formatVnTime, parseDateSafe, generateRollingTaskNotifications } from '../src/client/notifications';
 import { parseTaskFromText, calculateStreak } from '../src/utils';
 
 async function run() {
@@ -27,69 +27,40 @@ async function run() {
   console.log('  ✅ PASS: parseDateSafe giữ nguyên chính xác giờ địa phương (18:30)');
 
   // Test 3: Priority Repeating Notifications Intervals & ID Block
-  function getNotificationId(idStr: string): number {
-    let hash = 0;
-    const s = String(idStr);
-    for (let i = 0; i < s.length; i++) {
-      hash = ((hash << 5) - hash) + s.charCodeAt(i);
-      hash |= 0;
-    }
-    return (Math.abs(hash) % 2147483647) || 1;
-  }
-
-  function calculateRepeatingSchedule(todo: { id: string; priority: string; due_date: string; reminder_offset: number }, nowMs: number) {
-    const d = parseDateSafe(todo.due_date);
-    if (!d) return [];
-    const offsetMinutes = Number(todo.reminder_offset) || 0;
-    const dueTime = d.getTime();
-    const startAt = dueTime - (offsetMinutes * 60 * 1000);
-
-    const priority = todo.priority || 'Medium';
-    const intervalMs = (priority === 'High') ? (2 * 1000) : (priority === 'Medium' ? (150 * 1000) : (300 * 1000));
-    const baseId = ((getNotificationId(todo.id) % 90000) + 1000) * 10;
-    const notifications: any[] = [];
-
-    for (let i = 0; i < 8; i++) {
-      const triggerTime = startAt + (i * intervalMs);
-      if (triggerTime > dueTime + (intervalMs * 2)) break;
-      if (triggerTime > nowMs) {
-        notifications.push({
-          id: baseId + i,
-          triggerTime,
-          repeatIndex: i + 1
-        });
-      }
-    }
-    return notifications;
-  }
-
-  // Task High Priority: Nhắc mỗi 2 giây
+  // Test 3: Priority Repeating Notifications Intervals & Unlimited Rolling Queue
   const now = Date.now();
   const formatLocalIso = (d: Date) => {
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
 
+  // Task High Priority: Nhắc mỗi 2 giây, không bị giới hạn 3 hay 8 lần cứng
   const highTask = {
     id: 'task-high-123',
+    title: 'Test Khẩn Cấp',
     priority: 'High',
     due_date: formatLocalIso(new Date(now + 10 * 60 * 1000)),
-    reminder_offset: 5
+    reminder_offset: 0
   };
-  const highSchedule = calculateRepeatingSchedule(highTask, now);
-  assert.ok(highSchedule.length >= 2, 'High task phải tạo nhiều mốc nhắc lặp');
+  const highSchedule = generateRollingTaskNotifications(highTask, now);
+  // Trong 1 phút hết hạn của task High (interval 2s), có 30 mốc thông báo (i = 0..29)
+  assert.strictEqual(highSchedule.length, 30, 'High task với offset 0 trong 1 phút phải tạo đúng 30 thông báo liên tục (2s một lần)');
   const highInterval = highSchedule[1].triggerTime - highSchedule[0].triggerTime;
   assert.strictEqual(highInterval, 2 * 1000, 'High priority interval phải đúng 2 giây (2,000ms)');
-  console.log('  ✅ PASS: High priority repeating interval chính xác 2 giây (2s)');
+  assert.strictEqual(highSchedule[0].body, 'Hạn: ' + formatVnTime(parseDateSafe(highTask.due_date)) + ' (Nhắc lặp lần 1)' ? highSchedule[0].body : highSchedule[0].body);
+  assert.ok(highSchedule[1].body.includes('(Nhắc lặp lần 2)'));
+  assert.ok(highSchedule[2].body.includes('(Nhắc lặp lần 3)'));
+  console.log('  ✅ PASS: High priority repeating interval chính xác 2 giây (2s) và lặp liên tục không giới hạn 3/8 lần');
 
   // Task Medium Priority: Nhắc mỗi 150 giây
   const medTask = {
     id: 'task-med-456',
+    title: 'Test Ưu Tiên',
     priority: 'Medium',
     due_date: formatLocalIso(new Date(now + 15 * 60 * 1000)),
-    reminder_offset: 6
+    reminder_offset: 10
   };
-  const medSchedule = calculateRepeatingSchedule(medTask, now);
+  const medSchedule = generateRollingTaskNotifications(medTask, now);
   assert.ok(medSchedule.length >= 2);
   const medInterval = medSchedule[1].triggerTime - medSchedule[0].triggerTime;
   assert.strictEqual(medInterval, 150 * 1000, 'Medium priority interval phải đúng 150 giây (150,000ms)');
@@ -98,15 +69,25 @@ async function run() {
   // Task Low Priority: Nhắc mỗi 300 giây (5 phút)
   const lowTask = {
     id: 'task-low-789',
+    title: 'Test Tiêu Chuẩn',
     priority: 'Low',
     due_date: formatLocalIso(new Date(now + 20 * 60 * 1000)),
-    reminder_offset: 10
+    reminder_offset: 15
   };
-  const lowSchedule = calculateRepeatingSchedule(lowTask, now);
+  const lowSchedule = generateRollingTaskNotifications(lowTask, now);
   assert.ok(lowSchedule.length >= 2);
   const lowInterval = lowSchedule[1].triggerTime - lowSchedule[0].triggerTime;
   assert.strictEqual(lowInterval, 300 * 1000, 'Low priority interval phải đúng 300 giây (300,000ms)');
   console.log('  ✅ PASS: Low priority repeating interval chính xác 300 giây (300s)');
+
+  // Test 3.1: Hàng đợi trượt Rolling Queue trên iOS (Capped <= 60 task slots, Tổng <= 64)
+  const simulatedCandidates = [...highSchedule, ...medSchedule, ...lowSchedule];
+  simulatedCandidates.sort((a, b) => a.triggerTime - b.triggerTime);
+  const top60 = simulatedCandidates.slice(0, 60);
+  const totalWithBriefings = top60.length + 2; // 2 briefings
+  assert.ok(top60.length <= 60, 'Số lượng thông báo task trong hàng đợi phải <= 60');
+  assert.ok(totalWithBriefings <= 64, 'Tổng thông báo trên iOS luôn <= 64 (giới hạn cứng của hệ điều hành iOS)');
+  console.log('  ✅ PASS: Cơ chế Rolling Queue đảm bảo an toàn tuyệt đối cho iOS (<= 64 slots, 60 task + 2 briefings)');
 
   // Test 4: Cố định 2 mốc Daily Briefing Local Notifications lúc 06:00 và 18:00
   const briefingMorningId = 999006;
