@@ -100,7 +100,7 @@ async function build() {
   const manifest = {
     name: 'To-Do List',
     short_name: 'To-Do List',
-    description: 'Ứng dụng quản lý công việc hiện đại trên Cloudflare Workers',
+    description: 'Ứng dụng quản lý công việc 100% Offline-first trên iOS & Web (Capacitor Local)',
     start_url: '/',
     display: 'standalone',
     background_color: '#0f172a',

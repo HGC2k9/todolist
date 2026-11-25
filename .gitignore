@@ -1,12 +1,13 @@
 node_modules/
-.wrangler/
 .agents/
 .env
 .env.*
 .dev.vars
 *.log
-graphify-out/cache/
+graphify-out/
 .playwright-mcp/
+screenshots/
+test_screenshots/
 .agent/
 .DS_Store
 Thumbs.db

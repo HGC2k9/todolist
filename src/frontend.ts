@@ -322,26 +322,6 @@ export function renderHTML(): string {
         </div>
       </div>
 
-      <!-- User Profile Chip (Desktop / Tablet) -->
-      <div x-show="currentUser" class="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 text-xs font-semibold text-slate-700 dark:text-slate-300 select-none shadow-xs">
-        <div class="w-5 h-5 rounded-full bg-gradient-to-tr from-brand-600 to-indigo-500 text-white flex items-center justify-center text-[10px] font-black uppercase"
-             x-text="(currentUser?.username || currentUser?.email || 'U').slice(0, 1)"></div>
-        <span class="max-w-[130px] truncate" x-text="currentUser?.username || currentUser?.email"></span>
-      </div>
-
-      <!-- Trạng thái Ngoại tuyến / Chờ đồng bộ (Offline Sync Indicator) -->
-      <div x-show="isOffline || offlineQueue.length > 0" x-cloak
-           @click="syncOfflineQueue()"
-           role="button" tabindex="0"
-           @keydown.enter="syncOfflineQueue()"
-           aria-label="Trạng thái đồng bộ ngoại tuyến. Bấm để đồng bộ ngay"
-           class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold cursor-pointer transition select-none animate-pulse"
-           :class="isOffline ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300 dark:border-amber-800' : 'bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-300 dark:border-blue-800'"
-           :title="isOffline ? 'Đang ngoại tuyến. Bấm để thử đồng bộ lại.' : 'Bấm để đồng bộ ngay'">
-        <span class="w-2 h-2 rounded-full" :class="isOffline ? 'bg-amber-500' : 'bg-blue-500'"></span>
-        <span x-text="isSyncing ? 'Đang đồng bộ...' : (isOffline ? 'Ngoại tuyến (' + offlineQueue.length + ' chờ gửi)' : 'Chờ đồng bộ (' + offlineQueue.length + ')')"></span>
-      </div>
-
       <!-- Action Toolbar (Căn chỉnh đối xứng 100% - Chuẩn hóa chiều cao h-8) -->
       <div class="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
         
@@ -1870,21 +1850,6 @@ export function renderHTML(): string {
   </div>
 </div>
 
-<!-- ═══════ MÀN HÌNH BẢO TRÌ HỆ THỐNG CHO NATIVE APP ═══════ -->
-<div x-show="isUnderMaintenance" x-cloak
-     class="fixed inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl text-white flex flex-col items-center justify-center p-6 text-center">
-  <div class="w-20 h-20 rounded-3xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-4xl mb-6 shadow-2xl shadow-amber-500/20 ring-1 ring-amber-500/30 animate-pulse">
-    🚧
-  </div>
-  <h2 class="text-2xl font-black mb-3">Hệ thống đang bảo trì</h2>
-  <p class="text-slate-400 text-sm max-w-sm mb-6 leading-relaxed" x-text="maintenanceMessage || 'Máy chủ đang được nâng cấp định kỳ để tăng cường hiệu năng & bảo mật. Vui lòng thử lại sau ít phút!'"></p>
-  <button type="button" @click="checkMaintenanceStatus()"
-          class="px-6 py-3 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/25 active:scale-95 transition cursor-pointer flex items-center gap-2">
-    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-    <span>Thử kết nối lại</span>
-  </button>
-</div>
-
 <!-- ═══════ JAVASCRIPT CONTROLLER ═══════ -->
 <script>
 ${storageScript}
@@ -1895,8 +1860,6 @@ ${otaUpdaterScript}
 function app() {
   return {
     darkMode: localStorage.getItem('darkMode') === 'true',
-    authenticated: true,
-    currentUser: { id: 'local_user', username: 'Người dùng', email: 'offline@localhost' },
 
     // Filters
     searchQuery: '',

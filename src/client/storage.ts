@@ -64,11 +64,6 @@ function getStorageModule() {
     completingUploadingPhoto: false,
     trashLoading: false,
     analyticsLoading: false,
-    isOffline: false,
-    isSyncing: false,
-    offlineQueue: [],
-    isUnderMaintenance: false,
-    maintenanceMessage: '',
     confirmDialog: {
       show: false,
       title: '',
@@ -1053,18 +1048,9 @@ function getStorageModule() {
       try { this.triggerConfetti(); } catch {}
     },
 
-    syncOfflineQueue() {
-      this.isOffline = !navigator.onLine;
-      this.showToast('Ứng dụng hoạt động 100% Cục bộ (Offline)', 'info');
-    },
-
-    checkMaintenanceStatus() {
-      this.isUnderMaintenance = false;
-    },
-
     checkAppVersion(manual = false) {
       if (manual) {
-        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.2.0') + ')! 🎉', 'success');
+        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.2.1') + ')! 🎉', 'success');
       }
     },
 
