@@ -140,8 +140,8 @@ async function build() {
   fs.writeFileSync(path.join(distDir, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf8');
   console.log('   ✓ Đã tạo dist/manifest.json');
 
-  // 5. Sao chép Icons
-  console.log('🖼️ Đang sao chép Icons...');
+  // 5. Sao chép Icons & Custom Notification Sounds
+  console.log('🖼️ Đang sao chép Icons & Âm thanh...');
   if (fs.existsSync('icon-192.png')) {
     fs.copyFileSync('icon-192.png', path.join(distDir, 'icon-192.png'));
     console.log('   ✓ Đã sao chép icon-192.png');
@@ -149,6 +149,13 @@ async function build() {
   if (fs.existsSync('icon-512.png')) {
     fs.copyFileSync('icon-512.png', path.join(distDir, 'icon-512.png'));
     console.log('   ✓ Đã sao chép icon-512.png');
+  }
+  const soundSrc = path.resolve(process.cwd(), 'public', 'sounds', 'pop_ding.wav');
+  if (fs.existsSync(soundSrc)) {
+    const soundsDistDir = path.join(distDir, 'sounds');
+    if (!fs.existsSync(soundsDistDir)) fs.mkdirSync(soundsDistDir, { recursive: true });
+    fs.copyFileSync(soundSrc, path.join(soundsDistDir, 'pop_ding.wav'));
+    console.log('   ✓ Đã sao chép sounds/pop_ding.wav');
   }
 
   // 6. Sinh dist/version.json phục vụ OTA Update qua GitHub Pages

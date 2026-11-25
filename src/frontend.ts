@@ -795,8 +795,8 @@ export function renderHTML(): string {
                   <span x-text="formatTodoDueDate(todo)"></span>
                 </span>
 
-                <span x-show="isImminent(todo)" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-orange-600 text-white animate-pulse">
-                  ⏰ Sắp hết hạn (&lt; <span x-text="getPriorityWarningMinutes(todo.priority)"></span>P)
+                <span x-show="isImminent(todo)" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black tracking-wide bg-orange-600 text-white animate-pulse">
+                  ⏰ <span x-text="formatRemainingDeadlineText(todo)"></span>
                 </span>
 
                 <!-- Thẻ #tags -->
@@ -2137,7 +2137,7 @@ function app() {
     },
 
     get imminentSummary() {
-      return this.imminentTodos.map(t => '«' + t.title + '» (' + (t.priority || 'Medium') + ' - ' + this.getMinutesRemaining(t) + 'p)').join(', ');
+      return this.imminentTodos.map(t => '«' + t.title + '» (' + this.formatRemainingDeadlineText(t) + ')').join(', ');
     },
 
     get allTags() {

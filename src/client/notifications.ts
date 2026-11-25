@@ -106,6 +106,122 @@ export function getPriorityWarningMinutes(priority: string): number {
   return 15;
 }
 
+export const TASK_REMINDER_ACTION_TYPE_ID = 'TASK_REMINDER_ACTIONS';
+export const TASK_REMINDER_ACTION_MARK_DONE = 'MARK_DONE';
+export const NOTIFICATION_SOUND_FILE = 'pop_ding.wav';
+
+export function formatRemainingDeadlineText(dueDateOrMs: any, nowMs: number = Date.now()): string {
+  if (dueDateOrMs === null || dueDateOrMs === undefined || dueDateOrMs === '') return '';
+  let dueMs: number | null = null;
+  if (typeof dueDateOrMs === 'number') {
+    dueMs = dueDateOrMs;
+  } else if (dueDateOrMs instanceof Date) {
+    dueMs = dueDateOrMs.getTime();
+  } else {
+    const parsed = parseDateSafe(String(dueDateOrMs));
+    dueMs = parsed ? parsed.getTime() : null;
+  }
+  if (dueMs === null || isNaN(dueMs)) return '';
+
+  const diffMs = dueMs - nowMs;
+  if (diffMs <= 0) return 'Đã đến hạn';
+  const mins = Math.ceil(diffMs / 60000);
+  if (mins <= 0) return 'Đã đến hạn';
+  return `Còn ${mins} phút nữa đến hạn`;
+}
+
+export async function handleMarkDoneNotificationAction(params: {
+  actionId: string;
+  notification: { id?: number; extra?: { taskId?: string; todoId?: string } };
+  todos: any[];
+  completionHistory?: any[];
+  persistTodosAndHistory?: (todos: any[], history: any[]) => Promise<void> | void;
+  getPending?: () => Promise<{ notifications: any[] }>;
+  cancelNotifications?: (opts: { notifications: { id: number }[] }) => Promise<void>;
+  getDeliveredNotifications?: () => Promise<{ notifications: any[] }>;
+  removeDeliveredNotifications?: (opts: { notifications: any[] }) => Promise<void>;
+  syncQueue?: () => Promise<void> | void;
+}): Promise<{ completed: boolean; taskId?: string }> {
+  const taskId = params.notification?.extra?.taskId || params.notification?.extra?.todoId;
+  if (params.actionId !== TASK_REMINDER_ACTION_MARK_DONE || !taskId) {
+    if (params.syncQueue) await params.syncQueue();
+    return { completed: false, taskId };
+  }
+
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+  const vnNow = getVnDateParts(nowMs);
+  const history = Array.isArray(params.completionHistory) ? params.completionHistory : [];
+  const target = Array.isArray(params.todos) ? params.todos.find(t => t.id === taskId) : null;
+
+  if (target && !target.is_completed) {
+    target.is_completed = 1;
+    target.status = 'completed';
+    target.updated_at = nowIso;
+
+    history.push({
+      id: 'hist_' + nowMs + '_' + Math.random().toString(36).substring(2, 8),
+      todo_id: target.id,
+      task_title: target.title,
+      completed_at: nowIso,
+      date_str: vnNow.dateStr,
+      category: target.category,
+      priority: target.priority,
+      actual_minutes: target.actual_minutes || 0,
+      created_at: nowIso
+    });
+
+    if (target.repeat_mode && target.repeat_mode !== 'none' && target.due_date) {
+      const d = new Date(target.due_date);
+      if (!isNaN(d.getTime())) {
+        const increment = target.repeat_mode === 'daily' ? 1 : 7;
+        d.setDate(d.getDate() + increment);
+        while (d.getTime() < nowMs) {
+          d.setDate(d.getDate() + increment);
+        }
+        target.due_date = d.toISOString();
+      }
+    }
+
+    if (params.persistTodosAndHistory) {
+      await params.persistTodosAndHistory(params.todos, history);
+    }
+  }
+
+  const baseId = ((getNotificationId(taskId) % 80000) + 1000) * 10000;
+
+  if (params.getPending && params.cancelNotifications) {
+    const pending = await params.getPending();
+    const toCancel = (pending?.notifications || [])
+      .filter(n => n.extra?.taskId === taskId || n.extra?.todoId === taskId || (n.id >= baseId && n.id < baseId + 10000))
+      .map(n => ({ id: n.id }));
+    if (toCancel.length > 0) {
+      await params.cancelNotifications({ notifications: toCancel });
+    }
+  }
+
+  if (params.getDeliveredNotifications && params.removeDeliveredNotifications) {
+    const delivered = await params.getDeliveredNotifications();
+    const toRemove = (delivered?.notifications || []).filter(n =>
+      n.extra?.taskId === taskId ||
+      n.extra?.todoId === taskId ||
+      (n.id >= baseId && n.id < baseId + 10000) ||
+      (params.notification?.id != null && n.id === params.notification.id)
+    );
+    if (toRemove.length > 0) {
+      await params.removeDeliveredNotifications({ notifications: toRemove });
+    } else if (params.notification?.id != null) {
+      await params.removeDeliveredNotifications({ notifications: [params.notification] });
+    }
+  }
+
+  if (params.syncQueue) {
+    await params.syncQueue();
+  }
+
+  return { completed: Boolean(target), taskId };
+}
+
 export function generateRollingTaskNotifications(
   todo: { id: string; title: string; category?: string; priority?: string; due_date?: string; reminder_offset?: number },
   nowMs: number,
@@ -141,14 +257,16 @@ export function generateRollingTaskNotifications(
     if (triggerTime >= minuteEndMs) break;
 
     if (triggerTime > nowMs) {
+      const remainingText = formatRemainingDeadlineText(dueTime, triggerTime);
       const repeatSuffix = i > 0 ? (' (Nhắc lặp lần ' + (i + 1) + ')') : '';
       notifications.push({
         id: baseId + (i % 10000),
         title: priorityPrefix + (todo.title || 'Công việc cần làm'),
-        body: 'Hạn: ' + dueTimeStr + (todo.category ? (' • ' + todo.category) : '') + repeatSuffix,
+        body: remainingText + ' • Hạn: ' + dueTimeStr + (todo.category ? (' • ' + todo.category) : '') + repeatSuffix,
         schedule: { at: new Date(triggerTime), allowWhileIdle: true },
-        sound: 'beep.caf',
-        extra: { todoId: todo.id, iteration: i + 1 },
+        sound: NOTIFICATION_SOUND_FILE,
+        actionTypeId: TASK_REMINDER_ACTION_TYPE_ID,
+        extra: { taskId: todo.id, todoId: todo.id, iteration: i + 1 },
         triggerTime
       });
       count++;
@@ -470,12 +588,15 @@ function getNotificationsModule() {
     },
 
     isImminent(todo) {
-      if (!todo || !todo.due_date || todo.is_completed) return false;
+      if (!todo || !todo.due_date || todo.is_completed || todo.deleted_at) return false;
       const d = this.parseDateSafe(todo.due_date);
       if (!d) return false;
-      const diffMs = d.getTime() - Date.now();
+      const nowMs = this.currentTimeTick || Date.now();
+      const dueMs = d.getTime();
+      const minuteEndMs = (d.getSeconds() === 0) ? (dueMs + 60 * 1000) : dueMs;
+      if (nowMs >= minuteEndMs) return false;
       const warningMs = this.getPriorityWarningMinutes(todo.priority) * 60 * 1000;
-      return diffMs > 0 && diffMs <= warningMs;
+      return (dueMs - nowMs) <= warningMs;
     },
 
     isWithin30Minutes(todo) {
@@ -486,7 +607,34 @@ function getNotificationsModule() {
       if (!todo || !todo.due_date) return null;
       const d = this.parseDateSafe(todo.due_date);
       if (!d) return null;
-      return Math.ceil((d.getTime() - Date.now()) / (60 * 1000));
+      const nowMs = this.currentTimeTick || Date.now();
+      const diffMs = d.getTime() - nowMs;
+      if (diffMs <= 0) return 0;
+      return Math.ceil(diffMs / (60 * 1000));
+    },
+
+    formatRemainingDeadlineText(todoOrDue, customNowMs) {
+      if (todoOrDue === null || todoOrDue === undefined || todoOrDue === '') return '';
+      let dueMs = null;
+      if (typeof todoOrDue === 'number') {
+        dueMs = todoOrDue;
+      } else if (todoOrDue instanceof Date) {
+        dueMs = todoOrDue.getTime();
+      } else if (typeof todoOrDue === 'object') {
+        const d = this.parseDateSafe(todoOrDue.due_date);
+        dueMs = d ? d.getTime() : null;
+      } else {
+        const d = this.parseDateSafe(String(todoOrDue));
+        dueMs = d ? d.getTime() : null;
+      }
+      if (dueMs === null || isNaN(dueMs)) return '';
+
+      const nowMs = typeof customNowMs === 'number' ? customNowMs : (this.currentTimeTick || Date.now());
+      const diffMs = dueMs - nowMs;
+      if (diffMs <= 0) return 'Đã đến hạn';
+      const mins = Math.ceil(diffMs / 60000);
+      if (mins <= 0) return 'Đã đến hạn';
+      return 'Còn ' + mins + ' phút nữa đến hạn';
     },
 
     startBackgroundTimerWorker() {
@@ -550,14 +698,16 @@ function getNotificationsModule() {
         if (triggerTime >= minuteEndMs) break;
 
         if (triggerTime > nowMs) {
+          const remainingText = this.formatRemainingDeadlineText(dueTime, triggerTime);
           const repeatSuffix = i > 0 ? (' (Nhắc lặp lần ' + (i + 1) + ')') : '';
           notifications.push({
             id: baseId + (i % 10000),
             title: priorityPrefix + (todo.title || 'Công việc cần làm'),
-            body: 'Hạn: ' + dueTimeStr + (todo.category ? (' • ' + todo.category) : '') + repeatSuffix,
+            body: remainingText + ' • Hạn: ' + dueTimeStr + (todo.category ? (' • ' + todo.category) : '') + repeatSuffix,
             schedule: { at: new Date(triggerTime), allowWhileIdle: true },
-            sound: 'beep.caf',
-            extra: { todoId: todo.id, baseId: baseId, iteration: i + 1 },
+            sound: 'pop_ding.wav',
+            actionTypeId: 'TASK_REMINDER_ACTIONS',
+            extra: { taskId: todo.id, todoId: todo.id, baseId: baseId, iteration: i + 1 },
             triggerTime
           });
           count++;
@@ -601,7 +751,7 @@ function getNotificationsModule() {
           title: '☀️ Chào buổi sáng! Kế hoạch hôm nay',
           body: morningBody,
           schedule: { at: new Date(morningMs), every: 'day', allowWhileIdle: true },
-          sound: 'beep.caf',
+          sound: 'pop_ding.wav',
           extra: { type: 'daily_briefing_morning' }
         },
         {
@@ -609,14 +759,150 @@ function getNotificationsModule() {
           title: '🌙 Chào buổi tối! Tổng kết & việc tối nay',
           body: eveningBody,
           schedule: { at: new Date(eveningMs), every: 'day', allowWhileIdle: true },
-          sound: 'beep.caf',
+          sound: 'pop_ding.wav',
           extra: { type: 'daily_briefing_evening' }
         }
       ];
     },
 
+    _nativeNotifInitialized: false,
+
+    async handleLocalNotificationAction(actionPerformed) {
+      const actionId = actionPerformed?.actionId;
+      const extra = actionPerformed?.notification?.extra || {};
+      const taskId = extra.taskId || extra.todoId;
+
+      if (actionId === 'MARK_DONE' && taskId) {
+        try {
+          const Prefs = window.Capacitor?.Plugins?.Preferences;
+          const LN = window.Capacitor?.Plugins?.LocalNotifications;
+          const nowMs = Date.now();
+          const nowIso = new Date(nowMs).toISOString();
+          const vnNow = this.getVnDateParts(nowMs);
+
+          // Đảm bảo nạp đầy đủ todos mới nhất nếu xử lý ngầm lúc vừa mở lại WebView
+          if (!Array.isArray(this.todos) || !this.todos.find(t => t.id === taskId)) {
+            try {
+              let rawTodos = null;
+              if (Prefs?.get) {
+                const res = await Prefs.get({ key: 'local_todos' });
+                if (res && typeof res.value === 'string' && res.value.trim()) rawTodos = res.value;
+              }
+              if (!rawTodos) rawTodos = localStorage.getItem('local_todos');
+              if (rawTodos) {
+                const parsed = JSON.parse(rawTodos);
+                if (Array.isArray(parsed)) this.todos = parsed;
+              }
+            } catch {}
+          }
+
+          const targetTodo = Array.isArray(this.todos) ? this.todos.find(t => t.id === taskId) : null;
+          if (targetTodo && !targetTodo.is_completed) {
+            targetTodo.is_completed = 1;
+            targetTodo.status = 'completed';
+            targetTodo.updated_at = nowIso;
+
+            if (!Array.isArray(this.completionHistory) || this.completionHistory.length === 0) {
+              try {
+                let rawHist = null;
+                if (Prefs?.get) {
+                  const hRes = await Prefs.get({ key: 'local_completion_history' });
+                  if (hRes && typeof hRes.value === 'string' && hRes.value.trim()) rawHist = hRes.value;
+                }
+                if (!rawHist) rawHist = localStorage.getItem('local_completion_history');
+                if (rawHist) {
+                  const parsedHist = JSON.parse(rawHist);
+                  if (Array.isArray(parsedHist)) this.completionHistory = parsedHist;
+                }
+              } catch {}
+            }
+
+            if (!Array.isArray(this.completionHistory)) this.completionHistory = [];
+            this.completionHistory.push({
+              id: 'hist_' + nowMs + '_' + Math.random().toString(36).substring(2, 8),
+              todo_id: targetTodo.id,
+              task_title: targetTodo.title,
+              completed_at: nowIso,
+              date_str: vnNow.dateStr,
+              category: targetTodo.category,
+              priority: targetTodo.priority,
+              actual_minutes: targetTodo.actual_minutes || 0,
+              created_at: nowIso
+            });
+
+            if (targetTodo.repeat_mode && targetTodo.repeat_mode !== 'none' && targetTodo.due_date) {
+              const d = new Date(targetTodo.due_date);
+              if (!isNaN(d.getTime())) {
+                const increment = targetTodo.repeat_mode === 'daily' ? 1 : 7;
+                d.setDate(d.getDate() + increment);
+                while (d.getTime() < nowMs) {
+                  d.setDate(d.getDate() + increment);
+                }
+                targetTodo.due_date = d.toISOString();
+              }
+            }
+
+            if (typeof this.persistAllData === 'function') {
+              await this.persistAllData();
+            } else {
+              const todosStr = JSON.stringify(this.todos || []);
+              const histStr = JSON.stringify(this.completionHistory || []);
+              localStorage.setItem('local_todos', todosStr);
+              localStorage.setItem('local_completion_history', histStr);
+              if (Prefs?.set) {
+                await Promise.all([
+                  Prefs.set({ key: 'local_todos', value: todosStr }),
+                  Prefs.set({ key: 'local_completion_history', value: histStr })
+                ]);
+              }
+            }
+          }
+
+          if (LN) {
+            const baseId = ((this.getNotificationId(taskId) % 80000) + 1000) * 10000;
+            try {
+              const pending = await LN.getPending();
+              if (pending?.notifications?.length > 0) {
+                const toCancel = pending.notifications
+                  .filter(n => n.extra?.taskId === taskId || n.extra?.todoId === taskId || (n.id >= baseId && n.id < baseId + 10000))
+                  .map(n => ({ id: n.id }));
+                if (toCancel.length > 0) {
+                  await LN.cancel({ notifications: toCancel }).catch(() => {});
+                }
+              }
+            } catch {}
+
+            try {
+              const delivered = await LN.getDeliveredNotifications();
+              const deliveredList = Array.isArray(delivered?.notifications) ? delivered.notifications : [];
+              const toRemove = deliveredList.filter(n =>
+                n.extra?.taskId === taskId ||
+                n.extra?.todoId === taskId ||
+                (n.id >= baseId && n.id < baseId + 10000) ||
+                (actionPerformed?.notification?.id != null && n.id === actionPerformed.notification.id)
+              );
+              if (toRemove.length > 0) {
+                await LN.removeDeliveredNotifications({ notifications: toRemove }).catch(() => {});
+              } else if (actionPerformed?.notification?.id != null) {
+                await LN.removeDeliveredNotifications({ notifications: [actionPerformed.notification] }).catch(() => {});
+              }
+            } catch {}
+          }
+
+          await this._doSyncAllNativeLocalNotifications();
+          return;
+        } catch (err) {
+          console.warn('handleLocalNotificationAction MARK_DONE error:', err);
+        }
+      }
+
+      this.syncAllNativeLocalNotifications();
+    },
+
     async initNativeLocalNotifications() {
       if (!window.Capacitor?.isPluginAvailable?.('LocalNotifications')) return;
+      if (this._nativeNotifInitialized) return;
+      this._nativeNotifInitialized = true;
       try {
         const LN = window.Capacitor.Plugins.LocalNotifications;
         const perm = await LN.checkPermissions();
@@ -624,17 +910,34 @@ function getNotificationsModule() {
           await LN.requestPermissions();
         }
 
+        // Đăng ký Action Type có nút "Đã xong" chạy ngầm không mở bung app
+        try {
+          await LN.registerActionTypes({
+            types: [
+              {
+                id: 'TASK_REMINDER_ACTIONS',
+                actions: [
+                  {
+                    id: 'MARK_DONE',
+                    title: 'Đã xong',
+                    foreground: false
+                  }
+                ]
+              }
+            ]
+          });
+        } catch (regErr) {
+          console.warn('registerActionTypes error:', regErr);
+        }
+
         // Lắng nghe sự kiện thông báo được gửi đến thiết bị (Rolling Queue replenishment)
         LN.addListener('localNotificationReceived', () => {
           this.syncAllNativeLocalNotifications();
         });
 
-        // Lắng nghe sự kiện người dùng bấm vào thông báo
-        LN.addListener('localNotificationActionPerformed', (notification) => {
-          const todoId = notification?.notification?.extra?.todoId;
-          if (todoId) {
-            this.syncAllNativeLocalNotifications();
-          }
+        // Lắng nghe sự kiện người dùng bấm nút hành động (ví dụ "Đã xong") hoặc chạm vào thông báo
+        LN.addListener('localNotificationActionPerformed', (notificationAction) => {
+          this.handleLocalNotificationAction(notificationAction);
         });
 
         // Lắng nghe khi app trở lại trạng thái active
@@ -672,16 +975,25 @@ function getNotificationsModule() {
       if (!todoId) return;
       try {
         const LN = window.Capacitor.Plugins.LocalNotifications;
+        const baseId = ((this.getNotificationId(todoId) % 80000) + 1000) * 10000;
         const pending = await LN.getPending();
         if (pending && pending.notifications && pending.notifications.length > 0) {
-          const baseId = ((this.getNotificationId(todoId) % 80000) + 1000) * 10000;
           const toCancel = pending.notifications
-            .filter(n => n.extra?.todoId === todoId || (n.id >= baseId && n.id < baseId + 10000))
+            .filter(n => n.extra?.taskId === todoId || n.extra?.todoId === todoId || (n.id >= baseId && n.id < baseId + 10000))
             .map(n => ({ id: n.id }));
           if (toCancel.length > 0) {
             await LN.cancel({ notifications: toCancel }).catch(() => {});
           }
         }
+        try {
+          const delivered = await LN.getDeliveredNotifications();
+          const toRemove = (delivered?.notifications || []).filter(
+            n => n.extra?.taskId === todoId || n.extra?.todoId === todoId || (n.id >= baseId && n.id < baseId + 10000)
+          );
+          if (toRemove.length > 0) {
+            await LN.removeDeliveredNotifications({ notifications: toRemove }).catch(() => {});
+          }
+        } catch {}
         this.syncAllNativeLocalNotifications();
       } catch (e) {
         console.warn('cancelNativeLocalNotification error:', e);
@@ -740,6 +1052,7 @@ function getNotificationsModule() {
             body: n.body,
             schedule: n.schedule,
             sound: n.sound,
+            actionTypeId: n.actionTypeId,
             extra: n.extra
           }));
 

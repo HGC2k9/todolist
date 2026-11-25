@@ -4,7 +4,18 @@
 // ============================================================
 
 import assert from 'node:assert';
-import { getVnDateParts, formatVnTime, parseDateSafe, generateRollingTaskNotifications } from '../src/client/notifications';
+import fs from 'node:fs';
+import {
+  getVnDateParts,
+  formatVnTime,
+  parseDateSafe,
+  generateRollingTaskNotifications,
+  formatRemainingDeadlineText,
+  handleMarkDoneNotificationAction,
+  TASK_REMINDER_ACTION_TYPE_ID,
+  TASK_REMINDER_ACTION_MARK_DONE,
+  NOTIFICATION_SOUND_FILE
+} from '../src/client/notifications';
 import { parseTaskFromText, calculateStreak } from '../src/utils';
 
 async function run() {
@@ -135,6 +146,88 @@ async function run() {
   const streak = calculateStreak([streakNow, streakYesterday]);
   assert.strictEqual(streak, 2);
   console.log('  ✅ PASS: calculateStreak tính chuẩn xác số ngày liên tiếp');
+
+  // Test 9: Đếm ngược phút còn lại động & Không còn nhãn cũ "Sắp hết hạn"
+  const refDueMs = Date.UTC(2026, 10, 25, 7, 30, 0, 0); // 14:30 VN
+  assert.strictEqual(formatRemainingDeadlineText(refDueMs, refDueMs - 25 * 60000), 'Còn 25 phút nữa đến hạn');
+  assert.strictEqual(formatRemainingDeadlineText(refDueMs, refDueMs - 5 * 60000), 'Còn 5 phút nữa đến hạn');
+  assert.strictEqual(formatRemainingDeadlineText(refDueMs, refDueMs), 'Đã đến hạn');
+  assert.strictEqual(formatRemainingDeadlineText(refDueMs, refDueMs + 20000), 'Đã đến hạn');
+
+  const countdownTask = {
+    id: 'task-countdown-1',
+    title: 'Nộp báo cáo',
+    category: 'Work',
+    priority: 'Medium',
+    due_date: formatLocalIso(new Date(now + 25 * 60 * 1000)),
+    reminder_offset: 25
+  };
+  const countdownNotifs = generateRollingTaskNotifications(countdownTask, now);
+  assert.ok(countdownNotifs.length > 0);
+  assert.strictEqual(countdownNotifs[0].actionTypeId, TASK_REMINDER_ACTION_TYPE_ID);
+  assert.strictEqual(countdownNotifs[0].sound, NOTIFICATION_SOUND_FILE);
+  assert.strictEqual(countdownNotifs[0].extra.taskId, countdownTask.id);
+  assert.ok(countdownNotifs[0].body.includes('Còn ') && countdownNotifs[0].body.includes('phút nữa đến hạn'));
+  assert.ok(!countdownNotifs.some(n => n.body.includes('Sắp hết hạn')));
+
+  const frontendSrc = fs.readFileSync('src/frontend.ts', 'utf8');
+  const notificationsSrc = fs.readFileSync('src/client/notifications.ts', 'utf8');
+  assert.ok(!frontendSrc.includes('Sắp hết hạn'), 'src/frontend.ts không được còn nhãn cũ Sắp hết hạn');
+  assert.ok(!notificationsSrc.includes('Sắp hết hạn'), 'src/client/notifications.ts không được còn nhãn cũ Sắp hết hạn');
+  console.log('  ✅ PASS: Đếm ngược phút động ("Còn X phút nữa đến hạn" / "Đã đến hạn"), sound pop_ding.wav & xóa sạch nhãn cũ');
+
+  // Test 10: Luồng bấm nút "Đã xong" (MARK_DONE) từ thông báo iOS
+  const mockTodos: any[] = [
+    { id: 'task-action-1', title: 'Gọi khách hàng', category: 'Work', priority: 'High', due_date: highTask.due_date, is_completed: 0, status: 'todo' },
+    { id: 'task-action-2', title: 'Đọc sách', category: 'Personal', priority: 'Low', due_date: lowTask.due_date, is_completed: 0, status: 'todo' }
+  ];
+  const mockHistory: any[] = [];
+  let persistedCount = 0;
+  let canceledIds: number[] = [];
+  let removedDeliveredIds: number[] = [];
+  let queueResynced = false;
+
+  const baseIdAction1 = generateRollingTaskNotifications(mockTodos[0], now)[0].id - (generateRollingTaskNotifications(mockTodos[0], now)[0].id % 10000);
+  const actionResult = await handleMarkDoneNotificationAction({
+    actionId: TASK_REMINDER_ACTION_MARK_DONE,
+    notification: { id: baseIdAction1, extra: { taskId: 'task-action-1' } },
+    todos: mockTodos,
+    completionHistory: mockHistory,
+    persistTodosAndHistory: async () => { persistedCount++; },
+    getPending: async () => ({
+      notifications: [
+        { id: baseIdAction1 + 1, extra: { taskId: 'task-action-1' } },
+        { id: baseIdAction1 + 2, extra: { taskId: 'task-action-1' } },
+        { id: 9991111, extra: { taskId: 'task-action-2' } }
+      ]
+    }),
+    cancelNotifications: async (opts) => { canceledIds = opts.notifications.map(n => n.id); },
+    getDeliveredNotifications: async () => ({
+      notifications: [
+        { id: baseIdAction1, title: 'A', body: 'B', extra: { taskId: 'task-action-1' } },
+        { id: 9991112, title: 'Other', body: 'C', extra: { taskId: 'task-action-2' } }
+      ]
+    }),
+    removeDeliveredNotifications: async (opts) => { removedDeliveredIds = opts.notifications.map(n => n.id); },
+    syncQueue: async () => { queueResynced = true; }
+  });
+
+  assert.strictEqual(actionResult.completed, true);
+  assert.strictEqual(mockTodos[0].is_completed, 1);
+  assert.strictEqual(mockTodos[0].status, 'completed');
+  assert.strictEqual(mockHistory.length, 1);
+  assert.strictEqual(persistedCount, 1);
+  assert.deepStrictEqual(canceledIds, [baseIdAction1 + 1, baseIdAction1 + 2]);
+  assert.deepStrictEqual(removedDeliveredIds, [baseIdAction1]);
+  assert.strictEqual(queueResynced, true);
+  console.log('  ✅ PASS: Actionable Notification "Đã xong" (MARK_DONE) cập nhật hoàn thành, hủy chuỗi lặp, xóa banner & nạp lại Rolling Queue');
+
+  // Test 11: Kiểm tra tồn tại file âm thanh pop_ding.wav và đăng ký Xcode project.pbxproj
+  assert.ok(fs.existsSync('ios/App/App/pop_ding.wav'), 'Thiếu ios/App/App/pop_ding.wav');
+  assert.ok(fs.existsSync('public/sounds/pop_ding.wav'), 'Thiếu public/sounds/pop_ding.wav');
+  const pbxproj = fs.readFileSync('ios/App/App.xcodeproj/project.pbxproj', 'utf8');
+  assert.ok(pbxproj.includes('pop_ding.wav in Resources'), 'project.pbxproj chưa đăng ký pop_ding.wav vào Resources');
+  console.log('  ✅ PASS: Tài nguyên âm thanh pop_ding.wav đã sẵn sàng và đăng ký vào Xcode Resources');
 
   console.log('🎉 TẤT CẢ KIỂM THỬ V3 & LOCAL NOTIFICATIONS ĐÃ VƯỢT QUA 100%!');
 }

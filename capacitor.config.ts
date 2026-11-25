@@ -12,6 +12,9 @@ const config: CapacitorConfig = {
     SplashScreen: {
       launchShowDuration: 0,
       launchAutoHide: true
+    },
+    LocalNotifications: {
+      presentationOptions: ['badge', 'sound', 'banner', 'list']
     }
   }
 };

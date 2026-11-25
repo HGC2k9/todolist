@@ -430,7 +430,7 @@ function getAudioTimerModule() {
                 title: '⏳ Hẹn giờ kết thúc',
                 body: 'Thời gian hẹn giờ của bạn đã kết thúc!',
                 schedule: { at: new Date() },
-                sound: 'beep.caf'
+                sound: 'pop_ding.wav'
               }]
             }).catch(() => {});
           }
