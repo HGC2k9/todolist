@@ -70,6 +70,29 @@ export async function fetchWithTimeout(url: string, timeoutMs: number = 4000): P
   }
 }
 
+export async function applyOtaBasePathSafely(params: {
+  newVersion: string;
+  localPath: string;
+  storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+  setServerBasePath: (opts: { path: string }) => Promise<void>;
+  persistServerBasePath: () => Promise<void>;
+}): Promise<void> {
+  const prevVersion = params.storage.getItem('ota_active_version');
+  // Ghi ota_active_version TRƯỚC khi gọi setServerBasePath vì WKWebView trên iOS có thể reload ngay lập tức
+  params.storage.setItem('ota_active_version', params.newVersion);
+  try {
+    await params.setServerBasePath({ path: params.localPath });
+    await params.persistServerBasePath();
+  } catch (err) {
+    if (prevVersion) {
+      params.storage.setItem('ota_active_version', prevVersion);
+    } else {
+      params.storage.removeItem('ota_active_version');
+    }
+    throw err;
+  }
+}
+
 export const otaUpdaterScript = /*javascript*/ `
 function getOtaUpdaterModule() {
   return {
@@ -266,12 +289,22 @@ function getOtaUpdaterModule() {
         const localPath = decodeURIComponent(uriResult.uri.replace(/^file:\\/\\//, ''));
         console.log('[OTA] Đã lưu bản cập nhật tại: ' + localPath);
 
-        // Chuyển đổi và lưu trữ Server Base Path của WKWebView
-        await WV.setServerBasePath({ path: localPath });
-        await WV.persistServerBasePath();
-
+        // Ghi ota_active_version TRƯỚC khi đổi ServerBasePath (vì setServerBasePath trên iOS sẽ reload WKWebView ngay)
+        const prevVersion = localStorage.getItem('ota_active_version');
         localStorage.setItem('ota_active_version', manifest.version);
         this.otaStatus = 'ready';
+
+        try {
+          await WV.setServerBasePath({ path: localPath });
+          await WV.persistServerBasePath();
+        } catch (switchErr) {
+          if (prevVersion) {
+            localStorage.setItem('ota_active_version', prevVersion);
+          } else {
+            localStorage.removeItem('ota_active_version');
+          }
+          throw switchErr;
+        }
 
         if (typeof this.playSound === 'function') this.playSound('add');
         this.showToast('🚀 Đã cập nhật xong bản ' + (manifest.appVersion || manifest.version) + '!', 'info', {

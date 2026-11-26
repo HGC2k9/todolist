@@ -158,19 +158,20 @@ export function renderHTML(): string {
       overscroll-behavior-y: contain;
     }
 
-    .toast-enter { animation: toastIn 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
-    @keyframes toastIn { from { opacity:0; transform:translateY(-16px) scale(0.94); } to { opacity:1; transform:translateY(0) scale(1); } }
+    .toast-enter { animation: toastIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; will-change: transform, opacity; }
+    @keyframes toastIn { from { opacity:0; transform:translateY(-14px) scale(0.95); } to { opacity:1; transform:translateY(0) scale(1); } }
+    @keyframes cardEnter { from { opacity: 0; transform: translateY(10px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
     @keyframes spin { to { transform:rotate(360deg); } }
     .spinner { animation: spin 0.7s linear infinite; }
-    .line-through-anim { text-decoration: line-through; color: #94a3b8; }
+    .line-through-anim { text-decoration: line-through; color: #94a3b8; transition: color 0.2s ease, opacity 0.2s ease; }
 
     @keyframes checkmark-pop {
       0% { transform: scale(0.5); opacity: 0; }
-      60% { transform: scale(1.2); }
+      60% { transform: scale(1.18); }
       100% { transform: scale(1); opacity: 1; }
     }
     .animate-checkmark {
-      animation: checkmark-pop 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      animation: checkmark-pop 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
 
     @keyframes badge-glow {
@@ -197,10 +198,11 @@ export function renderHTML(): string {
       animation: pulse-warning 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
 
-    /* Hiệu ứng thẻ mượt mà & nâng nhẹ khi hover trên màn hình có chuột */
+    /* Hiệu ứng thẻ mượt mà 60fps (GPU-accelerated transform + opacity) */
     .todo-card {
-      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s ease, background-color 0.15s ease, opacity 0.2s ease;
-      will-change: transform;
+      animation: cardEnter 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+      transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.18s ease, background-color 0.18s ease, opacity 0.22s ease;
+      will-change: transform, opacity;
     }
     @media (hover: hover) and (pointer: fine) {
       .todo-card:hover {
@@ -643,7 +645,7 @@ export function renderHTML(): string {
     <!-- ─── Todo List Item Cards (Tự động sắp xếp: Việc cần làm lên đầu, Quá hạn & Đã xong rớt xuống dưới) ─── -->
     <div class="space-y-3" x-show="viewMode === 'list' && !todosLoading && filteredSortedTodos.length > 0">
       <template x-for="todo in filteredSortedTodos" :key="todo.id">
-        <div class="todo-card bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-5 hover:shadow-md group relative transition-all"
+        <div class="todo-card bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-5 hover:shadow-md group relative"
              :class="{
                'opacity-50 bg-slate-50/50 dark:bg-slate-900/50': todo.is_completed,
                'opacity-75 bg-rose-50/20 dark:bg-rose-950/20': !todo.is_completed && isOverdue(todo),
@@ -836,7 +838,14 @@ export function renderHTML(): string {
                        :style="'width: ' + (getSubtasks(todo).length > 0 ? (getSubtasks(todo).filter(s => s.is_completed).length / getSubtasks(todo).length * 100) : 0) + '%'"></div>
                 </div>
                 <!-- Subtasks List (Direct Tick) -->
-                <div x-show="todo._expandedSubtasks" class="space-y-1.5 pl-2">
+                <div x-show="todo._expandedSubtasks"
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 -translate-y-1"
+                     x-transition:enter-end="opacity-100 translate-y-0"
+                     x-transition:leave="transition ease-in duration-150"
+                     x-transition:leave-start="opacity-100 translate-y-0"
+                     x-transition:leave-end="opacity-0 -translate-y-1"
+                     class="space-y-1.5 pl-2">
                   <template x-for="(st, sIdx) in getSubtasks(todo)" :key="st.id || sIdx">
                     <label class="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none py-0.5">
                       <input type="checkbox" :id="'st_card_' + (st.id || sIdx)" :name="'st_card_' + (st.id || sIdx)" aria-label="Đánh dấu việc con" :checked="Boolean(st.is_completed)" @change="toggleSubtask(todo, st.id)"
@@ -853,7 +862,11 @@ export function renderHTML(): string {
     </div>
 
     <!-- ═══════ CALENDAR VIEW ═══════ -->
-    <div x-show="viewMode === 'calendar' && !todosLoading" x-cloak class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-6 mb-8 shadow-xs">
+    <div x-show="viewMode === 'calendar' && !todosLoading" x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-6 mb-8 shadow-xs">
       <!-- Calendar Month Navigation -->
       <div class="flex items-center justify-between mb-4">
         <button type="button" @click="prevCalendarMonth()" class="w-8 h-8 rounded-xl inline-flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95">

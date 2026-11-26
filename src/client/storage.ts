@@ -581,7 +581,7 @@ function getStorageModule() {
       try {
         const payload = {
           app: 'ToDoList-Local',
-          version: '3.2.2',
+          version: '3.2.3',
           exported_at: new Date().toISOString(),
           todos: this.todos,
           categories: this.categories,
@@ -635,7 +635,7 @@ function getStorageModule() {
       try {
         const payload = {
           app: 'ToDoList-Local',
-          version: '3.2.2',
+          version: '3.2.3',
           exported_at: new Date().toISOString(),
           todos: this.todos,
           categories: this.categories,
@@ -1050,7 +1050,7 @@ function getStorageModule() {
 
     checkAppVersion(manual = false) {
       if (manual) {
-        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.2.2') + ')! 🎉', 'success');
+        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.2.3') + ')! 🎉', 'success');
       }
     },
 

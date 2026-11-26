@@ -3,7 +3,8 @@ import {
   parseVersionParts,
   compareVersions,
   verifyBundleIntegrity,
-  fetchWithTimeout
+  fetchWithTimeout,
+  applyOtaBasePathSafely
 } from '../src/client/ota-updater';
 
 console.log('🧪 Bắt đầu kiểm thử tính năng OTA Update qua GitHub Pages & Rollback an toàn...');
@@ -106,6 +107,46 @@ async function runAsyncTests() {
   assert.strictEqual(mockLocalStorage['ota_active_version'], undefined);
   assert.strictEqual(mockLocalStorage['ota_blacklisted_3.0.0-broken-test'], '1');
   console.log('  ✅ PASS: Cơ chế Rollback bảo toàn 100% dữ liệu công việc và lịch sử của người dùng');
+
+  // 6. Kiểm thử ghi ota_active_version TRƯỚC khi đổi ServerBasePath (chống vòng lặp reload trên iOS)
+  console.log('  Testing applyOtaBasePathSafely order & error recovery...');
+  const storeMap: Record<string, string> = { ota_active_version: '3.2.2-20261126065526' };
+  const mockStorage = {
+    getItem: (k: string) => (k in storeMap ? storeMap[k] : null),
+    setItem: (k: string, v: string) => { storeMap[k] = v; },
+    removeItem: (k: string) => { delete storeMap[k]; }
+  };
+
+  let versionSeenDuringReload: string | null = null;
+  await applyOtaBasePathSafely({
+    newVersion: '3.2.3-20261126100000',
+    localPath: '/var/mobile/Containers/Data/Library/NoCloud/ionic_built_snapshots/3.2.3',
+    storage: mockStorage,
+    setServerBasePath: async () => {
+      // Giả lập WKWebView đọc localStorage ngay tại thời điểm reload
+      versionSeenDuringReload = mockStorage.getItem('ota_active_version');
+    },
+    persistServerBasePath: async () => {}
+  });
+  assert.strictEqual(versionSeenDuringReload, '3.2.3-20261126100000');
+  assert.strictEqual(compareVersions(mockStorage.getItem('ota_active_version') || '', '3.2.3-20261126100000'), false);
+
+  // Kiểm tra khôi phục version cũ nếu setServerBasePath lỗi
+  let failedCaught = false;
+  try {
+    await applyOtaBasePathSafely({
+      newVersion: '3.2.4-broken',
+      localPath: '/tmp/broken',
+      storage: mockStorage,
+      setServerBasePath: async () => { throw new Error('WKWebView error'); },
+      persistServerBasePath: async () => {}
+    });
+  } catch {
+    failedCaught = true;
+  }
+  assert.strictEqual(failedCaught, true);
+  assert.strictEqual(mockStorage.getItem('ota_active_version'), '3.2.3-20261126100000');
+  console.log('  ✅ PASS: ota_active_version được ghi trước setServerBasePath và tự khôi phục nếu lỗi');
 
   console.log('🎉 TẤT CẢ KIỂM THỬ OTA UPDATE & AUTO-ROLLBACK ĐÃ VƯỢT QUA 100%!\n');
 }
