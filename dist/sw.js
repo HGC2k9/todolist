@@ -1,12 +1,11 @@
 
-const CACHE_NAME = 'todolist-local-v30';
+const CACHE_NAME = 'todolist-local-v31';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
   '/icon-192.png',
   '/vendor/tailwind.js',
   '/vendor/alpine.min.js',
-  '/vendor/lucide.min.js',
   '/vendor/confetti.browser.min.js',
   '/vendor/sortable.min.js'
 ];

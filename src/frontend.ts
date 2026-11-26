@@ -3,6 +3,7 @@ import { notificationsScript } from './client/notifications';
 import { audioTimerScript } from './client/audio-timer';
 import { otaUpdaterScript } from './client/ota-updater';
 import { APP_VERSION } from './version';
+import { svgIcon } from './icons';
 
 // ============================================================
 // Frontend SPA — To-Do List (Alpine.js + Tailwind CSS + PWA)
@@ -209,6 +210,13 @@ export function renderHTML(): string {
       transform: translateY(8px) scale(0.96) !important;
       transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s ease !important;
     }
+    .pull-spring-active {
+      will-change: transform;
+    }
+    .pull-spring-snap {
+      transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: transform;
+    }
     @media (hover: hover) and (pointer: fine) {
       .todo-card:hover {
         transform: translateY(-1.5px);
@@ -283,10 +291,10 @@ export function renderHTML(): string {
            'bg-blue-600 border-blue-500 text-white': toast.type === 'info'
          }">
       <div class="flex items-center gap-2.5 min-w-0">
-        <svg x-show="toast.type==='success'" class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        <svg x-show="toast.type==='error'" class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-        <svg x-show="toast.type==='warning'" class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        <svg x-show="toast.type==='info'" class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        ${svgIcon('check', 'w-5 h-5 flex-shrink-0', 'x-show="toast.type===\'success\'"')}
+        ${svgIcon('close-circle', 'w-5 h-5 flex-shrink-0', 'x-show="toast.type===\'error\'"')}
+        ${svgIcon('warning', 'w-5 h-5 flex-shrink-0', 'x-show="toast.type===\'warning\'"')}
+        ${svgIcon('info', 'w-5 h-5 flex-shrink-0', 'x-show="toast.type===\'info\'"')}
         <span x-text="toast.message" class="break-words"></span>
         <span x-show="toast.count > 1" class="ml-1 px-1.5 py-0.5 rounded-full bg-white/25 text-[11px] font-black" x-text="'x' + toast.count"></span>
       </div>
@@ -337,11 +345,7 @@ export function renderHTML(): string {
                 aria-label="Sao lưu dữ liệu và xuất lịch"
                 class="h-8 px-2 sm:px-2.5 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/70 dark:hover:bg-violet-900 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-800 transition shadow-xs active:scale-95"
                 title="Sao lưu JSON & Xuất lịch (.ics)">
-          <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
-          </svg>
+          ${svgIcon('download', 'w-3.5 h-3.5 flex-shrink-0')}
           <span class="hidden md:inline">Sao lưu & Lịch</span>
           <span class="hidden sm:inline md:hidden">Lịch</span>
         </button>
@@ -350,24 +354,24 @@ export function renderHTML(): string {
         <button @click="refreshDataManual($event)"
                 aria-label="Làm mới dữ liệu danh sách công việc"
                 class="w-8 h-8 rounded-xl inline-flex items-center justify-center text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 border border-transparent hover:border-slate-200 dark:hover:border-slate-700" :class="{ 'spinner text-brand-600': isRefreshing }" title="Làm mới dữ liệu">
-          <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path><polyline points="21 3 21 9 15 9"></polyline></svg>
+          ${svgIcon('refresh', 'w-4 h-4 flex-shrink-0')}
         </button>
 
         <!-- Đổi Theme -->
         <button @click="toggleDarkMode($event)"
                 aria-label="Chuyển đổi giao diện Sáng / Tối"
                 class="w-8 h-8 rounded-xl inline-flex items-center justify-center text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 border border-transparent hover:border-slate-200 dark:hover:border-slate-700" title="Đổi giao diện">
-          <svg x-show="!darkMode" class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-          <svg x-show="darkMode" class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          ${svgIcon('moon', 'w-4 h-4 flex-shrink-0', 'x-show="!darkMode"')}
+          ${svgIcon('sun', 'w-4 h-4 flex-shrink-0', 'x-show="darkMode"')}
         </button>
 
         <!-- Bật / Tắt Âm thanh thao tác (Tùy chọn) -->
         <button @click="toggleSoundEffects()"
                 :aria-label="soundEffectsEnabled ? 'Tắt âm thanh thao tác' : 'Bật âm thanh thao tác'"
                 class="w-8 h-8 rounded-xl inline-flex items-center justify-center text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
-                :title="soundEffectsEnabled ? 'Âm thanh: Đang bật 🔊 (Bấm để tắt)' : 'Âm thanh: Đang tắt 🔇 (Bấm để bật)'">
-          <span x-show="soundEffectsEnabled" class="text-xs">🔊</span>
-          <span x-show="!soundEffectsEnabled" class="text-xs opacity-50">🔇</span>
+                :title="soundEffectsEnabled ? 'Âm thanh: Đang bật (Bấm để tắt)' : 'Âm thanh: Đang tắt (Bấm để bật)'">
+          ${svgIcon('volume-high', 'w-4 h-4 flex-shrink-0', 'x-show="soundEffectsEnabled"')}
+          ${svgIcon('volume-mute', 'w-4 h-4 flex-shrink-0 opacity-50', 'x-show="!soundEffectsEnabled"')}
         </button>
 
         </div>
@@ -380,33 +384,34 @@ export function renderHTML(): string {
        @touchend="onBodyTouchEnd()"
        style="padding-top: calc(max(14px, env(safe-area-inset-top, 0px)) + 60px); padding-bottom: calc(max(1.25rem, env(safe-area-inset-bottom, 0px)) + 6rem);">
 
-  <!-- Pull-to-Refresh Lò xo kiểu iOS -->
-  <div x-show="pullRefreshY > 4 || pullRefreshing" x-cloak
-       class="flex items-center justify-center overflow-hidden transition-all duration-200 ease-out"
-       :style="'height: ' + (pullRefreshing ? 48 : pullRefreshY) + 'px; opacity: ' + Math.min(1, (pullRefreshing ? 48 : pullRefreshY) / 40) + ';'">
-    <div class="w-8 h-8 rounded-full bg-white dark:bg-slate-800 shadow-md border border-slate-200 dark:border-slate-700 flex items-center justify-center text-brand-600"
-         :style="'transform: scale(' + Math.min(1.05, 0.7 + (pullRefreshY / 120)) + ') rotate(' + (pullRefreshY * 4) + 'deg);'">
-      <svg class="w-4 h-4" :class="pullRefreshing && 'spinner'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><polyline points="21 3 21 9 15 9"/></svg>
+  <!-- Pull-to-Refresh Lò xo kiểu iOS (60fps GPU translate3d) -->
+  <div class="relative w-full">
+    <div x-show="pullRefreshY > 4 || pullRefreshing" x-cloak
+         class="pointer-events-none flex items-center justify-center w-full py-1"
+         :style="'position: absolute; top: -4px; left: 0; right: 0; z-index: 20; opacity: ' + Math.min(1, (pullRefreshing ? 48 : pullRefreshY) / 36) + '; transform: translate3d(0, ' + Math.max(0, Math.min(44, (pullRefreshing ? 44 : pullRefreshY) - 8)) + 'px, 0); will-change: transform, opacity;' + (!_isPullingRefresh ? ' transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s ease;' : '')">
+      <div class="w-8 h-8 rounded-full bg-white dark:bg-slate-800 shadow-md border border-slate-200 dark:border-slate-700 flex items-center justify-center text-brand-600"
+           :style="'transform: scale(' + Math.min(1.06, 0.72 + ((pullRefreshing ? 48 : pullRefreshY) / 115)) + ') rotate(' + (pullRefreshing ? 0 : (pullRefreshY * 4.5)) + 'deg);'">
+        ${svgIcon('refresh', 'w-4 h-4', ':class="pullRefreshing && \'spinner\'"')}
+      </div>
     </div>
-  </div>
+
+  <div :class="_isPullingRefresh ? 'pull-spring-active' : 'pull-spring-snap'"
+       :style="(pullRefreshY > 0 || pullRefreshing) ? ('transform: translate3d(0, ' + (pullRefreshing ? 48 : pullRefreshY) + 'px, 0);') : 'transform: translate3d(0, 0, 0);'">
 
   <!-- ─── Banner thông báo nhắc nhở theo mức độ ưu tiên ─── -->
   <div x-show="imminentTodos.length > 0" x-cloak
        class="bg-gradient-to-r from-amber-500 to-orange-500 text-white py-2.5 px-4 shadow-md">
     <div class="max-w-5xl mx-auto flex items-center justify-between gap-3 text-xs sm:text-sm font-semibold">
       <div class="flex items-center gap-2 overflow-hidden">
-        <svg class="w-5 h-5 flex-shrink-0 animate-bounce" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <polyline points="12 6 12 12 16 14"></polyline>
-        </svg>
+        ${svgIcon('clock', 'w-5 h-5 flex-shrink-0 animate-bounce')}
         <span class="truncate">
           <strong>Việc sắp đến hạn:</strong>
           <span x-text="imminentSummary"></span>
         </span>
       </div>
       <div class="flex items-center gap-2 flex-shrink-0">
-        <button @click="filterStatus='pending'"
-                class="px-2.5 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-bold transition active:scale-95">
+        <button type="button" @click="focusFirstImminentTodo()"
+                class="px-2.5 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-bold transition active:scale-95 cursor-pointer">
           Xem ngay
         </button>
       </div>
@@ -496,7 +501,7 @@ export function renderHTML(): string {
       <!-- Search Input with clear button and keyboard shortcut hint -->
       <div class="relative">
         <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          ${svgIcon('search', 'w-4 h-4')}
         </span>
         <input id="search-input" name="searchQuery" x-model="searchQuery" type="text"
                @keydown.enter.prevent="quickAddFromText(searchQuery)"
@@ -511,22 +516,22 @@ export function renderHTML(): string {
             ⚡ Tạo
           </button>
           <button x-show="searchQuery" @click="searchQuery=''" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer" aria-label="Xóa nội dung tìm kiếm">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            ${svgIcon('close', 'w-3.5 h-3.5')}
           </button>
           <kbd class="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">/</kbd>
         </div>
       </div>
 
-      <!-- Quick Filter Chips với số lượng đếm trực tiếp (Căn chỉnh đối xứng h-8) -->
+      <!-- Quick Filter Chips với số lượng đếm trực tiếp (Ẩn Hôm nay & Tất cả trên mobile vì đã có ở Footer Tab Bar) -->
       <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 -mx-0.5 px-0.5" role="group" aria-label="Bộ lọc trạng thái công việc">
         <template x-for="s in statusFilters" :key="s.value">
           <button @click="filterStatus = s.value; triggerHaptic('light')"
                   role="button"
                   :aria-pressed="filterStatus === s.value"
-                  class="flex-shrink-0 h-8 px-3 text-xs font-bold rounded-xl border transition-all duration-150 inline-flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
-                  :class="filterStatus === s.value
+                  class="flex-shrink-0 h-8 px-3 text-xs font-bold rounded-xl border transition-all duration-150 items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+                  :class="(s.value === 'today' || s.value === 'all' ? 'hidden sm:inline-flex ' : 'inline-flex ') + (filterStatus === s.value
                     ? 'bg-brand-600 text-white border-brand-600 shadow-xs'
-                    : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-slate-700/80 hover:border-brand-400 dark:hover:border-brand-500'">
+                    : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-slate-700/80 hover:border-brand-400 dark:hover:border-brand-500')">
             <span x-html="s.icon" class="flex-shrink-0"></span>
             <span x-text="s.label"></span>
             <span class="ml-0.5 text-[10px] font-black px-1.5 py-0.2 rounded-full"
@@ -536,19 +541,20 @@ export function renderHTML(): string {
         </template>
       </div>
 
-      <!-- Chế độ xem: Danh sách / Lịch -->
-      <div class="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800 gap-2 flex-wrap">
-        <div class="inline-flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-bold border border-slate-200/80 dark:border-slate-700/80 h-8">
+      <!-- Chế độ xem: Danh sách / Lịch (Ẩn trên mobile vì đã có Lịch ở Footer Tab Bar) & Lọc thẻ -->
+      <div class="hidden sm:flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800 gap-2 flex-wrap"
+           :class="allTags.length > 0 && '!flex'">
+        <div class="hidden sm:inline-flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-bold border border-slate-200/80 dark:border-slate-700/80 h-8">
           <button type="button" @click="setViewMode('list')"
                   class="h-7 px-2.5 rounded-lg transition inline-flex items-center justify-center gap-1.5 active:scale-95"
                   :class="viewMode === 'list' ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'">
-            <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            ${svgIcon('list', 'w-3.5 h-3.5 flex-shrink-0')}
             <span>Danh sách</span>
           </button>
           <button type="button" @click="setViewMode('calendar')"
                   class="h-7 px-2.5 rounded-lg transition inline-flex items-center justify-center gap-1.5 active:scale-95"
                   :class="viewMode === 'calendar' ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'">
-            <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            ${svgIcon('calendar', 'w-3.5 h-3.5 flex-shrink-0')}
             <span>Lịch</span>
           </button>
         </div>
@@ -605,17 +611,17 @@ export function renderHTML(): string {
                 aria-label="Báo cáo năng suất sâu"
                 class="h-8 px-2.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/70 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-bold flex-shrink-0 text-xs inline-flex items-center gap-1.5 transition active:scale-95"
                 title="Báo cáo thống kê năng suất sâu">
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          ${svgIcon('bar-chart', 'w-3.5 h-3.5')}
           <span class="hidden sm:inline">Năng suất</span>
         </button>
 
-        <!-- Nút Pomodoro Focus Mode (Bật / Tắt tập trung toàn ứng dụng) -->
+        <!-- Nút Pomodoro Focus Mode (Ẩn trên mobile vì đã có nút Tập trung ở Footer Tab Bar) -->
         <button type="button" @click="openPomodoro()"
                 aria-label="Chế độ tập trung Pomodoro"
-                class="h-8 px-2.5 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/70 dark:hover:bg-rose-900 text-rose-700 dark:text-rose-300 font-bold flex-shrink-0 text-xs inline-flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-xs"
+                class="hidden sm:inline-flex h-8 px-2.5 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/70 dark:hover:bg-rose-900 text-rose-700 dark:text-rose-300 font-bold flex-shrink-0 text-xs items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-xs"
                 :class="pomodoroRunning && 'ring-2 ring-rose-500 animate-pulse bg-rose-100 dark:bg-rose-900'"
                 title="Bật/Tắt chế độ tập trung Pomodoro">
-          <span>🍅</span>
+          ${svgIcon('stopwatch', 'w-3.5 h-3.5')}
           <span x-text="pomodoroRunning ? ('Tập trung: ' + formatTimer(pomodoroTimeLeft)) : 'Pomodoro'"></span>
         </button>
 
@@ -624,7 +630,7 @@ export function renderHTML(): string {
                 aria-label="Mở thùng rác"
                 class="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold flex-shrink-0 text-xs inline-flex items-center gap-1.5 transition active:scale-95"
                 title="Xem và khôi phục các công việc đã xóa trong Thùng rác">
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          ${svgIcon('trash', 'w-3.5 h-3.5')}
           <span class="hidden sm:inline">Thùng rác</span>
         </button>
 
@@ -635,7 +641,7 @@ export function renderHTML(): string {
                 class="h-8 px-2.5 rounded-xl border font-bold flex-shrink-0 text-xs inline-flex items-center gap-1 transition active:scale-95 cursor-pointer"
                 :class="compactMode ? 'bg-brand-50 dark:bg-brand-950/60 border-brand-300 dark:border-brand-700 text-brand-700 dark:text-brand-300' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300'"
                 title="Chuyển chế độ hiển thị Gọn / Chi tiết">
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          ${svgIcon('menu', 'w-3.5 h-3.5')}
           <span x-text="compactMode ? 'Gọn' : 'Chi tiết'"></span>
         </button>
 
@@ -643,7 +649,7 @@ export function renderHTML(): string {
                 aria-label="Dọn dẹp công việc đã hoàn thành"
                 class="h-8 ml-auto text-rose-500 hover:text-rose-600 font-bold inline-flex items-center justify-center gap-1 transition px-2.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/50 flex-shrink-0 text-xs active:scale-95"
                 title="Dọn dẹp việc đã xong">
-          <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          ${svgIcon('trash', 'w-3.5 h-3.5 flex-shrink-0')}
           <span class="hidden sm:inline">Dọn dẹp đã xong</span>
         </button>
       </div>
@@ -654,7 +660,7 @@ export function renderHTML(): string {
       <button @click="openCreateModal()"
               class="flex-1 py-3 border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-brand-500 dark:hover:border-brand-400 bg-white/60 dark:bg-slate-900/60 hover:bg-brand-50/20 dark:hover:bg-brand-950/20 rounded-2xl text-slate-600 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-all flex items-center justify-center gap-2 text-sm font-bold shadow-xs group active:scale-[0.99]">
         <div class="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 group-hover:bg-brand-100 dark:group-hover:bg-brand-900 transition text-brand-600">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          ${svgIcon('plus', 'w-4 h-4')}
         </div>
         <span>Thêm công việc mới</span>
         <kbd class="ml-2 text-[10px] font-semibold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">N</kbd>
@@ -686,12 +692,12 @@ export function renderHTML(): string {
     <!-- ─── Empty State ─── -->
     <div x-show="!todosLoading && todos.length === 0" class="text-center py-16 px-4 bg-white dark:bg-slate-900/80 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
       <div class="w-16 h-16 mx-auto mb-4 rounded-3xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
-        <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        ${svgIcon('document-text', 'w-8 h-8')}
       </div>
       <h3 class="text-base font-bold text-slate-800 dark:text-slate-200">Không có công việc nào</h3>
       <p class="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Bạn chưa có tác vụ nào hoặc không khớp với bộ lọc hiện tại.</p>
       <button @click="openCreateModal()" class="mt-4 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/25 transition active:scale-95 inline-flex items-center gap-1.5">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        ${svgIcon('plus', 'w-4 h-4')}
         Tạo công việc đầu tiên
       </button>
     </div>
@@ -703,7 +709,7 @@ export function renderHTML(): string {
           <!-- Swipe-Right Layer: Hoàn thành nhanh -->
           <div x-show="(todo._swipeX || 0) > 8" x-cloak
                class="absolute inset-y-0 left-0 w-32 bg-emerald-500 text-white flex items-center pl-4 font-bold text-xs gap-1.5 rounded-l-3xl pointer-events-none">
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            ${svgIcon('check', 'w-5 h-5')}
             <span>Hoàn thành</span>
           </div>
 
@@ -711,20 +717,21 @@ export function renderHTML(): string {
           <div x-show="(todo._swipeX || 0) < -8" x-cloak
                class="absolute inset-y-0 right-0 flex items-stretch rounded-r-3xl overflow-hidden">
             <button type="button" @click="togglePin(todo, $event)" aria-label="Ghim việc"
-                    class="w-12 bg-amber-500 text-white flex flex-col items-center justify-center text-[10px] font-bold active:opacity-80 cursor-pointer">
-              <span>📌</span><span>Ghim</span>
+                    class="w-12 bg-amber-500 text-white flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold active:opacity-80 cursor-pointer">
+              ${svgIcon('pin', 'w-3.5 h-3.5')}<span>Ghim</span>
             </button>
             <button type="button" @click="postponeTodo(todo, '1h', $event)" aria-label="Dời hạn 1 giờ"
-                    class="w-12 bg-indigo-500 text-white flex flex-col items-center justify-center text-[10px] font-bold active:opacity-80 cursor-pointer">
-              <span>⏰</span><span>+1h</span>
+                    class="w-12 bg-indigo-500 text-white flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold active:opacity-80 cursor-pointer">
+              ${svgIcon('clock', 'w-3.5 h-3.5')}<span>+1h</span>
             </button>
             <button type="button" @click="confirmDelete(todo)" aria-label="Xóa việc"
-                    class="w-12 bg-rose-500 text-white flex flex-col items-center justify-center text-[10px] font-bold active:opacity-80 cursor-pointer">
-              <span>🗑️</span><span>Xóa</span>
+                    class="w-12 bg-rose-500 text-white flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold active:opacity-80 cursor-pointer">
+              ${svgIcon('trash', 'w-3.5 h-3.5')}<span>Xóa</span>
             </button>
           </div>
 
-        <div class="todo-card bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 hover:shadow-md group relative"
+        <div :id="'todo-card-' + todo.id"
+             class="todo-card bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 hover:shadow-md group relative"
              :style="(todo._swipeX ? ('transform: translateX(' + todo._swipeX + 'px); transition: ' + (todo._isSwiping ? 'none' : 'transform 0.24s cubic-bezier(0.22, 1, 0.36, 1)')) : '')"
              @touchstart="startCardSwipe($event, todo)"
              @touchmove="moveCardSwipe($event, todo)"
@@ -733,9 +740,10 @@ export function renderHTML(): string {
                'p-2.5 sm:p-3': compactMode,
                'p-4 sm:p-5': !compactMode,
                'todo-card-collapsing': todo._collapsing,
+               'ring-2 ring-amber-400 shadow-lg shadow-amber-400/25 bg-amber-50/40 dark:bg-amber-950/30': highlightedTodoId === todo.id && !todo._collapsing,
                'opacity-50 bg-slate-50/50 dark:bg-slate-900/50': todo.is_completed && !todo._collapsing,
                'opacity-75 bg-rose-50/20 dark:bg-rose-950/20': !todo.is_completed && isOverdue(todo) && !todo._collapsing,
-               'border-amber-300 dark:border-amber-800/80 ring-2 ring-amber-300/30': todo.is_pinned && !todo.is_completed,
+               'border-amber-300 dark:border-amber-800/80 ring-2 ring-amber-300/30': todo.is_pinned && !todo.is_completed && highlightedTodoId !== todo.id,
                'ring-2 ring-brand-400 border-brand-400': draggedTodo && draggedTodo.id === todo.id
              }"
              :draggable="sortBy === 'custom'"
@@ -766,9 +774,9 @@ export function renderHTML(): string {
                     }"
                     :title="todo.is_completed ? 'Đã hoàn thành (Bấm để mở lại)' : (hasUncompletedSubtasks(todo) ? ('Còn ' + getUncompletedSubtasksCount(todo) + ' việc con chưa xong!') : (isOverdue(todo) ? 'Quá hạn (Tự hủy) - Bấm để xác nhận xong việc' : 'Đánh dấu hoàn thành'))">
               <!-- Đã xong: checkmark xanh lá -->
-              <svg x-show="todo.is_completed" class="w-4 h-4 animate-checkmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              ${svgIcon('check', 'w-4 h-4 animate-checkmark', 'x-show="todo.is_completed"')}
               <!-- Quá hạn: Dấu X đỏ tự hủy, bấm vào sẽ tick thành xong việc -->
-              <svg x-show="!todo.is_completed && isOverdue(todo)" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              ${svgIcon('close', 'w-3.5 h-3.5', 'x-show="!todo.is_completed && isOverdue(todo)"')}
               <!-- Còn việc con chưa xong: Chấm amber cảnh báo -->
               <span x-show="!todo.is_completed && !isOverdue(todo) && hasUncompletedSubtasks(todo)" class="w-2 h-2 rounded-full bg-amber-500"></span>
             </button>
@@ -777,7 +785,7 @@ export function renderHTML(): string {
               <div class="flex items-start justify-between gap-2">
                 <div class="flex items-center gap-2 flex-wrap min-w-0">
                   <span x-show="Boolean(todo.is_pinned)" x-cloak class="inline-flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/70 px-2 py-0.5 rounded-lg border border-amber-200 dark:border-amber-800 flex-shrink-0">
-                    <svg class="w-3 h-3 text-amber-500" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                    ${svgIcon('pin', 'w-3 h-3 text-amber-500')}
                     Đã ghim
                   </span>
 
@@ -787,33 +795,33 @@ export function renderHTML(): string {
                 </div>
 
                 <div class="flex-shrink-0 flex items-center gap-1 sm:gap-1.5">
-                  <!-- Ghim (Pushpin Solid) -->
+                  <!-- Ghim -->
                   <button @click="togglePin(todo, $event)"
                           :aria-label="todo.is_pinned ? ('Bỏ ghim: ' + todo.title) : ('Ghim lên đầu: ' + todo.title)"
                           class="w-8 h-8 rounded-xl inline-flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-90 touch-manipulation cursor-pointer"
                           :class="todo.is_pinned ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'" :title="todo.is_pinned ? 'Bỏ ghim' : 'Ghim lên đầu'">
-                    <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                    ${svgIcon('pin', 'w-4 h-4 flex-shrink-0')}
                   </button>
 
                   <!-- Nhân bản (Copy Layer) -->
                   <button @click="duplicateTodo(todo, $event)"
                           :aria-label="'Nhân bản công việc: ' + todo.title"
                           class="w-8 h-8 rounded-xl inline-flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-blue-500 transition active:scale-90 touch-manipulation cursor-pointer" title="Nhân bản">
-                    <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    ${svgIcon('copy', 'w-4 h-4 flex-shrink-0')}
                   </button>
 
-                  <!-- Chỉnh sửa (Pen Icon) -->
+                  <!-- Chỉnh sửa (Edit Icon) -->
                   <button @click="openEditModal(todo, $event)"
                           :aria-label="'Chỉnh sửa công việc: ' + todo.title"
                           class="w-8 h-8 rounded-xl inline-flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-brand-600 transition active:scale-90 touch-manipulation cursor-pointer" title="Sửa">
-                    <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                    ${svgIcon('edit', 'w-4 h-4 flex-shrink-0')}
                   </button>
 
                   <!-- Xoá (Trash Icon) -->
                   <button @click="confirmDelete(todo, $event)"
                           :aria-label="'Xóa công việc: ' + todo.title"
                           class="w-8 h-8 rounded-xl inline-flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-500 transition active:scale-90 touch-manipulation cursor-pointer" title="Xóa">
-                    <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    ${svgIcon('trash', 'w-4 h-4 flex-shrink-0')}
                   </button>
                 </div>
               </div>
@@ -821,22 +829,22 @@ export function renderHTML(): string {
               <p x-show="todo.description && !compactMode" class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 line-clamp-2" x-text="todo.description"></p>
 
               <div class="flex flex-wrap items-center gap-1.5 sm:gap-2" :class="compactMode ? 'mt-1.5' : 'mt-3'">
-                <!-- Mức độ ưu tiên với Icon đẹp -->
+                <!-- Mức độ ưu tiên với Icon SVG Repo -->
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold"
                       :class="{
                         'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900': todo.priority==='High',
                         'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900': todo.priority==='Medium',
                         'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900': todo.priority==='Low'
                       }">
-                  <svg x-show="todo.priority==='High'" class="w-3.5 h-3.5 text-rose-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                  <svg x-show="todo.priority==='Medium'" class="w-3.5 h-3.5 text-amber-500" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                  <svg x-show="todo.priority==='Low'" class="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+                  ${svgIcon('star', 'w-3.5 h-3.5 text-rose-500', 'x-show="todo.priority===\'High\'"')}
+                  ${svgIcon('flash', 'w-3.5 h-3.5 text-amber-500', 'x-show="todo.priority===\'Medium\'"')}
+                  ${svgIcon('circle', 'w-3.5 h-3.5 text-emerald-500', 'x-show="todo.priority===\'Low\'"')}
                   <span x-text="todo.priority"></span>
                 </span>
 
                 <!-- Danh mục với Icon Folder -->
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
-                  <svg class="w-3 h-3 text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>
+                  ${svgIcon('folder', 'w-3.5 h-3.5 text-blue-500')}
                   <span x-text="todo.category"></span>
                 </span>
 
@@ -846,7 +854,7 @@ export function renderHTML(): string {
                       :class="todo.repeat_mode === 'daily'
                         ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900'
                         : 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-900'">
-                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+                  ${svgIcon('repeat', 'w-3.5 h-3.5')}
                   <span x-text="todo.repeat_mode === 'daily' ? 'Hàng ngày' : 'Hàng tuần'"></span>
                 </span>
 
@@ -857,9 +865,9 @@ export function renderHTML(): string {
                         : isImminent(todo)
                           ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-400 animate-pulse-warning'
                           : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'">
-                  <svg x-show="isOverdue(todo)" class="w-3.5 h-3.5 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                  <svg x-show="!isOverdue(todo) && isImminent(todo)" class="w-3.5 h-3.5 text-amber-600 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  <svg x-show="!isOverdue(todo) && !isImminent(todo)" class="w-3.5 h-3.5 text-indigo-500" viewBox="0 0 24 24" fill="currentColor"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg>
+                  ${svgIcon('warning', 'w-3.5 h-3.5 text-rose-500', 'x-show="isOverdue(todo)"')}
+                  ${svgIcon('clock', 'w-3.5 h-3.5 text-amber-600 animate-spin', 'x-show="!isOverdue(todo) && isImminent(todo)"')}
+                  ${svgIcon('calendar', 'w-3.5 h-3.5 text-indigo-500', 'x-show="!isOverdue(todo) && !isImminent(todo)"')}
                   <span x-text="formatTodoDueDate(todo)"></span>
                 </span>
 
@@ -890,7 +898,7 @@ export function renderHTML(): string {
               <div x-show="!compactMode && getTodoImages(todo.id).length > 0" class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80">
                 <div class="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
                   <span class="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    ${svgIcon('check', 'w-3.5 h-3.5')}
                     <span>Ảnh minh chứng kết quả (<span x-text="getTodoImages(todo.id).length"></span>)</span>
                   </span>
                   <button type="button" @click="chooseOrCapturePhoto(todo.id)" class="text-[10px] text-brand-600 hover:underline font-bold cursor-pointer">+ Thêm ảnh</button>
@@ -913,7 +921,7 @@ export function renderHTML(): string {
                 <div class="flex items-center justify-between text-[11px] font-bold text-slate-500 mb-1.5 cursor-pointer select-none"
                      @click="todo._expandedSubtasks = !todo._expandedSubtasks">
                   <span class="flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5 text-brand-500 transition-transform" :class="todo._expandedSubtasks && 'rotate-90'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                    ${svgIcon('chevron-right', 'w-3.5 h-3.5 text-brand-500 transition-transform', ':class="todo._expandedSubtasks && \'rotate-90\'"')}
                     <span>Việc con: <strong class="text-slate-700 dark:text-slate-200" x-text="getSubtasks(todo).filter(s => s.is_completed).length + '/' + getSubtasks(todo).length"></strong></span>
                   </span>
                   <span class="text-[10px] text-slate-400" x-text="todo._expandedSubtasks ? 'Thu gọn' : 'Xem chi tiết'"></span>
@@ -956,12 +964,12 @@ export function renderHTML(): string {
          class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-6 mb-8 shadow-xs">
       <!-- Calendar Month Navigation -->
       <div class="flex items-center justify-between mb-4">
-        <button type="button" @click="prevCalendarMonth()" class="w-8 h-8 rounded-xl inline-flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        <button type="button" @click="prevCalendarMonth()" aria-label="Tháng trước" class="w-8 h-8 rounded-xl inline-flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95">
+          ${svgIcon('chevron-left', 'w-4 h-4')}
         </button>
         <h3 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white" x-text="calendarTitle"></h3>
-        <button type="button" @click="nextCalendarMonth()" class="w-8 h-8 rounded-xl inline-flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        <button type="button" @click="nextCalendarMonth()" aria-label="Tháng sau" class="w-8 h-8 rounded-xl inline-flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95">
+          ${svgIcon('chevron-right', 'w-4 h-4')}
         </button>
       </div>
 
@@ -1005,7 +1013,7 @@ export function renderHTML(): string {
               <div class="flex items-center gap-2">
                 <button @click="toggleTodo(todo, $event)" class="w-5 h-5 rounded-lg border flex items-center justify-center cursor-pointer"
                         :class="todo.is_completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 dark:border-slate-600'">
-                  <svg x-show="todo.is_completed" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  ${svgIcon('check', 'w-3 h-3', 'x-show="todo.is_completed"')}
                 </button>
                 <span class="text-xs font-bold text-slate-800 dark:text-slate-100" :class="todo.is_completed && 'line-through opacity-60'" x-text="todo.title"></span>
               </div>
@@ -1020,6 +1028,8 @@ export function renderHTML(): string {
     </div>
   </main>
   </div>
+  </div>
+  </div>
 
   <!-- ─── Floating Action Button (FAB) cho Mobile ─── -->
   <div class="fixed sm:hidden z-40"
@@ -1028,10 +1038,7 @@ export function renderHTML(): string {
             aria-label="Thêm công việc mới"
             class="w-14 h-14 rounded-full bg-gradient-to-tr from-brand-600 to-blue-500 text-white shadow-2xl shadow-brand-600/40 flex items-center justify-center active:scale-95 transition-transform duration-150 ring-4 ring-white dark:ring-slate-900 focus-visible:ring-4 focus-visible:ring-brand-400"
             title="Thêm việc mới">
-      <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="12" y1="5" x2="12" y2="19"></line>
-        <line x1="5" y1="12" x2="19" y2="12"></line>
-      </svg>
+      ${svgIcon('plus', 'w-7 h-7')}
     </button>
   </div>
 
@@ -1040,27 +1047,31 @@ export function renderHTML(): string {
        aria-label="Điều hướng chính"
        style="bottom: calc(0.65rem + env(safe-area-inset-bottom, 0px));">
     <button type="button" @click="setViewMode('list'); filterStatus='today'; triggerHaptic('light')"
+            aria-label="Việc hôm nay"
             class="flex flex-col items-center justify-center px-3 py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
             :class="viewMode === 'list' && filterStatus === 'today' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/80 dark:bg-brand-950/60 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
-      <span class="text-base leading-none">☀️</span>
+      ${svgIcon('sun', 'w-4 h-4')}
       <span class="text-[10px] mt-0.5">Hôm nay</span>
     </button>
     <button type="button" @click="setViewMode('list'); filterStatus='all'; triggerHaptic('light')"
+            aria-label="Tất cả công việc"
             class="flex flex-col items-center justify-center px-3 py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
             :class="viewMode === 'list' && filterStatus !== 'today' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/80 dark:bg-brand-950/60 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
-      <span class="text-base leading-none">📋</span>
+      ${svgIcon('list', 'w-4 h-4')}
       <span class="text-[10px] mt-0.5">Tất cả</span>
     </button>
     <button type="button" @click="setViewMode('calendar'); triggerHaptic('light')"
+            aria-label="Xem theo lịch"
             class="flex flex-col items-center justify-center px-3 py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
             :class="viewMode === 'calendar' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/80 dark:bg-brand-950/60 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
-      <span class="text-base leading-none">📅</span>
+      ${svgIcon('calendar', 'w-4 h-4')}
       <span class="text-[10px] mt-0.5">Lịch</span>
     </button>
     <button type="button" @click="openPomodoro(); triggerHaptic('light')"
+            aria-label="Chế độ tập trung"
             class="flex flex-col items-center justify-center px-3 py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
             :class="showPomodoroModal || pomodoroRunning ? 'text-rose-600 dark:text-rose-400 bg-rose-50/80 dark:bg-rose-950/60 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
-      <span class="text-base leading-none">🍅</span>
+      ${svgIcon('stopwatch', 'w-4 h-4')}
       <span class="text-[10px] mt-0.5">Tập trung</span>
     </button>
   </nav>
@@ -1126,7 +1137,7 @@ export function renderHTML(): string {
       <!-- Nút Kiểm tra phiên bản -->
       <button @click="checkAppVersion(true)"
               class="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 active:scale-95 text-slate-700 dark:text-slate-200 font-bold rounded-2xl transition text-xs flex items-center justify-center gap-1.5 cursor-pointer">
-        <svg class="w-4 h-4 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><polyline points="21 3 21 9 15 9"/></svg>
+        ${svgIcon('refresh', 'w-4 h-4 text-brand-500')}
         Kiểm tra phiên bản
       </button>
 
@@ -1167,7 +1178,7 @@ export function renderHTML(): string {
       <div class="flex items-center justify-between pointer-events-auto">
         <h2 id="todo-modal-title" class="text-lg sm:text-xl font-black text-slate-900 dark:text-white" x-text="editingTodo ? 'Chỉnh sửa công việc' : 'Tạo công việc mới'"></h2>
         <button @click="showModal=false; modalDragY=0; playSound('sheet')" type="button" aria-label="Đóng cửa sổ" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 cursor-pointer">
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          ${svgIcon('close', 'w-5 h-5')}
         </button>
       </div>
     </div>
@@ -1207,7 +1218,7 @@ export function renderHTML(): string {
               <input type="text" :id="'st_title_form_' + idx" name="form_subtask_title" aria-label="Tiêu đề việc con" x-model="st.title" placeholder="Tên việc con..."
                      class="flex-1 bg-transparent text-xs font-semibold outline-none text-slate-800 dark:text-slate-200 break-words" />
               <button type="button" @click="removeSubtask(idx)" aria-label="Xóa việc con này" class="p-1 text-slate-400 hover:text-rose-500 rounded-lg cursor-pointer">
-                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                ${svgIcon('close', 'w-3.5 h-3.5')}
               </button>
             </div>
           </template>
@@ -1380,7 +1391,7 @@ export function renderHTML(): string {
       <div class="flex items-center gap-2 pt-1">
         <input type="checkbox" id="pinCheck" name="is_pinned" aria-label="Ghim công việc này lên đầu danh sách" x-model="todoForm.is_pinned" class="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer" />
         <label for="pinCheck" class="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer flex items-center gap-1.5 select-none">
-          <svg class="w-3.5 h-3.5 text-amber-500" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+          ${svgIcon('pin', 'w-3.5 h-3.5 text-amber-500')}
           Ghim công việc này lên đầu danh sách
         </label>
       </div>
@@ -1396,7 +1407,7 @@ export function renderHTML(): string {
         </button>
         <button type="submit" form="todo-create-form" :disabled="todoSaving"
                 class="flex-1 h-11 px-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-2xl shadow-lg shadow-brand-500/25 transition disabled:opacity-60 inline-flex items-center justify-center gap-2 text-sm active:scale-95 cursor-pointer">
-          <svg x-show="todoSaving" class="spinner w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4 31.4" stroke-linecap="round"/></svg>
+          ${svgIcon('refresh', 'spinner w-4 h-4', 'x-show="todoSaving"')}
           <span x-text="editingTodo ? 'Cập nhật' : 'Tạo việc mới'"></span>
         </button>
       </div>
@@ -1420,7 +1431,7 @@ export function renderHTML(): string {
        @click.stop>
     
     <div class="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-500 mx-auto flex items-center justify-center mb-3">
-      <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      ${svgIcon('check', 'w-6 h-6')}
     </div>
 
     <h3 id="completion-modal-title" class="text-base font-bold text-slate-900 dark:text-white mb-1">
@@ -1472,7 +1483,7 @@ export function renderHTML(): string {
       <button type="button" @click="confirmCompleteTask()"
               :disabled="completingUploadingPhoto"
               class="flex-1 h-10 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md shadow-emerald-600/25 transition active:scale-95 inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50">
-        <svg x-show="completingUploadingPhoto" class="spinner w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4 31.4" stroke-linecap="round"/></svg>
+        ${svgIcon('refresh', 'spinner w-3.5 h-3.5', 'x-show="completingUploadingPhoto"')}
         <span x-text="completingUploadingPhoto ? 'Đang lưu...' : 'Xác nhận đã xong ✓'"></span>
       </button>
     </div>
@@ -1490,7 +1501,7 @@ export function renderHTML(): string {
        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
        @click.stop>
     <div class="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-500 mx-auto flex items-center justify-center mb-3">
-      <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      ${svgIcon('trash', 'w-6 h-6')}
     </div>
     <h3 id="delete-modal-title" class="text-base font-bold mb-1.5">Xác nhận xoá công việc?</h3>
     <p class="text-xs text-slate-500 dark:text-slate-400 mb-5">
@@ -1514,7 +1525,7 @@ export function renderHTML(): string {
        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
        @click.stop>
     <div class="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-500 mx-auto flex items-center justify-center mb-3">
-      <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      ${svgIcon('trash', 'w-6 h-6')}
     </div>
     <h3 id="clear-modal-title" class="text-base font-bold mb-1.5">Dọn dẹp công việc đã xong?</h3>
     <p class="text-xs text-slate-500 dark:text-slate-400 mb-5">
@@ -1658,11 +1669,11 @@ export function renderHTML(): string {
     <!-- Actions bar in Trash -->
     <div x-show="trashTodos.length > 0" class="flex items-center justify-between gap-2 py-3 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
       <button type="button" @click="restoreAllTrash()" class="h-8 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900 text-emerald-700 dark:text-emerald-300 font-bold text-xs inline-flex items-center gap-1.5 transition active:scale-95">
-        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        ${svgIcon('undo', 'w-3.5 h-3.5')}
         <span>Khôi phục tất cả</span>
       </button>
       <button type="button" @click="emptyTrash()" class="h-8 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 text-rose-700 dark:text-rose-300 font-bold text-xs inline-flex items-center gap-1.5 transition active:scale-95">
-        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        ${svgIcon('trash', 'w-3.5 h-3.5')}
         <span>Dọn sạch thùng rác</span>
       </button>
     </div>
@@ -1688,11 +1699,11 @@ export function renderHTML(): string {
           </div>
           <div class="flex items-center gap-1.5 flex-shrink-0">
             <button type="button" @click="restoreTodo(todo)" class="h-7 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs inline-flex items-center gap-1 active:scale-95 transition" title="Khôi phục việc này">
-              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+              ${svgIcon('undo', 'w-3 h-3')}
               <span>Khôi phục</span>
             </button>
-            <button type="button" @click="deletePermanently(todo)" class="h-7 w-7 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 inline-flex items-center justify-center transition active:scale-95" title="Xóa vĩnh viễn">
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            <button type="button" @click="deletePermanently(todo)" aria-label="Xóa vĩnh viễn" class="h-7 w-7 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 inline-flex items-center justify-center transition active:scale-95" title="Xóa vĩnh viễn">
+              ${svgIcon('trash', 'w-3.5 h-3.5')}
             </button>
           </div>
         </div>
@@ -1718,22 +1729,27 @@ export function renderHTML(): string {
     <div class="flex items-center justify-between mb-4 flex-shrink-0">
       <div class="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl text-xs font-bold">
         <button type="button" @click="focusToolTab='pomodoro'"
-                class="px-2.5 sm:px-3 py-1.5 rounded-xl transition cursor-pointer"
+                class="px-2.5 sm:px-3 py-1.5 rounded-xl transition cursor-pointer inline-flex items-center gap-1.5"
                 :class="focusToolTab === 'pomodoro' ? 'bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'">
-          🍅 Pomodoro
+          ${svgIcon('flame', 'w-3.5 h-3.5')}
+          <span>Pomodoro</span>
         </button>
         <button type="button" @click="focusToolTab='stopwatch'"
-                class="px-2.5 sm:px-3 py-1.5 rounded-xl transition cursor-pointer"
+                class="px-2.5 sm:px-3 py-1.5 rounded-xl transition cursor-pointer inline-flex items-center gap-1.5"
                 :class="focusToolTab === 'stopwatch' ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'">
-          ⏱️ Bấm giờ
+          ${svgIcon('stopwatch', 'w-3.5 h-3.5')}
+          <span>Bấm giờ</span>
         </button>
         <button type="button" @click="focusToolTab='timer'"
-                class="px-2.5 sm:px-3 py-1.5 rounded-xl transition cursor-pointer"
+                class="px-2.5 sm:px-3 py-1.5 rounded-xl transition cursor-pointer inline-flex items-center gap-1.5"
                 :class="focusToolTab === 'timer' ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'">
-          ⏳ Hẹn giờ
+          ${svgIcon('hourglass', 'w-3.5 h-3.5')}
+          <span>Hẹn giờ</span>
         </button>
       </div>
-      <button @click="showPomodoroModal=false" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">✕</button>
+      <button @click="showPomodoroModal=false" aria-label="Đóng công cụ tập trung" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
+        ${svgIcon('close', 'w-4 h-4')}
+      </button>
     </div>
 
     <div class="flex-1 overflow-y-auto no-scrollbar">
@@ -1771,12 +1787,15 @@ export function renderHTML(): string {
           <button type="button" @click="pomodoroRunning ? pausePomodoro() : startPomodoro()"
                   class="h-11 px-5 rounded-2xl font-bold text-sm text-white shadow-lg transition active:scale-95 inline-flex items-center gap-2 cursor-pointer"
                   :class="pomodoroRunning ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/30' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/30'">
-            <span x-text="pomodoroRunning ? '⏸️ Tạm dừng' : '▶️ Bắt đầu'"></span>
+            ${svgIcon('pause', 'w-4 h-4', 'x-show="pomodoroRunning"')}
+            ${svgIcon('play', 'w-4 h-4', 'x-show="!pomodoroRunning"')}
+            <span x-text="pomodoroRunning ? 'Tạm dừng' : 'Bắt đầu'"></span>
           </button>
           <button type="button" @click="resetPomodoro()"
+                  aria-label="Đặt lại đồng hồ"
                   class="h-11 w-11 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold inline-flex items-center justify-center transition active:scale-95 cursor-pointer"
                   title="Đặt lại đồng hồ">
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+            ${svgIcon('reload', 'w-5 h-5')}
           </button>
         </div>
       </div>
@@ -1795,16 +1814,20 @@ export function renderHTML(): string {
           <button type="button" @click="stopwatchRunning ? pauseStopwatch() : startStopwatch()"
                   class="h-11 px-5 rounded-2xl font-bold text-sm text-white shadow-lg transition active:scale-95 inline-flex items-center gap-2 cursor-pointer"
                   :class="stopwatchRunning ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/30' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/30'">
-            <span x-text="stopwatchRunning ? '⏸️ Tạm dừng' : '▶️ Bắt đầu'"></span>
+            ${svgIcon('pause', 'w-4 h-4', 'x-show="stopwatchRunning"')}
+            ${svgIcon('play', 'w-4 h-4', 'x-show="!stopwatchRunning"')}
+            <span x-text="stopwatchRunning ? 'Tạm dừng' : 'Bắt đầu'"></span>
           </button>
           <button type="button" @click="lapStopwatch()" :disabled="!stopwatchRunning"
-                  class="h-11 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs inline-flex items-center justify-center transition active:scale-95 disabled:opacity-40 cursor-pointer">
-            🏁 Vòng
+                  class="h-11 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs inline-flex items-center justify-center gap-1.5 transition active:scale-95 disabled:opacity-40 cursor-pointer">
+            ${svgIcon('flag', 'w-4 h-4')}
+            <span>Vòng</span>
           </button>
           <button type="button" @click="resetStopwatch()"
+                  aria-label="Đặt lại bấm giờ"
                   class="h-11 w-11 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold inline-flex items-center justify-center transition active:scale-95 cursor-pointer"
                   title="Đặt lại">
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+            ${svgIcon('reload', 'w-5 h-5')}
           </button>
         </div>
 
@@ -1820,37 +1843,41 @@ export function renderHTML(): string {
         </div>
       </div>
 
-      <!-- ─── TAB 3: COUNTDOWN TIMER (HẸN GIỜ) ─── -->
+      <!-- ─── TAB 3: COUNTDOWN TIMER (HẸN GIỜ CỘNG DỒN) ─── -->
       <div x-show="focusToolTab==='timer'">
-        <!-- Quick Presets -->
-        <div class="flex flex-wrap items-center justify-center gap-1.5 mb-4">
-          <button type="button" @click="setCountdownPreset(60)" class="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 transition cursor-pointer">1p</button>
-          <button type="button" @click="setCountdownPreset(300)" class="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 transition cursor-pointer">5p</button>
-          <button type="button" @click="setCountdownPreset(600)" class="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 transition cursor-pointer">10p</button>
-          <button type="button" @click="setCountdownPreset(900)" class="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 transition cursor-pointer">15p</button>
-          <button type="button" @click="setCountdownPreset(1500)" class="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 transition cursor-pointer">25p</button>
-          <button type="button" @click="setCountdownPreset(3600)" class="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 transition cursor-pointer">60p</button>
+        <!-- Quick Cumulative Presets -->
+        <div class="flex flex-wrap items-center justify-center gap-1.5 mb-2">
+          <button type="button" @click="addCountdownSeconds(300)" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-amber-50 dark:bg-slate-800 dark:hover:bg-amber-950/60 border border-slate-200/80 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-amber-600 dark:hover:text-amber-400 transition active:scale-95 cursor-pointer">+5p</button>
+          <button type="button" @click="addCountdownSeconds(600)" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-amber-50 dark:bg-slate-800 dark:hover:bg-amber-950/60 border border-slate-200/80 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-amber-600 dark:hover:text-amber-400 transition active:scale-95 cursor-pointer">+10p</button>
+          <button type="button" @click="addCountdownSeconds(900)" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-amber-50 dark:bg-slate-800 dark:hover:bg-amber-950/60 border border-slate-200/80 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-amber-600 dark:hover:text-amber-400 transition active:scale-95 cursor-pointer">+15p</button>
+          <button type="button" @click="addCountdownSeconds(1800)" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-amber-50 dark:bg-slate-800 dark:hover:bg-amber-950/60 border border-slate-200/80 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-amber-600 dark:hover:text-amber-400 transition active:scale-95 cursor-pointer">+30p</button>
+          <button type="button" @click="addCountdownSeconds(3600)" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-amber-50 dark:bg-slate-800 dark:hover:bg-amber-950/60 border border-slate-200/80 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-amber-600 dark:hover:text-amber-400 transition active:scale-95 cursor-pointer">+60p</button>
         </div>
+        <p class="text-[10px] font-medium text-slate-400 mb-3">Bấm nhiều lần các mốc trên để cộng dồn thời gian</p>
 
         <!-- Timer Display -->
-        <div class="my-4">
+        <div class="my-3">
           <div class="text-6xl sm:text-7xl font-black font-mono tracking-tighter text-slate-900 dark:text-white select-none"
                x-text="formatCountdown(countdownTimeLeft)"></div>
           <div class="text-xs font-bold text-slate-400 mt-2 uppercase tracking-widest"
-               x-text="countdownRunning ? 'Đang đếm ngược...' : (countdownTimeLeft <= 0 ? 'Đã hết giờ!' : 'Tạm dừng')"></div>
+               x-text="countdownRunning ? 'Đang đếm ngược...' : (countdownTimeLeft <= 0 ? 'Chạm mốc bên trên để thêm giờ' : 'Sẵn sàng / Tạm dừng')"></div>
         </div>
 
         <!-- Controls -->
         <div class="flex items-center justify-center gap-3 mb-5">
           <button type="button" @click="countdownRunning ? pauseCountdown() : startCountdown()"
-                  class="h-11 px-5 rounded-2xl font-bold text-sm text-white shadow-lg transition active:scale-95 inline-flex items-center gap-2 cursor-pointer"
+                  :disabled="!countdownRunning && countdownTimeLeft <= 0"
+                  class="h-11 px-5 rounded-2xl font-bold text-sm text-white shadow-lg transition active:scale-95 disabled:opacity-40 inline-flex items-center gap-2 cursor-pointer"
                   :class="countdownRunning ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/30' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30'">
-            <span x-text="countdownRunning ? '⏸️ Tạm dừng' : '▶️ Bắt đầu'"></span>
+            ${svgIcon('pause', 'w-4 h-4', 'x-show="countdownRunning"')}
+            ${svgIcon('play', 'w-4 h-4', 'x-show="!countdownRunning"')}
+            <span x-text="countdownRunning ? 'Tạm dừng' : 'Bắt đầu'"></span>
           </button>
           <button type="button" @click="resetCountdown()"
+                  aria-label="Đặt lại hẹn giờ"
                   class="h-11 w-11 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold inline-flex items-center justify-center transition active:scale-95 cursor-pointer"
-                  title="Đặt lại">
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                  title="Đặt lại (bấm 2 lần về 00:00)">
+            ${svgIcon('reload', 'w-5 h-5')}
           </button>
         </div>
       </div>
@@ -1990,7 +2017,7 @@ export function renderHTML(): string {
     <img :src="lightboxImage" alt="Phóng to ảnh" class="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl border border-white/20" />
     <div class="flex items-center gap-3 mt-4">
       <a :href="lightboxImage" download="todo-image.jpg" class="h-9 px-4 rounded-xl bg-white text-slate-900 font-bold text-xs inline-flex items-center gap-1.5 shadow-lg hover:bg-slate-100 transition active:scale-95">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        ${svgIcon('download', 'w-4 h-4')}
         <span>Tải ảnh về máy</span>
       </a>
       <button type="button" @click="lightboxImage=null" class="h-9 px-4 rounded-xl bg-slate-800 text-white font-bold text-xs inline-flex items-center gap-1.5 hover:bg-slate-700 transition active:scale-95 cursor-pointer">
@@ -2022,32 +2049,32 @@ function app() {
       {
         value: 'today',
         label: 'Hôm nay',
-        icon: '<svg class="w-3.5 h-3.5 text-amber-500" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v3m0 16v3M4.22 4.22l2.12 2.12m11.32 11.32l2.12 2.12M1 12h3m16 0h3M4.22 19.78l2.12-2.12m11.32-11.32l2.12-2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+        icon: '${svgIcon('sun', 'w-3.5 h-3.5 text-amber-500')}'
       },
       {
         value: 'all',
         label: 'Tất cả',
-        icon: '<svg class="w-3.5 h-3.5 text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>'
+        icon: '${svgIcon('list', 'w-3.5 h-3.5 text-blue-500')}'
       },
       {
         value: 'pending',
         label: 'Đang chờ',
-        icon: '<svg class="w-3.5 h-3.5 text-amber-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm1 14.2l-3.9-2.3.8-1.4 3.1 1.8V7h1.5v9.2z"/></svg>'
+        icon: '${svgIcon('clock', 'w-3.5 h-3.5 text-amber-500')}'
       },
       {
         value: 'recurring',
         label: 'Lặp lại',
-        icon: '<svg class="w-3.5 h-3.5 text-indigo-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>'
+        icon: '${svgIcon('repeat', 'w-3.5 h-3.5 text-indigo-500')}'
       },
       {
         value: 'completed',
         label: 'Đã xong',
-        icon: '<svg class="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>'
+        icon: '${svgIcon('check-circle', 'w-3.5 h-3.5 text-emerald-500')}'
       },
       {
         value: 'overdue',
         label: 'Quá hạn',
-        icon: '<svg class="w-3.5 h-3.5 text-rose-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>'
+        icon: '${svgIcon('warning', 'w-3.5 h-3.5 text-rose-500')}'
       }
     ],
 

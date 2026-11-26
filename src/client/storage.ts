@@ -84,9 +84,12 @@ function getStorageModule() {
     showLightbox: false,
     compactMode: localStorage.getItem('compactMode') === 'true',
     swipedTodoId: null,
+    highlightedTodoId: null,
     pullRefreshY: 0,
     pullRefreshing: false,
+    _pullStartX: 0,
     _pullStartY: 0,
+    _pullTouchAxis: '',
     _isPullingRefresh: false,
 
     todoForm: {
@@ -463,38 +466,86 @@ function getStorageModule() {
       this.showToast(mode === 'tomorrow' ? '📅 Đã dời hạn sang Ngày mai' : '⏰ Đã dời hạn thêm +1 giờ', 'info');
     },
 
-    // ─── PULL-TO-REFRESH ĐÀN HỒI (LÒ XO) ───
+    // ─── XEM NGAY VIỆC SẮP ĐẾN HẠN & CUỘN + HIGHLIGHT ───
+    focusFirstImminentTodo() {
+      const imminent = this.imminentTodos;
+      if (!imminent || imminent.length === 0) return;
+      const target = imminent[0];
+      if (typeof this.setViewMode === 'function') {
+        this.setViewMode('list');
+      } else {
+        this.viewMode = 'list';
+      }
+      this.filterStatus = 'pending';
+      this.filterCategory = 'all';
+      this.filterPriority = 'all';
+      this.filterTag = 'all';
+      this.searchQuery = '';
+      this.highlightedTodoId = target.id;
+      if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
+      if (this._highlightTimer) clearTimeout(this._highlightTimer);
+      this._highlightTimer = setTimeout(() => {
+        if (this.highlightedTodoId === target.id) {
+          this.highlightedTodoId = null;
+        }
+      }, 1600);
+      this.$nextTick(() => {
+        setTimeout(() => {
+          const el = document.getElementById('todo-card-' + target.id);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 60);
+      });
+    },
+
+    // ─── PULL-TO-REFRESH ĐÀN HỒI 60FPS (LÒ XO) ───
     onBodyTouchStart(e) {
       const container = e.currentTarget;
-      if (!container || container.scrollTop > 2 || !e.touches?.[0]) {
+      if (this.pullRefreshing || !container || container.scrollTop > 1 || !e.touches?.[0]) {
         this._isPullingRefresh = false;
+        this._pullTouchAxis = '';
         return;
       }
+      this._pullStartX = e.touches[0].clientX;
       this._pullStartY = e.touches[0].clientY;
+      this._pullTouchAxis = '';
       this._isPullingRefresh = true;
     },
 
     onBodyTouchMove(e) {
       if (!this._isPullingRefresh || !e.touches?.[0]) return;
       const container = e.currentTarget;
-      if (container && container.scrollTop > 2) {
+      if (container && container.scrollTop > 1) {
         this.pullRefreshY = 0;
         this._isPullingRefresh = false;
+        this._pullTouchAxis = '';
         return;
       }
+      const dx = e.touches[0].clientX - this._pullStartX;
       const dy = e.touches[0].clientY - this._pullStartY;
-      if (dy > 0) {
-        // Lực cản lò xo tự nhiên kiểu iOS
-        this.pullRefreshY = Math.min(84, Math.round(dy * 0.45));
-      } else {
+      if (!this._pullTouchAxis && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+        if (Math.abs(dx) > Math.abs(dy) || dy < 0) {
+          this._isPullingRefresh = false;
+          this.pullRefreshY = 0;
+          return;
+        }
+        this._pullTouchAxis = 'y';
+      }
+      if (this._pullTouchAxis === 'y' && dy > 0) {
+        // Đường cong đàn hồi tiệm cận 60fps kiểu iOS (mượt mà, không giật cục)
+        const damped = Math.round(dy * (88 / (dy + 130)));
+        this.pullRefreshY = Math.min(88, Math.max(0, damped));
+      } else if (dy <= 0) {
         this.pullRefreshY = 0;
       }
     },
 
     onBodyTouchEnd() {
+      this._pullTouchAxis = '';
       if (!this._isPullingRefresh) return;
       this._isPullingRefresh = false;
-      if (this.pullRefreshY >= 54) {
+      if (this.pullRefreshY >= 46) {
         this.pullRefreshing = true;
         this.pullRefreshY = 48;
         if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
@@ -503,7 +554,7 @@ function getStorageModule() {
         setTimeout(() => {
           this.pullRefreshing = false;
           this.pullRefreshY = 0;
-        }, 480);
+        }, 450);
       } else {
         this.pullRefreshY = 0;
       }
@@ -906,7 +957,7 @@ function getStorageModule() {
       try {
         const payload = {
           app: 'ToDoList-Local',
-          version: '3.3.0',
+          version: '3.4.0',
           exported_at: new Date().toISOString(),
           todos: this.todos,
           categories: this.categories,
@@ -960,7 +1011,7 @@ function getStorageModule() {
       try {
         const payload = {
           app: 'ToDoList-Local',
-          version: '3.3.0',
+          version: '3.4.0',
           exported_at: new Date().toISOString(),
           todos: this.todos,
           categories: this.categories,
@@ -1375,7 +1426,7 @@ function getStorageModule() {
 
     checkAppVersion(manual = false) {
       if (manual) {
-        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.3.0') + ')! 🎉', 'success');
+        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.4.0') + ')! 🎉', 'success');
       }
     },
 

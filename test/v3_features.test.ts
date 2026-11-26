@@ -287,6 +287,32 @@ async function run() {
   assert.ok(nlpLow.tags.includes('relax'));
   console.log('  ✅ PASS: parseTaskFromText phân tích chuẩn !high, !low, #tag và thời gian');
 
+  // Test 14: Kiểm tra SVG Repo icons trong public/icons/ & cơ chế Hẹn giờ cộng dồn (5p+5p=10p, 10p+5p=15p)
+  const iconFiles = fs.readdirSync('public/icons').filter(f => f.endsWith('.svg'));
+  assert.ok(iconFiles.length >= 30, 'Phải có đầy đủ bộ icon SVG Repo trong public/icons/');
+  for (const f of iconFiles) {
+    const content = fs.readFileSync(`public/icons/${f}`, 'utf8');
+    assert.ok(!content.includes('SVG Repo'), `${f} không được còn comment SVG Repo`);
+    assert.ok(content.includes('viewBox='), `${f} phải giữ viewBox`);
+    assert.ok(content.includes('currentColor'), `${f} phải dùng currentColor cho Light/Dark mode`);
+    assert.ok(!/<svg[^>]*\s(width|height)=/i.test(content), `${f} không được chứa width/height cứng trên <svg>`);
+  }
+  const vm = await import('node:vm');
+  const { audioTimerScript } = await import('../src/client/audio-timer');
+  const timerCtx: any = { localStorage: { getItem: () => null, setItem: () => {} }, window: {}, document: {} };
+  vm.runInNewContext(`${audioTimerScript}; this.__mod = getAudioTimerModule();`, timerCtx);
+  const timer = timerCtx.__mod;
+  timer.triggerHaptic = () => {};
+  timer.playSound = () => {};
+  timer.addCountdownSeconds(300);
+  timer.addCountdownSeconds(300);
+  assert.strictEqual(timer.countdownTimeLeft, 600, 'Bấm 5p 2 lần phải cộng dồn thành 10p (600s)');
+  timer.clearCountdown();
+  timer.addCountdownSeconds(600);
+  timer.addCountdownSeconds(300);
+  assert.strictEqual(timer.countdownTimeLeft, 900, 'Bấm 10p + 5p phải cộng dồn thành 15p (900s)');
+  console.log('  ✅ PASS: Toàn bộ SVG Repo icons chuẩn currentColor & Countdown cộng dồn hoạt động chính xác');
+
   console.log('🎉 TẤT CẢ KIỂM THỬ V3 & LOCAL NOTIFICATIONS ĐÃ VƯỢT QUA 100%!');
 }
 

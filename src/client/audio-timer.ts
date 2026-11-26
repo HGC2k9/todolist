@@ -192,8 +192,8 @@ function getAudioTimerModule() {
     stopwatchStartTime: 0,
     stopwatchLaps: [],
 
-    countdownDuration: 300,
-    countdownTimeLeft: 300,
+    countdownDuration: 0,
+    countdownTimeLeft: 0,
     countdownRunning: false,
     countdownInterval: null,
 
@@ -478,11 +478,18 @@ function getAudioTimerModule() {
       return pad(m) + ':' + pad(s) + '.' + milli;
     },
 
-    // ─── COUNTDOWN TIMER (HẸN GIỜ) ───
+    // ─── COUNTDOWN TIMER (HẸN GIỜ CỘNG DỒN) ───
+    addCountdownSeconds(sec) {
+      const addSec = Number(sec) || 0;
+      if (addSec <= 0) return;
+      this.countdownTimeLeft = Math.max(0, (Number(this.countdownTimeLeft) || 0) + addSec);
+      this.countdownDuration = Math.max(this.countdownTimeLeft, (Number(this.countdownDuration) || 0) + addSec);
+      this.triggerHaptic('selection');
+      this.playSound('click');
+    },
+
     setCountdownPreset(sec) {
-      this.pauseCountdown();
-      this.countdownDuration = sec;
-      this.countdownTimeLeft = sec;
+      this.addCountdownSeconds(sec);
     },
 
     startCountdown() {
@@ -521,7 +528,20 @@ function getAudioTimerModule() {
 
     resetCountdown() {
       this.pauseCountdown();
-      this.countdownTimeLeft = this.countdownDuration || 300;
+      if (this.countdownDuration > 0 && this.countdownTimeLeft !== this.countdownDuration && this.countdownTimeLeft > 0) {
+        this.countdownTimeLeft = this.countdownDuration;
+      } else {
+        this.countdownDuration = 0;
+        this.countdownTimeLeft = 0;
+      }
+      this.triggerHaptic('light');
+    },
+
+    clearCountdown() {
+      this.pauseCountdown();
+      this.countdownDuration = 0;
+      this.countdownTimeLeft = 0;
+      this.triggerHaptic('light');
     },
 
     formatCountdown(sec) {

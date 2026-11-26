@@ -7,7 +7,6 @@ import { renderServiceWorker } from '../src/sw';
 const VENDOR_LIBS = [
   { name: 'tailwind.js', url: 'https://cdn.tailwindcss.com' },
   { name: 'alpine.min.js', url: 'https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js' },
-  { name: 'lucide.min.js', url: 'https://unpkg.com/lucide@latest/dist/umd/lucide.js' },
   { name: 'confetti.browser.min.js', url: 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.browser.min.js' },
   { name: 'sortable.min.js', url: 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js' },
 ];
@@ -60,10 +59,6 @@ async function build() {
   html = html.replace(
     'src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"',
     'src="./vendor/alpine.min.js" onerror="this.onerror=null;this.src=\'https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js\'"'
-  );
-  html = html.replace(
-    'src="https://unpkg.com/lucide@latest"',
-    'src="./vendor/lucide.min.js" onerror="this.onerror=null;this.src=\'https://unpkg.com/lucide@latest\'"'
   );
   html = html.replace(
     'src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.browser.min.js"',
@@ -159,6 +154,19 @@ async function build() {
       fs.copyFileSync(soundSrc, path.join(soundsDistDir, sName));
       console.log(`   ✓ Đã sao chép sounds/${sName}`);
     }
+  }
+  const iconsSrcDir = path.resolve(process.cwd(), 'public', 'icons');
+  const iconsDistDir = path.join(distDir, 'icons');
+  if (fs.existsSync(iconsSrcDir)) {
+    fs.mkdirSync(iconsDistDir, { recursive: true });
+    let iconCount = 0;
+    for (const file of fs.readdirSync(iconsSrcDir)) {
+      if (file.endsWith('.svg')) {
+        fs.copyFileSync(path.join(iconsSrcDir, file), path.join(iconsDistDir, file));
+        iconCount++;
+      }
+    }
+    console.log(`   ✓ Đã sao chép ${iconCount} SVG icons vào dist/icons/`);
   }
 
   // 6. Sinh dist/version.json phục vụ OTA Update qua GitHub Pages
