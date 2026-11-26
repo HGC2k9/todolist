@@ -14,6 +14,7 @@ import {
   handleMarkDoneNotificationAction,
   TASK_REMINDER_ACTION_TYPE_ID,
   TASK_REMINDER_ACTION_MARK_DONE,
+  TASK_REMINDER_ACTION_SNOOZE_10M,
   NOTIFICATION_SOUND_FILE
 } from '../src/client/notifications';
 import { parseTaskFromText, calculateStreak } from '../src/utils';
@@ -222,12 +223,69 @@ async function run() {
   assert.strictEqual(queueResynced, true);
   console.log('  ✅ PASS: Actionable Notification "Đã xong" (MARK_DONE) cập nhật hoàn thành, hủy chuỗi lặp, xóa banner & nạp lại Rolling Queue');
 
-  // Test 11: Kiểm tra tồn tại file âm thanh pop_ding.wav và đăng ký Xcode project.pbxproj
-  assert.ok(fs.existsSync('ios/App/App/pop_ding.wav'), 'Thiếu ios/App/App/pop_ding.wav');
-  assert.ok(fs.existsSync('public/sounds/pop_ding.wav'), 'Thiếu public/sounds/pop_ding.wav');
+  // Test 11: Kiểm tra tồn tại các file âm thanh thông báo và đăng ký Xcode project.pbxproj
+  const soundFiles = ['pop_ding.wav', 'soft_chime.wav', 'crisp_click.wav'];
   const pbxproj = fs.readFileSync('ios/App/App.xcodeproj/project.pbxproj', 'utf8');
-  assert.ok(pbxproj.includes('pop_ding.wav in Resources'), 'project.pbxproj chưa đăng ký pop_ding.wav vào Resources');
-  console.log('  ✅ PASS: Tài nguyên âm thanh pop_ding.wav đã sẵn sàng và đăng ký vào Xcode Resources');
+  for (const wav of soundFiles) {
+    assert.ok(fs.existsSync(`ios/App/App/${wav}`), `Thiếu ios/App/App/${wav}`);
+    assert.ok(fs.existsSync(`public/sounds/${wav}`), `Thiếu public/sounds/${wav}`);
+    assert.ok(pbxproj.includes(`${wav} in Resources`), `project.pbxproj chưa đăng ký ${wav} vào Resources`);
+  }
+  console.log('  ✅ PASS: Tất cả 3 file âm thanh (pop_ding, soft_chime, crisp_click) đã sẵn sàng và đăng ký vào Xcode Resources');
+
+  // Test 12: Kiểm tra hành động SNOOZE_10M hoãn thông báo +10 phút, hủy pending & đồng bộ lại queue
+  let snoozePersisted: any[] = [];
+  let snoozeCanceledIds: number[] = [];
+  let snoozeRemovedIds: number[] = [];
+  let snoozeResynced = false;
+  const snoozeStart = Date.now();
+  const snoozeTodos = [
+    {
+      id: 'task-snooze-1',
+      title: 'Gọi lại khách hàng',
+      status: 'todo',
+      is_completed: 0,
+      due_date: new Date(snoozeStart - 60_000).toISOString(),
+      reminder_offset: 15,
+    },
+  ];
+  const snoozeResult = await handleMarkDoneNotificationAction({
+    actionId: TASK_REMINDER_ACTION_SNOOZE_10M,
+    notification: { id: 909, extra: { taskId: 'task-snooze-1' } },
+    todos: snoozeTodos,
+    persistTodosAndHistory: async (todos) => { snoozePersisted = todos; },
+    getPending: async () => ({
+      notifications: [{ id: 910, extra: { taskId: 'task-snooze-1' } }],
+    }),
+    cancelNotifications: async (opts) => { snoozeCanceledIds = opts.notifications.map(n => n.id); },
+    getDeliveredNotifications: async () => ({
+      notifications: [{ id: 909, extra: { taskId: 'task-snooze-1' } }],
+    }),
+    removeDeliveredNotifications: async (opts) => { snoozeRemovedIds = opts.notifications.map(n => n.id); },
+    syncQueue: async () => { snoozeResynced = true; },
+  });
+  assert.strictEqual(snoozeResult.completed, false);
+  assert.strictEqual(snoozeResult.snoozed, true);
+  assert.strictEqual(snoozeResult.taskId, 'task-snooze-1');
+  assert.strictEqual(snoozePersisted[0].reminder_offset, 0, 'Snooze phải đặt reminder_offset = 0');
+  const snoozedDueMs = new Date(snoozePersisted[0].due_date).getTime();
+  assert.ok(snoozedDueMs >= snoozeStart + 9 * 60_000 && snoozedDueMs <= Date.now() + 11 * 60_000, 'Snooze phải dời due_date +10 phút');
+  assert.deepStrictEqual(snoozeCanceledIds, [910], 'Phải hủy pending notifications của task khi Snooze');
+  assert.deepStrictEqual(snoozeRemovedIds, [909], 'Phải xóa banner đã hiển thị khỏi Notification Center');
+  assert.strictEqual(snoozeResynced, true, 'Phải đồng bộ lại Rolling Queue sau khi Snooze');
+  console.log('  ✅ PASS: SNOOZE_10M dời hạn +10 phút, xóa banner cũ & nạp lại Rolling Queue');
+
+  // Test 13: Quick Add NLP hỗ trợ cú pháp !high / !low / #tag / thời gian
+  const nlpHigh = parseTaskFromText('Họp team 15h mai #work !high');
+  assert.strictEqual(nlpHigh.title, 'Họp team');
+  assert.strictEqual(nlpHigh.priority, 'High');
+  assert.ok(nlpHigh.tags.includes('work'), 'Phải trích xuất tag #work');
+  assert.ok(nlpHigh.dueDate !== null, 'Phải nhận diện được 15h mai');
+  const nlpLow = parseTaskFromText('Đọc sách !low #relax');
+  assert.strictEqual(nlpLow.title, 'Đọc sách');
+  assert.strictEqual(nlpLow.priority, 'Low');
+  assert.ok(nlpLow.tags.includes('relax'));
+  console.log('  ✅ PASS: parseTaskFromText phân tích chuẩn !high, !low, #tag và thời gian');
 
   console.log('🎉 TẤT CẢ KIỂM THỬ V3 & LOCAL NOTIFICATIONS ĐÃ VƯỢT QUA 100%!');
 }

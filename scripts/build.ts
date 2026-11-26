@@ -150,12 +150,15 @@ async function build() {
     fs.copyFileSync('icon-512.png', path.join(distDir, 'icon-512.png'));
     console.log('   ✓ Đã sao chép icon-512.png');
   }
-  const soundSrc = path.resolve(process.cwd(), 'public', 'sounds', 'pop_ding.wav');
-  if (fs.existsSync(soundSrc)) {
-    const soundsDistDir = path.join(distDir, 'sounds');
-    if (!fs.existsSync(soundsDistDir)) fs.mkdirSync(soundsDistDir, { recursive: true });
-    fs.copyFileSync(soundSrc, path.join(soundsDistDir, 'pop_ding.wav'));
-    console.log('   ✓ Đã sao chép sounds/pop_ding.wav');
+  const soundNames = ['pop_ding.wav', 'soft_chime.wav', 'crisp_click.wav'];
+  const soundsDistDir = path.join(distDir, 'sounds');
+  for (const sName of soundNames) {
+    const soundSrc = path.resolve(process.cwd(), 'public', 'sounds', sName);
+    if (fs.existsSync(soundSrc)) {
+      if (!fs.existsSync(soundsDistDir)) fs.mkdirSync(soundsDistDir, { recursive: true });
+      fs.copyFileSync(soundSrc, path.join(soundsDistDir, sName));
+      console.log(`   ✓ Đã sao chép sounds/${sName}`);
+    }
   }
 
   // 6. Sinh dist/version.json phục vụ OTA Update qua GitHub Pages

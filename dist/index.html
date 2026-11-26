@@ -192,6 +192,11 @@
       transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.18s ease, background-color 0.18s ease, opacity 0.22s ease;
       will-change: transform, opacity;
     }
+    .todo-card-collapsing {
+      opacity: 0 !important;
+      transform: translateY(8px) scale(0.96) !important;
+      transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s ease !important;
+    }
     @media (hover: hover) and (pointer: fine) {
       .todo-card:hover {
         transform: translateY(-1.5px);
@@ -357,7 +362,21 @@
   </header>
 
   <!-- ═══════ PHẦN 2: BODY CUỘN ĐỘC LẬP ═══════ -->
-  <div class="flex-1 overflow-y-auto overscroll-contain ios-scroll-body w-full" style="padding-top: calc(max(14px, env(safe-area-inset-top, 0px)) + 60px); padding-bottom: calc(max(1.25rem, env(safe-area-inset-bottom, 0px)) + 4rem);">
+  <div class="flex-1 overflow-y-auto overscroll-contain ios-scroll-body w-full relative"
+       @touchstart="onBodyTouchStart($event)"
+       @touchmove="onBodyTouchMove($event)"
+       @touchend="onBodyTouchEnd()"
+       style="padding-top: calc(max(14px, env(safe-area-inset-top, 0px)) + 60px); padding-bottom: calc(max(1.25rem, env(safe-area-inset-bottom, 0px)) + 6rem);">
+
+  <!-- Pull-to-Refresh Lò xo kiểu iOS -->
+  <div x-show="pullRefreshY > 4 || pullRefreshing" x-cloak
+       class="flex items-center justify-center overflow-hidden transition-all duration-200 ease-out"
+       :style="'height: ' + (pullRefreshing ? 48 : pullRefreshY) + 'px; opacity: ' + Math.min(1, (pullRefreshing ? 48 : pullRefreshY) / 40) + ';'">
+    <div class="w-8 h-8 rounded-full bg-white dark:bg-slate-800 shadow-md border border-slate-200 dark:border-slate-700 flex items-center justify-center text-brand-600"
+         :style="'transform: scale(' + Math.min(1.05, 0.7 + (pullRefreshY / 120)) + ') rotate(' + (pullRefreshY * 4) + 'deg);'">
+      <svg class="w-4 h-4" :class="pullRefreshing && 'spinner'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><polyline points="21 3 21 9 15 9"/></svg>
+    </div>
+  </div>
 
   <!-- ─── Banner thông báo nhắc nhở theo mức độ ưu tiên ─── -->
   <div x-show="imminentTodos.length > 0" x-cloak
@@ -389,9 +408,9 @@
     <div class="bg-white dark:bg-slate-900/90 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-slate-800 px-4 py-3 sm:px-5 sm:py-3.5 mb-3.5 shadow-xs transition-all">
       <div class="flex items-center justify-between text-xs font-semibold gap-3 flex-wrap">
         <div class="flex items-center gap-2 sm:gap-2.5 flex-wrap">
-          <button type="button" @click="filterStatus='pending'"
+          <button type="button" @click="filterStatus='today'; triggerHaptic('light')"
                   class="h-7.5 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95"
-                  :class="filterStatus==='pending' && 'ring-1 ring-amber-500/50 bg-amber-50/50 dark:bg-amber-950/30'"
+                  :class="filterStatus==='today' && 'ring-1 ring-amber-500/50 bg-amber-50/50 dark:bg-amber-950/30'"
                   title="Bấm để lọc việc cần làm hôm nay">
             <span class="w-2 h-2 rounded-full bg-amber-500"></span>
             <strong class="text-sm font-black text-slate-900 dark:text-white" x-text="stats.todayPending"></strong>
@@ -422,18 +441,33 @@
         
         <div class="flex items-center gap-2.5 flex-shrink-0 ml-auto">
           <!-- Chuỗi ngày năng suất (Streak Counter) -->
-          <div class="h-7.5 inline-flex items-center justify-center gap-1 px-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 font-bold text-xs select-none shadow-xs"
+          <div class="h-8 inline-flex items-center justify-center gap-1 px-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 font-bold text-xs select-none shadow-xs"
                :title="'Chuỗi ngày năng suất: ' + streak + ' ngày liên tục'">
             <span class="text-sm">🔥</span>
             <span class="font-black text-xs sm:text-sm" x-text="streak"></span>
             <span class="hidden sm:inline text-[11px] font-semibold text-orange-700/80 dark:text-orange-300">streak</span>
           </div>
 
-          <div class="w-16 sm:w-24 h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5"
-               role="progressbar" :aria-valuenow="stats.todayPercent" aria-valuemin="0" aria-valuemax="100" :aria-label="'Tiến độ hôm nay: ' + stats.todayPercent + '%'">
-            <div class="h-full bg-gradient-to-r from-brand-500 via-indigo-500 to-emerald-500 rounded-full transition-all duration-500 ease-out" :style="'width: ' + stats.todayPercent + '%'"></div>
+          <!-- Activity Ring (Vòng tròn tiến độ Apple Fitness) -->
+          <div class="relative w-10 h-10 flex items-center justify-center flex-shrink-0"
+               role="progressbar" :aria-valuenow="stats.todayPercent" aria-valuemin="0" aria-valuemax="100" :aria-label="'Tiến độ hôm nay: ' + stats.todayPercent + '%'"
+               :title="'Hoàn thành hôm nay: ' + stats.todayPercent + '%'">
+            <svg class="w-10 h-10 -rotate-90" viewBox="0 0 40 40">
+              <circle cx="20" cy="20" r="16" fill="none" stroke="currentColor" stroke-width="3.5" class="text-slate-200 dark:text-slate-800"></circle>
+              <circle cx="20" cy="20" r="16" fill="none" stroke="url(#activityRingGrad)" stroke-width="3.5" stroke-linecap="round"
+                      stroke-dasharray="100.53"
+                      :stroke-dashoffset="100.53 - (100.53 * (stats.todayPercent || 0) / 100)"
+                      style="transition: stroke-dashoffset 0.55s cubic-bezier(0.22, 1, 0.36, 1);"></circle>
+              <defs>
+                <linearGradient id="activityRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#3b82f6"/>
+                  <stop offset="50%" stop-color="#6366f1"/>
+                  <stop offset="100%" stop-color="#10b981"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <span class="absolute text-[9px] font-black text-slate-700 dark:text-slate-200" x-text="stats.todayPercent + '%'"></span>
           </div>
-          <span class="text-[11px] font-black text-slate-500 dark:text-slate-400" x-text="stats.todayPercent + '%'"></span>
         </div>
       </div>
       
@@ -452,11 +486,19 @@
         <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </span>
-        <input id="search-input" name="searchQuery" x-model="searchQuery" type="text" placeholder="Tìm kiếm công việc nhanh (phím / để tìm)..."
-               aria-label="Tìm kiếm công việc"
-               class="w-full pl-9 pr-14 py-2 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/50 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-xs sm:text-sm font-medium" />
-        <div class="absolute inset-y-0 right-0 pr-2.5 flex items-center gap-1">
-          <button x-show="searchQuery" @click="searchQuery=''" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition" aria-label="Xóa nội dung tìm kiếm">
+        <input id="search-input" name="searchQuery" x-model="searchQuery" type="text"
+               @keydown.enter.prevent="quickAddFromText(searchQuery)"
+               placeholder="Tìm hoặc gõ nhanh: Họp team 15h mai #work !high (Enter tạo)..."
+               aria-label="Tìm kiếm hoặc nhập nhanh công việc"
+               class="w-full pl-9 pr-24 py-2 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/50 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-xs sm:text-sm font-medium" />
+        <div class="absolute inset-y-0 right-0 pr-2 flex items-center gap-1">
+          <button type="button" x-show="searchQuery && searchQuery.trim().length > 0"
+                  @click="quickAddFromText(searchQuery)"
+                  class="px-2 py-1 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-[10px] font-bold transition active:scale-95 cursor-pointer"
+                  title="Tạo công việc nhanh bằng ngôn ngữ tự nhiên">
+            ⚡ Tạo
+          </button>
+          <button x-show="searchQuery" @click="searchQuery=''" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer" aria-label="Xóa nội dung tìm kiếm">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
           <kbd class="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">/</kbd>
@@ -466,7 +508,7 @@
       <!-- Quick Filter Chips với số lượng đếm trực tiếp (Căn chỉnh đối xứng h-8) -->
       <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 -mx-0.5 px-0.5" role="group" aria-label="Bộ lọc trạng thái công việc">
         <template x-for="s in statusFilters" :key="s.value">
-          <button @click="filterStatus = s.value"
+          <button @click="filterStatus = s.value; triggerHaptic('light')"
                   role="button"
                   :aria-pressed="filterStatus === s.value"
                   class="flex-shrink-0 h-8 px-3 text-xs font-bold rounded-xl border transition-all duration-150 inline-flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
@@ -574,6 +616,17 @@
           <span class="hidden sm:inline">Thùng rác</span>
         </button>
 
+        <!-- Nút chế độ Gọn / Chi tiết -->
+        <button type="button" @click="toggleCompactMode()"
+                :aria-pressed="compactMode"
+                aria-label="Chuyển đổi chế độ hiển thị Gọn hoặc Chi tiết"
+                class="h-8 px-2.5 rounded-xl border font-bold flex-shrink-0 text-xs inline-flex items-center gap-1 transition active:scale-95 cursor-pointer"
+                :class="compactMode ? 'bg-brand-50 dark:bg-brand-950/60 border-brand-300 dark:border-brand-700 text-brand-700 dark:text-brand-300' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300'"
+                title="Chuyển chế độ hiển thị Gọn / Chi tiết">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          <span x-text="compactMode ? 'Gọn' : 'Chi tiết'"></span>
+        </button>
+
         <button x-show="stats.completed > 0" @click="confirmClearCompleted()"
                 aria-label="Dọn dẹp công việc đã hoàn thành"
                 class="h-8 ml-auto text-rose-500 hover:text-rose-600 font-bold inline-flex items-center justify-center gap-1 transition px-2.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/50 flex-shrink-0 text-xs active:scale-95"
@@ -614,6 +667,7 @@
             </div>
           </div>
         </div>
+        </div>
       </template>
     </div>
 
@@ -633,10 +687,42 @@
     <!-- ─── Todo List Item Cards (Tự động sắp xếp: Việc cần làm lên đầu, Quá hạn & Đã xong rớt xuống dưới) ─── -->
     <div class="space-y-3" x-show="viewMode === 'list' && !todosLoading && filteredSortedTodos.length > 0">
       <template x-for="todo in filteredSortedTodos" :key="todo.id">
-        <div class="todo-card bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-5 hover:shadow-md group relative"
+        <div class="relative rounded-3xl overflow-hidden">
+          <!-- Swipe-Right Layer: Hoàn thành nhanh -->
+          <div x-show="(todo._swipeX || 0) > 8" x-cloak
+               class="absolute inset-y-0 left-0 w-32 bg-emerald-500 text-white flex items-center pl-4 font-bold text-xs gap-1.5 rounded-l-3xl pointer-events-none">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Hoàn thành</span>
+          </div>
+
+          <!-- Swipe-Left Layer: 3 nút nhanh Ghim / Dời hạn / Xóa -->
+          <div x-show="(todo._swipeX || 0) < -8" x-cloak
+               class="absolute inset-y-0 right-0 flex items-stretch rounded-r-3xl overflow-hidden">
+            <button type="button" @click="togglePin(todo, $event)" aria-label="Ghim việc"
+                    class="w-12 bg-amber-500 text-white flex flex-col items-center justify-center text-[10px] font-bold active:opacity-80 cursor-pointer">
+              <span>📌</span><span>Ghim</span>
+            </button>
+            <button type="button" @click="postponeTodo(todo, '1h', $event)" aria-label="Dời hạn 1 giờ"
+                    class="w-12 bg-indigo-500 text-white flex flex-col items-center justify-center text-[10px] font-bold active:opacity-80 cursor-pointer">
+              <span>⏰</span><span>+1h</span>
+            </button>
+            <button type="button" @click="confirmDelete(todo)" aria-label="Xóa việc"
+                    class="w-12 bg-rose-500 text-white flex flex-col items-center justify-center text-[10px] font-bold active:opacity-80 cursor-pointer">
+              <span>🗑️</span><span>Xóa</span>
+            </button>
+          </div>
+
+        <div class="todo-card bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 hover:shadow-md group relative"
+             :style="(todo._swipeX ? ('transform: translateX(' + todo._swipeX + 'px); transition: ' + (todo._isSwiping ? 'none' : 'transform 0.24s cubic-bezier(0.22, 1, 0.36, 1)')) : '')"
+             @touchstart="startCardSwipe($event, todo)"
+             @touchmove="moveCardSwipe($event, todo)"
+             @touchend="endCardSwipe(todo)"
              :class="{
-               'opacity-50 bg-slate-50/50 dark:bg-slate-900/50': todo.is_completed,
-               'opacity-75 bg-rose-50/20 dark:bg-rose-950/20': !todo.is_completed && isOverdue(todo),
+               'p-2.5 sm:p-3': compactMode,
+               'p-4 sm:p-5': !compactMode,
+               'todo-card-collapsing': todo._collapsing,
+               'opacity-50 bg-slate-50/50 dark:bg-slate-900/50': todo.is_completed && !todo._collapsing,
+               'opacity-75 bg-rose-50/20 dark:bg-rose-950/20': !todo.is_completed && isOverdue(todo) && !todo._collapsing,
                'border-amber-300 dark:border-amber-800/80 ring-2 ring-amber-300/30': todo.is_pinned && !todo.is_completed,
                'ring-2 ring-brand-400 border-brand-400': draggedTodo && draggedTodo.id === todo.id
              }"
@@ -720,9 +806,9 @@
                 </div>
               </div>
 
-              <p x-show="todo.description" class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 line-clamp-2" x-text="todo.description"></p>
+              <p x-show="todo.description && !compactMode" class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 line-clamp-2" x-text="todo.description"></p>
 
-              <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-3">
+              <div class="flex flex-wrap items-center gap-1.5 sm:gap-2" :class="compactMode ? 'mt-1.5' : 'mt-3'">
                 <!-- Mức độ ưu tiên với Icon đẹp -->
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold"
                       :class="{
@@ -789,7 +875,7 @@
               </div>
 
               <!-- Khối Ảnh Minh chứng hoàn thành (Evidence Strip) -->
-              <div x-show="getTodoImages(todo.id).length > 0" class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+              <div x-show="!compactMode && getTodoImages(todo.id).length > 0" class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80">
                 <div class="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
                   <span class="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
                     <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
@@ -845,6 +931,7 @@
               </div>
             </div>
           </div>
+        </div>
         </div>
       </template>
     </div>
@@ -924,10 +1011,10 @@
 
   <!-- ─── Floating Action Button (FAB) cho Mobile ─── -->
   <div class="fixed sm:hidden z-40"
-       style="bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px)); right: calc(1.25rem + env(safe-area-inset-right, 0px));">
+       style="bottom: calc(5.15rem + env(safe-area-inset-bottom, 0px)); right: calc(1rem + env(safe-area-inset-right, 0px));">
     <button @click="openCreateModal()"
             aria-label="Thêm công việc mới"
-            class="w-14 h-14 rounded-full bg-gradient-to-tr from-brand-600 to-blue-500 text-white shadow-2xl shadow-brand-600/40 flex items-center justify-center active:scale-95 transition-all ring-4 ring-white dark:ring-slate-900 focus-visible:ring-4 focus-visible:ring-brand-400"
+            class="w-14 h-14 rounded-full bg-gradient-to-tr from-brand-600 to-blue-500 text-white shadow-2xl shadow-brand-600/40 flex items-center justify-center active:scale-95 transition-transform duration-150 ring-4 ring-white dark:ring-slate-900 focus-visible:ring-4 focus-visible:ring-brand-400"
             title="Thêm việc mới">
       <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -935,6 +1022,36 @@
       </svg>
     </button>
   </div>
+
+  <!-- ─── iOS Floating Bottom Tab Bar (Mobile) ─── -->
+  <nav class="fixed sm:hidden left-3 right-3 z-40 bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-full shadow-xl px-2 py-1.5 flex items-center justify-around select-none"
+       aria-label="Điều hướng chính"
+       style="bottom: calc(0.65rem + env(safe-area-inset-bottom, 0px));">
+    <button type="button" @click="setViewMode('list'); filterStatus='today'; triggerHaptic('light')"
+            class="flex flex-col items-center justify-center px-3 py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
+            :class="viewMode === 'list' && filterStatus === 'today' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/80 dark:bg-brand-950/60 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
+      <span class="text-base leading-none">☀️</span>
+      <span class="text-[10px] mt-0.5">Hôm nay</span>
+    </button>
+    <button type="button" @click="setViewMode('list'); filterStatus='all'; triggerHaptic('light')"
+            class="flex flex-col items-center justify-center px-3 py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
+            :class="viewMode === 'list' && filterStatus !== 'today' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/80 dark:bg-brand-950/60 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
+      <span class="text-base leading-none">📋</span>
+      <span class="text-[10px] mt-0.5">Tất cả</span>
+    </button>
+    <button type="button" @click="setViewMode('calendar'); triggerHaptic('light')"
+            class="flex flex-col items-center justify-center px-3 py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
+            :class="viewMode === 'calendar' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/80 dark:bg-brand-950/60 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
+      <span class="text-base leading-none">📅</span>
+      <span class="text-[10px] mt-0.5">Lịch</span>
+    </button>
+    <button type="button" @click="openPomodoro(); triggerHaptic('light')"
+            class="flex flex-col items-center justify-center px-3 py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
+            :class="showPomodoroModal || pomodoroRunning ? 'text-rose-600 dark:text-rose-400 bg-rose-50/80 dark:bg-rose-950/60 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
+      <span class="text-base leading-none">🍅</span>
+      <span class="text-[10px] mt-0.5">Tập trung</span>
+    </button>
+  </nav>
 </div>
 
 
@@ -970,6 +1087,26 @@
         <span class="text-slate-500 dark:text-slate-400">Tác giả:</span>
         <span class="font-bold text-slate-800 dark:text-slate-200">Chung</span>
       </div>
+      <div class="pt-2 border-t border-slate-200/70 dark:border-slate-700/70">
+        <span class="block text-slate-500 dark:text-slate-400 mb-2">Âm thanh thông báo iOS:</span>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button type="button" @click="setNotificationSound('pop_ding.wav')"
+                  class="py-1.5 px-2 rounded-xl border text-[11px] font-bold transition active:scale-95 cursor-pointer"
+                  :class="notificationSound === 'pop_ding.wav' ? 'bg-brand-600 text-white border-brand-600 shadow-xs' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'">
+            Pop Ding
+          </button>
+          <button type="button" @click="setNotificationSound('soft_chime.wav')"
+                  class="py-1.5 px-2 rounded-xl border text-[11px] font-bold transition active:scale-95 cursor-pointer"
+                  :class="notificationSound === 'soft_chime.wav' ? 'bg-brand-600 text-white border-brand-600 shadow-xs' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'">
+            Soft Chime
+          </button>
+          <button type="button" @click="setNotificationSound('crisp_click.wav')"
+                  class="py-1.5 px-2 rounded-xl border text-[11px] font-bold transition active:scale-95 cursor-pointer"
+                  :class="notificationSound === 'crisp_click.wav' ? 'bg-brand-600 text-white border-brand-600 shadow-xs' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'">
+            Crisp Click
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Nút hành động -->
@@ -996,7 +1133,7 @@
 <div x-show="showModal" x-cloak class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4"
      role="dialog" aria-modal="true" aria-labelledby="todo-modal-title">
   
-  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showModal=false; modalDragY=0"
+  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showModal=false; modalDragY=0; playSound('sheet')"
        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
 
@@ -1017,7 +1154,7 @@
 
       <div class="flex items-center justify-between pointer-events-auto">
         <h2 id="todo-modal-title" class="text-lg sm:text-xl font-black text-slate-900 dark:text-white" x-text="editingTodo ? 'Chỉnh sửa công việc' : 'Tạo công việc mới'"></h2>
-        <button @click="showModal=false; modalDragY=0" type="button" aria-label="Đóng cửa sổ" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 cursor-pointer">
+        <button @click="showModal=false; modalDragY=0; playSound('sheet')" type="button" aria-label="Đóng cửa sổ" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 cursor-pointer">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -1932,6 +2069,12 @@ function getStorageModule() {
     newTagInput: '',
     lightboxImage: null,
     showLightbox: false,
+    compactMode: localStorage.getItem('compactMode') === 'true',
+    swipedTodoId: null,
+    pullRefreshY: 0,
+    pullRefreshing: false,
+    _pullStartY: 0,
+    _isPullingRefresh: false,
 
     todoForm: {
       title: '',
@@ -2062,8 +2205,301 @@ function getStorageModule() {
       return prefix + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
     },
 
+    toggleCompactMode() {
+      this.compactMode = !this.compactMode;
+      try { localStorage.setItem('compactMode', String(this.compactMode)); } catch {}
+      if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
+      if (typeof this.playSound === 'function') this.playSound('click');
+      this.showToast(this.compactMode ? 'Đã bật chế độ hiển thị Gọn' : 'Đã bật chế độ hiển thị Chi tiết', 'info');
+    },
+
+    parseQuickTaskText(rawText) {
+      let text = String(rawText || '').trim();
+      if (text.startsWith('/add')) text = text.substring(4).trim();
+
+      const tags = [];
+      const tagRegex = /#([a-zA-Z0-9_À-ɏḀ-ỿ]+)/g;
+      let m;
+      while ((m = tagRegex.exec(text)) !== null) {
+        tags.push(m[1].toLowerCase());
+      }
+      let cleanText = text.replace(tagRegex, '').trim();
+
+      let priority = 'Medium';
+      if (/!high/i.test(cleanText)) {
+        priority = 'High';
+        cleanText = cleanText.replace(/!high/gi, '').trim();
+      } else if (/!low/i.test(cleanText)) {
+        priority = 'Low';
+        cleanText = cleanText.replace(/!low/gi, '').trim();
+      } else if (/!medium/i.test(cleanText)) {
+        priority = 'Medium';
+        cleanText = cleanText.replace(/!medium/gi, '').trim();
+      } else {
+        const lower = cleanText.toLowerCase();
+        if (lower.includes('gấp') || lower.includes('khẩn cấp') || lower.includes('quan trọng') || lower.includes('urgent') || lower.includes('high') || tags.includes('gap')) {
+          priority = 'High';
+        } else if (lower.includes('thấp') || lower.includes('thong thả') || lower.includes('rảnh') || lower.includes('low')) {
+          priority = 'Low';
+        }
+      }
+
+      let category = 'Personal';
+      if (tags.includes('work') || /họp|báos*cáo|dựs*án|khách|hợps*đồng|côngs*việc|task|code|deadline|email|mail|sếp|côngs*ty|văns*phòng/i.test(cleanText)) {
+        category = 'Work';
+      } else if (tags.includes('study') || /học|bàis*tập|thi|ôns*tập|đọcs*sách|sách|khóas*học|nghiêns*cứu|tiếngs*anh/i.test(cleanText)) {
+        category = 'Study';
+      } else if (tags.includes('health') || /thuốc|khám|bács*sĩ|bệnh|chạys*bộ|gym|thểs*dục|yoga|sứcs*khỏe|uốngs*nước/i.test(cleanText)) {
+        category = 'Health';
+      } else if (tags.includes('shopping') || /mua|sắm|chợ|siêus*thị|order|đặts*hàng|shopping/i.test(cleanText)) {
+        category = 'Shopping';
+      } else if (tags.includes('finance') || /tiền|lương|hóas*đơn|thanhs*toán|chuyểns*khoản|ngâns*hàng|nợ/i.test(cleanText)) {
+        category = 'Finance';
+      }
+
+      let dueDate = null;
+      const now = new Date();
+      const vnNow = new Date(now.getTime() + 7 * 3600 * 1000);
+      let targetYear = vnNow.getUTCFullYear();
+      let targetMonth = vnNow.getUTCMonth();
+      let targetDate = vnNow.getUTCDate();
+      let targetHour = null;
+      let targetMinute = 0;
+
+      if (/(ngày mai|mai)/i.test(cleanText)) {
+        targetDate += 1;
+        cleanText = cleanText.replace(/(ngày mai|mai)/gi, '').trim();
+      } else if (/(ngày kia|mốt)/i.test(cleanText)) {
+        targetDate += 2;
+        cleanText = cleanText.replace(/(ngày kia|mốt)/gi, '').trim();
+      } else if (/(hôm nay|nay)/i.test(cleanText)) {
+        cleanText = cleanText.replace(/(hôm nay|nay)/gi, '').trim();
+      }
+
+      const isAfternoonOrEvening = /(tối|chiều)/i.test(cleanText);
+      cleanText = cleanText.replace(/(tối nay|chiều nay|sáng nay|tối|chiều|sáng)/gi, '').trim();
+
+      const kemMatch = cleanText.match(/(d{1,2})s*(?:h|:|giờ)s*kéms*(d{1,2})/i);
+      const ruoiMatch = cleanText.match(/(d{1,2})s*(?:h|:|giờ)?s*rưỡi/i);
+      const timeMatch = cleanText.match(/(d{1,2})(?:h|:)(d{2})?/i) || cleanText.match(/(d{1,2})s*(?:giờ|g)/i);
+
+      if (kemMatch) {
+        let h = parseInt(kemMatch[1], 10) - 1;
+        const mMin = 60 - parseInt(kemMatch[2], 10);
+        if (h < 0) h = 23;
+        if (isAfternoonOrEvening && h < 12) h += 12;
+        if (h >= 0 && h <= 23 && mMin >= 0 && mMin <= 59) {
+          targetHour = h;
+          targetMinute = mMin;
+          cleanText = cleanText.replace(kemMatch[0], '').trim();
+        }
+      } else if (ruoiMatch) {
+        let h = parseInt(ruoiMatch[1], 10);
+        if (isAfternoonOrEvening && h < 12) h += 12;
+        if (h >= 0 && h <= 23) {
+          targetHour = h;
+          targetMinute = 30;
+          cleanText = cleanText.replace(ruoiMatch[0], '').trim();
+        }
+      } else if (timeMatch) {
+        let h = parseInt(timeMatch[1], 10);
+        const mMin = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
+        if (isAfternoonOrEvening && h < 12) h += 12;
+        if (h >= 0 && h <= 23 && mMin >= 0 && mMin <= 59) {
+          targetHour = h;
+          targetMinute = mMin;
+          cleanText = cleanText.replace(timeMatch[0], '').trim();
+        }
+      }
+
+      cleanText = cleanText
+        .replace(/(vàos*lúc|lúc|vào)/gi, ' ')
+        .replace(/^(?:hãy|tạos*việc|thêms*việc|nhắcs*tôi|nhắc)s+/gi, ' ')
+        .replace(/(?:rưỡi|kém)/gi, ' ')
+        .replace(/s+/g, ' ')
+        .trim();
+
+      if (targetHour !== null) {
+        const targetUtc = new Date(Date.UTC(targetYear, targetMonth, targetDate, targetHour - 7, targetMinute, 0, 0));
+        dueDate = targetUtc.toISOString();
+      }
+
+      let title = cleanText || text || 'Công việc mới';
+      if (title) title = title.charAt(0).toUpperCase() + title.slice(1);
+      return { title, dueDate, priority, tags, category };
+    },
+
+    async quickAddFromText(rawText) {
+      const val = String(rawText || '').trim();
+      if (!val) return;
+      const parsed = this.parseQuickTaskText(val);
+      const nowIso = new Date().toISOString();
+      const maxPos = this.todos.reduce((max, t) => Math.max(max, typeof t.position === 'number' ? t.position : 0), 0);
+      const newTodo = {
+        id: this.generateLocalId('task'),
+        title: parsed.title,
+        description: '',
+        category: parsed.category || 'Personal',
+        priority: parsed.priority || 'Medium',
+        repeat_mode: 'none',
+        due_date: parsed.dueDate,
+        is_pinned: 0,
+        pomodoro_mode: 0,
+        subtasks: [],
+        tags: parsed.tags || [],
+        reminder_offset: 0,
+        estimated_minutes: 0,
+        actual_minutes: 0,
+        status: 'todo',
+        is_completed: 0,
+        deleted_at: null,
+        position: maxPos + 1,
+        created_at: nowIso,
+        updated_at: nowIso
+      };
+      this.todos.unshift(newTodo);
+      this.searchQuery = '';
+      await this.persistAllData();
+      if (newTodo.due_date) {
+        this.scheduleNativeLocalNotification(newTodo);
+      }
+      if (typeof this.playSound === 'function') this.playSound('add');
+      if (typeof this.triggerHaptic === 'function') this.triggerHaptic('success');
+      this.showToast('⚡ Đã tạo nhanh: "' + newTodo.title + '"', 'success');
+    },
+
+    // ─── SWIPE-TO-ACTION TRÊN THẺ CÔNG VIỆC ───
+    startCardSwipe(e, todo) {
+      if (!e.touches || !e.touches[0]) return;
+      if (this.swipedTodoId && this.swipedTodoId !== todo.id) {
+        const prev = this.todos.find(t => t.id === this.swipedTodoId);
+        if (prev) prev._swipeX = 0;
+        this.swipedTodoId = null;
+      }
+      todo._touchStartX = e.touches[0].clientX;
+      todo._touchStartY = e.touches[0].clientY;
+      todo._baseSwipeX = todo._swipeX || 0;
+      todo._swipeLocked = null;
+      todo._isSwiping = true;
+    },
+
+    moveCardSwipe(e, todo) {
+      if (!todo._isSwiping || !e.touches || !e.touches[0]) return;
+      const dx = e.touches[0].clientX - (todo._touchStartX || 0);
+      const dy = e.touches[0].clientY - (todo._touchStartY || 0);
+      if (todo._swipeLocked === null) {
+        if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.35) {
+          todo._swipeLocked = 'h';
+        } else if (Math.abs(dy) > 12) {
+          todo._swipeLocked = 'v';
+          todo._isSwiping = false;
+          return;
+        } else {
+          return;
+        }
+      }
+      if (todo._swipeLocked === 'h') {
+        if (e.cancelable) e.preventDefault();
+        const nextX = Math.max(-165, Math.min(100, (todo._baseSwipeX || 0) + dx));
+        todo._swipeX = nextX;
+      }
+    },
+
+    endCardSwipe(todo) {
+      if (!todo._isSwiping && todo._swipeLocked !== 'h') return;
+      todo._isSwiping = false;
+      const x = todo._swipeX || 0;
+      if (x >= 72) {
+        todo._swipeX = 0;
+        this.swipedTodoId = null;
+        this.toggleTodo(todo);
+      } else if (x <= -56) {
+        todo._swipeX = -148;
+        this.swipedTodoId = todo.id;
+        if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
+      } else {
+        todo._swipeX = 0;
+        if (this.swipedTodoId === todo.id) this.swipedTodoId = null;
+      }
+      todo._swipeLocked = null;
+    },
+
+    async postponeTodo(todo, mode = '1h', e) {
+      if (e?.stopPropagation) e.stopPropagation();
+      const nowMs = Date.now();
+      let targetMs = nowMs + 3600 * 1000;
+      if (mode === 'tomorrow') {
+        const base = todo.due_date ? this.parseDateSafe(todo.due_date) : null;
+        const vnBase = base ? this.getVnDateParts(base) : this.getVnDateParts(nowMs);
+        const vnTomo = this.getVnDateParts(nowMs + 24 * 3600 * 1000);
+        targetMs = Date.UTC(vnTomo.year, vnTomo.month, vnTomo.day, vnBase.hours, vnBase.minutes, 0) - (7 * 3600 * 1000);
+      } else if (todo.due_date) {
+        const cur = this.parseDateSafe(todo.due_date);
+        if (cur && cur.getTime() > nowMs) {
+          targetMs = cur.getTime() + 3600 * 1000;
+        }
+      }
+      todo.due_date = new Date(targetMs).toISOString();
+      todo.updated_at = new Date().toISOString();
+      todo._swipeX = 0;
+      this.swipedTodoId = null;
+      await this.persistAllData();
+      this.scheduleNativeLocalNotification(todo);
+      if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
+      if (typeof this.playSound === 'function') this.playSound('click');
+      this.showToast(mode === 'tomorrow' ? '📅 Đã dời hạn sang Ngày mai' : '⏰ Đã dời hạn thêm +1 giờ', 'info');
+    },
+
+    // ─── PULL-TO-REFRESH ĐÀN HỒI (LÒ XO) ───
+    onBodyTouchStart(e) {
+      const container = e.currentTarget;
+      if (!container || container.scrollTop > 2 || !e.touches?.[0]) {
+        this._isPullingRefresh = false;
+        return;
+      }
+      this._pullStartY = e.touches[0].clientY;
+      this._isPullingRefresh = true;
+    },
+
+    onBodyTouchMove(e) {
+      if (!this._isPullingRefresh || !e.touches?.[0]) return;
+      const container = e.currentTarget;
+      if (container && container.scrollTop > 2) {
+        this.pullRefreshY = 0;
+        this._isPullingRefresh = false;
+        return;
+      }
+      const dy = e.touches[0].clientY - this._pullStartY;
+      if (dy > 0) {
+        // Lực cản lò xo tự nhiên kiểu iOS
+        this.pullRefreshY = Math.min(84, Math.round(dy * 0.45));
+      } else {
+        this.pullRefreshY = 0;
+      }
+    },
+
+    onBodyTouchEnd() {
+      if (!this._isPullingRefresh) return;
+      this._isPullingRefresh = false;
+      if (this.pullRefreshY >= 54) {
+        this.pullRefreshing = true;
+        this.pullRefreshY = 48;
+        if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
+        this.checkAndResetRecurringTasksLocally();
+        this.syncAllNativeLocalNotifications();
+        setTimeout(() => {
+          this.pullRefreshing = false;
+          this.pullRefreshY = 0;
+        }, 480);
+      } else {
+        this.pullRefreshY = 0;
+      }
+    },
+
     // ─── TODOS CRUD (0MS PHẢN HỒI TỨC THÌ) ───
     openCreateModal() {
+      if (typeof this.playSound === 'function') this.playSound('sheet');
+      if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
       this.editingTodo = null;
       this.customCategoryMode = false;
       this.newSubtaskInput = '';
@@ -2223,7 +2659,6 @@ function getStorageModule() {
       if (e?.stopPropagation) e.stopPropagation();
       if (!todo || todo._isToggling) return;
       todo._isToggling = true;
-      setTimeout(() => { delete todo._isToggling; }, 250);
       const newStatus = todo.is_completed ? 0 : 1;
 
       // Kiểm tra việc con trước khi hoàn thành
@@ -2231,22 +2666,38 @@ function getStorageModule() {
         const subs = this.getSubtasks(todo);
         const uncompleted = subs.filter(st => !st.is_completed);
         if (uncompleted.length > 0) {
+          delete todo._isToggling;
+          if (typeof this.triggerHaptic === 'function') this.triggerHaptic('warning');
           this.showToast('Chưa thể hoàn thành: còn ' + uncompleted.length + ' việc con chưa xong!', 'warning');
           return;
         }
+        // Hiệu ứng thu gọn mượt ~280ms trước khi trượt xuống nhóm Đã xong
+        todo._collapsing = true;
+        if (typeof this.triggerHaptic === 'function') this.triggerHaptic('success');
+        if (typeof this.playSound === 'function') this.playSound('complete');
+        setTimeout(async () => {
+          todo._collapsing = false;
+          await this.executeToggleTodo(todo, newStatus, true);
+          delete todo._isToggling;
+        }, 280);
+        return;
       }
 
-      await this.executeToggleTodo(todo, newStatus);
+      await this.executeToggleTodo(todo, newStatus, false);
+      setTimeout(() => { delete todo._isToggling; }, 220);
     },
 
-    async executeToggleTodo(todo, targetStatus) {
+    async executeToggleTodo(todo, targetStatus, soundAlreadyPlayed = false) {
       const prevStatus = todo.is_completed;
       todo.is_completed = targetStatus;
       todo.status = targetStatus === 1 ? 'completed' : 'todo';
       todo.updated_at = new Date().toISOString();
 
       if (targetStatus === 1) {
-        if (typeof this.playSound === 'function') this.playSound('complete');
+        if (!soundAlreadyPlayed) {
+          if (typeof this.triggerHaptic === 'function') this.triggerHaptic('success');
+          if (typeof this.playSound === 'function') this.playSound('complete');
+        }
         this.playChime();
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
         this.triggerConfetti();
@@ -2289,6 +2740,11 @@ function getStorageModule() {
       }
 
       await this.persistAllData();
+      if (targetStatus === 1 && this.stats?.todayTotal > 0 && this.stats?.todayPercent === 100) {
+        setTimeout(() => {
+          if (typeof this.playSound === 'function') this.playSound('all_done');
+        }, 260);
+      }
       this.showToast(todo.is_completed ? 'Hoàn thành xuất sắc! 🎉' : 'Đã chuyển sang đang chờ.', 'info', {
         label: 'Hoàn tác',
         onClick: () => this.executeToggleTodo(todo, prevStatus)
@@ -2298,8 +2754,11 @@ function getStorageModule() {
     async togglePin(todo, e) {
       if (e?.stopPropagation) e.stopPropagation();
       todo.is_pinned = todo.is_pinned ? 0 : 1;
+      todo._swipeX = 0;
+      this.swipedTodoId = null;
       todo.updated_at = new Date().toISOString();
       await this.persistAllData();
+      if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
       this.showToast(todo.is_pinned ? 'Đã ghim công việc lên đầu' : 'Đã bỏ ghim');
     },
 
@@ -2357,9 +2816,12 @@ function getStorageModule() {
       const targetItem = this.todos.find(t => t.id === targetId);
       if (targetItem) {
         targetItem.deleted_at = new Date().toISOString();
+        targetItem._swipeX = 0;
+        this.swipedTodoId = null;
         this.cancelNativeLocalNotification(targetId);
         this.todos = [...this.todos];
         await this.persistAllData();
+        if (typeof this.triggerHaptic === 'function') this.triggerHaptic('warning');
         if (typeof this.playSound === 'function') this.playSound('delete');
         this.showToast('Đã chuyển công việc vào thùng rác', 'info', {
           label: 'Hoàn tác',
@@ -2431,7 +2893,7 @@ function getStorageModule() {
       try {
         const payload = {
           app: 'ToDoList-Local',
-          version: '3.2.3',
+          version: '3.3.0',
           exported_at: new Date().toISOString(),
           todos: this.todos,
           categories: this.categories,
@@ -2485,7 +2947,7 @@ function getStorageModule() {
       try {
         const payload = {
           app: 'ToDoList-Local',
-          version: '3.2.3',
+          version: '3.3.0',
           exported_at: new Date().toISOString(),
           todos: this.todos,
           categories: this.categories,
@@ -2900,7 +3362,7 @@ function getStorageModule() {
 
     checkAppVersion(manual = false) {
       if (manual) {
-        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.2.3') + ')! 🎉', 'success');
+        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.3.0') + ')! 🎉', 'success');
       }
     },
 
@@ -3312,7 +3774,7 @@ function getNotificationsModule() {
       return (Math.abs(hash) % 2147483647) || 1;
     },
 
-    generateRollingTaskNotifications(todo, nowMs, maxPerTask = 100) {
+    generateRollingTaskNotifications(todo, nowMs, maxPerTask = 100, soundFile = 'pop_ding.wav') {
       if (!todo || !todo.due_date || todo.is_completed || todo.deleted_at) return [];
       const d = this.parseDateSafe(todo.due_date);
       if (!d) return [];
@@ -3350,7 +3812,7 @@ function getNotificationsModule() {
             title: priorityPrefix + (todo.title || 'Công việc cần làm'),
             body: remainingText + ' • Hạn: ' + dueTimeStr + (todo.category ? (' • ' + todo.category) : '') + repeatSuffix,
             schedule: { at: new Date(triggerTime), allowWhileIdle: true },
-            sound: 'pop_ding.wav',
+            sound: soundFile || 'pop_ding.wav',
             actionTypeId: 'TASK_REMINDER_ACTIONS',
             extra: { taskId: todo.id, todoId: todo.id, baseId: baseId, iteration: i + 1 },
             triggerTime
@@ -3381,6 +3843,7 @@ function getNotificationsModule() {
       const pendingTodos = Array.isArray(this.todos) ? this.todos.filter(t => !t.is_completed && !t.deleted_at) : [];
       const pendingCount = pendingTodos.length;
       const highCount = pendingTodos.filter(t => t.priority === 'High').length;
+      const soundFile = this.notificationSound || 'pop_ding.wav';
 
       let morningBody = pendingCount > 0
         ? ('Bạn có ' + pendingCount + ' việc cần làm hôm nay' + (highCount > 0 ? (' (' + highCount + ' việc khẩn cấp)') : '') + '. Chúc bạn ngày mới hiệu quả!')
@@ -3396,7 +3859,7 @@ function getNotificationsModule() {
           title: '☀️ Chào buổi sáng! Kế hoạch hôm nay',
           body: morningBody,
           schedule: { at: new Date(morningMs), every: 'day', allowWhileIdle: true },
-          sound: 'pop_ding.wav',
+          sound: soundFile,
           extra: { type: 'daily_briefing_morning' }
         },
         {
@@ -3404,7 +3867,7 @@ function getNotificationsModule() {
           title: '🌙 Chào buổi tối! Tổng kết & việc tối nay',
           body: eveningBody,
           schedule: { at: new Date(eveningMs), every: 'day', allowWhileIdle: true },
-          sound: 'pop_ding.wav',
+          sound: soundFile,
           extra: { type: 'daily_briefing_evening' }
         }
       ];
@@ -3417,7 +3880,7 @@ function getNotificationsModule() {
       const extra = actionPerformed?.notification?.extra || {};
       const taskId = extra.taskId || extra.todoId;
 
-      if (actionId === 'MARK_DONE' && taskId) {
+      if ((actionId === 'MARK_DONE' || actionId === 'SNOOZE_10M') && taskId) {
         try {
           const Prefs = window.Capacitor?.Plugins?.Preferences;
           const LN = window.Capacitor?.Plugins?.LocalNotifications;
@@ -3442,7 +3905,7 @@ function getNotificationsModule() {
           }
 
           const targetTodo = Array.isArray(this.todos) ? this.todos.find(t => t.id === taskId) : null;
-          if (targetTodo && !targetTodo.is_completed) {
+          if (targetTodo && actionId === 'MARK_DONE' && !targetTodo.is_completed) {
             targetTodo.is_completed = 1;
             targetTodo.status = 'completed';
             targetTodo.updated_at = nowIso;
@@ -3501,6 +3964,21 @@ function getNotificationsModule() {
                 ]);
               }
             }
+          } else if (targetTodo && actionId === 'SNOOZE_10M') {
+            const snoozeTargetMs = nowMs + 10 * 60 * 1000;
+            targetTodo.due_date = new Date(snoozeTargetMs).toISOString();
+            targetTodo.reminder_offset = 0;
+            targetTodo.updated_at = nowIso;
+
+            if (typeof this.persistAllData === 'function') {
+              await this.persistAllData();
+            } else {
+              const todosStr = JSON.stringify(this.todos || []);
+              localStorage.setItem('local_todos', todosStr);
+              if (Prefs?.set) {
+                await Prefs.set({ key: 'local_todos', value: todosStr });
+              }
+            }
           }
 
           if (LN) {
@@ -3537,7 +4015,7 @@ function getNotificationsModule() {
           await this._doSyncAllNativeLocalNotifications();
           return;
         } catch (err) {
-          console.warn('handleLocalNotificationAction MARK_DONE error:', err);
+          console.warn('handleLocalNotificationAction error:', err);
         }
       }
 
@@ -3565,6 +4043,11 @@ function getNotificationsModule() {
                   {
                     id: 'MARK_DONE',
                     title: 'Đã xong',
+                    foreground: false
+                  },
+                  {
+                    id: 'SNOOZE_10M',
+                    title: 'Nhắc lại sau 10 phút',
                     foreground: false
                   }
                 ]
@@ -3682,8 +4165,9 @@ function getNotificationsModule() {
           const validTodos = this.todos.filter(t => !t.is_completed && !t.deleted_at && t.due_date);
           const candidateNotifications = [];
 
+          const soundFile = this.notificationSound || 'pop_ding.wav';
           for (const t of validTodos) {
-            const taskNotifs = this.generateRollingTaskNotifications(t, now, 100);
+            const taskNotifs = this.generateRollingTaskNotifications(t, now, 100, soundFile);
             candidateNotifications.push(...taskNotifs);
           }
 
@@ -3725,10 +4209,54 @@ function getAudioTimerModule() {
     ambientVolume: 50,
     ambientNodes: null,
     soundEffectsEnabled: localStorage.getItem('soundEffectsEnabled') !== 'false',
+    notificationSound: localStorage.getItem('notificationSound') || 'pop_ding.wav',
+
+    triggerHaptic(kind = 'light') {
+      try {
+        const Haptics = window.Capacitor?.Plugins?.Haptics;
+        if (!Haptics) return;
+        if (kind === 'success') {
+          Haptics.notification({ type: 'SUCCESS' }).catch(() => {});
+        } else if (kind === 'warning') {
+          Haptics.notification({ type: 'WARNING' }).catch(() => {});
+        } else if (kind === 'selection') {
+          Haptics.selectionChanged().catch(() => {});
+        } else if (kind === 'medium') {
+          Haptics.impact({ style: 'MEDIUM' }).catch(() => {});
+        } else {
+          Haptics.impact({ style: 'LIGHT' }).catch(() => {});
+        }
+      } catch {}
+    },
+
+    setNotificationSound(soundFile) {
+      const allowed = ['pop_ding.wav', 'soft_chime.wav', 'crisp_click.wav'];
+      const chosen = allowed.includes(soundFile) ? soundFile : 'pop_ding.wav';
+      this.notificationSound = chosen;
+      try { localStorage.setItem('notificationSound', chosen); } catch {}
+      this.triggerHaptic('light');
+      if (this.soundEffectsEnabled) {
+        try {
+          const audio = new Audio('/sounds/' + chosen);
+          audio.volume = 0.65;
+          audio.play().catch(() => this.playSound('click'));
+        } catch {
+          this.playSound('click');
+        }
+      }
+      if (typeof this.syncAllNativeLocalNotifications === 'function') {
+        this.syncAllNativeLocalNotifications();
+      }
+      if (typeof this.showToast === 'function') {
+        const label = chosen === 'pop_ding.wav' ? 'Pop Ding' : (chosen === 'soft_chime.wav' ? 'Soft Chime' : 'Crisp Click');
+        this.showToast('🔔 Đã chọn âm thông báo: ' + label, 'info');
+      }
+    },
 
     toggleSoundEffects() {
       this.soundEffectsEnabled = !this.soundEffectsEnabled;
       localStorage.setItem('soundEffectsEnabled', String(this.soundEffectsEnabled));
+      this.triggerHaptic('light');
       if (this.soundEffectsEnabled) {
         this.playSound('click');
         this.showToast('Đã bật âm thanh thao tác 🔊', 'info');
@@ -3760,6 +4288,35 @@ function getAudioTimerModule() {
             osc.start(now + i * 0.06);
             osc.stop(now + i * 0.06 + 0.5);
           });
+        } else if (type === 'all_done') {
+          // Hợp âm 2 nốt vui tai khi hoàn thành 100% việc hôm nay
+          const notes = [783.99, 1046.50];
+          notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + i * 0.09);
+            gain.gain.setValueAtTime(0, now + i * 0.09);
+            gain.gain.linearRampToValueAtTime(0.24, now + i * 0.09 + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.09 + 0.55);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + i * 0.09);
+            osc.stop(now + i * 0.09 + 0.6);
+          });
+        } else if (type === 'sheet') {
+          // Tiếng tách cơ học cực nhẹ khi mở/đóng Bottom Sheet
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(640, now);
+          osc.frequency.exponentialRampToValueAtTime(420, now + 0.028);
+          gain.gain.setValueAtTime(0.09, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.035);
         } else if (type === 'uncomplete') {
           // Bỏ hoàn thành: nốt hạ nhẹ
           const osc = ctx.createOscillator();
@@ -3801,18 +4358,18 @@ function getAudioTimerModule() {
           osc.start(now);
           osc.stop(now + 0.17);
         } else if (type === 'delete') {
-          // Tiếng chuyển vào thùng rác: âm swoosh dịu
+          // Tiếng chuyển vào thùng rác: âm swoosh cực nhỏ
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(300, now);
-          osc.frequency.exponentialRampToValueAtTime(120, now + 0.14);
-          gain.gain.setValueAtTime(0.2, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+          osc.frequency.setValueAtTime(280, now);
+          osc.frequency.exponentialRampToValueAtTime(110, now + 0.12);
+          gain.gain.setValueAtTime(0.14, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
           osc.connect(gain);
           gain.connect(ctx.destination);
           osc.start(now);
-          osc.stop(now + 0.15);
+          osc.stop(now + 0.13);
         }
       } catch (err) {}
     },
@@ -4143,7 +4700,7 @@ function getAudioTimerModule() {
                 title: '⏳ Hẹn giờ kết thúc',
                 body: 'Thời gian hẹn giờ của bạn đã kết thúc!',
                 schedule: { at: new Date() },
-                sound: 'pop_ding.wav'
+                sound: this.notificationSound || 'pop_ding.wav'
               }]
             }).catch(() => {});
           }
@@ -4445,6 +5002,11 @@ function app() {
 
     statusFilters: [
       {
+        value: 'today',
+        label: 'Hôm nay',
+        icon: '<svg class="w-3.5 h-3.5 text-amber-500" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v3m0 16v3M4.22 4.22l2.12 2.12m11.32 11.32l2.12 2.12M1 12h3m16 0h3M4.22 19.78l2.12-2.12m11.32-11.32l2.12-2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+      },
+      {
         value: 'all',
         label: 'Tất cả',
         icon: '<svg class="w-3.5 h-3.5 text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>'
@@ -4484,7 +5046,7 @@ function app() {
     toasts: [],
     toastId: 0,
     showAboutModal: false,
-    appVersion: '3.2.3',
+    appVersion: '3.3.0',
     isRefreshing: false,
 
     // ── GỘP CÁC MODULE CON ĐỘC LẬP ──
@@ -4596,6 +5158,7 @@ function app() {
     },
 
     getFilterCount(value) {
+      if (value === 'today') return (this.todos || []).filter(t => !t.deleted_at && !t.is_completed && (this.isTodoForToday(t) || this.isOverdue(t))).length;
       if (value === 'all') return this.stats.total;
       if (value === 'pending') return this.stats.pending;
       if (value === 'recurring') return this.stats.recurring;
@@ -4691,7 +5254,9 @@ function app() {
     get filteredSortedTodos() {
       let list = this.sortedTodos;
 
-      if (this.filterStatus === 'pending') {
+      if (this.filterStatus === 'today') {
+        list = list.filter(t => !t.is_completed && (this.isTodoForToday(t) || this.isOverdue(t)));
+      } else if (this.filterStatus === 'pending') {
         list = list.filter(t => !t.is_completed);
       } else if (this.filterStatus === 'completed') {
         list = list.filter(t => t.is_completed);

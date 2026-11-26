@@ -108,6 +108,7 @@ export function getPriorityWarningMinutes(priority: string): number {
 
 export const TASK_REMINDER_ACTION_TYPE_ID = 'TASK_REMINDER_ACTIONS';
 export const TASK_REMINDER_ACTION_MARK_DONE = 'MARK_DONE';
+export const TASK_REMINDER_ACTION_SNOOZE_10M = 'SNOOZE_10M';
 export const NOTIFICATION_SOUND_FILE = 'pop_ding.wav';
 
 export function formatRemainingDeadlineText(dueDateOrMs: any, nowMs: number = Date.now()): string {
@@ -141,11 +142,13 @@ export async function handleMarkDoneNotificationAction(params: {
   getDeliveredNotifications?: () => Promise<{ notifications: any[] }>;
   removeDeliveredNotifications?: (opts: { notifications: any[] }) => Promise<void>;
   syncQueue?: () => Promise<void> | void;
-}): Promise<{ completed: boolean; taskId?: string }> {
+}): Promise<{ completed: boolean; snoozed?: boolean; taskId?: string }> {
   const taskId = params.notification?.extra?.taskId || params.notification?.extra?.todoId;
-  if (params.actionId !== TASK_REMINDER_ACTION_MARK_DONE || !taskId) {
+  const isMarkDone = params.actionId === TASK_REMINDER_ACTION_MARK_DONE;
+  const isSnooze = params.actionId === TASK_REMINDER_ACTION_SNOOZE_10M;
+  if ((!isMarkDone && !isSnooze) || !taskId) {
     if (params.syncQueue) await params.syncQueue();
-    return { completed: false, taskId };
+    return { completed: false, snoozed: false, taskId };
   }
 
   const nowMs = Date.now();
@@ -153,11 +156,14 @@ export async function handleMarkDoneNotificationAction(params: {
   const vnNow = getVnDateParts(nowMs);
   const history = Array.isArray(params.completionHistory) ? params.completionHistory : [];
   const target = Array.isArray(params.todos) ? params.todos.find(t => t.id === taskId) : null;
+  let completed = false;
+  let snoozed = false;
 
-  if (target && !target.is_completed) {
+  if (target && isMarkDone && !target.is_completed) {
     target.is_completed = 1;
     target.status = 'completed';
     target.updated_at = nowIso;
+    completed = true;
 
     history.push({
       id: 'hist_' + nowMs + '_' + Math.random().toString(36).substring(2, 8),
@@ -183,6 +189,15 @@ export async function handleMarkDoneNotificationAction(params: {
       }
     }
 
+    if (params.persistTodosAndHistory) {
+      await params.persistTodosAndHistory(params.todos, history);
+    }
+  } else if (target && isSnooze) {
+    const snoozeTargetMs = nowMs + 10 * 60 * 1000;
+    target.due_date = new Date(snoozeTargetMs).toISOString();
+    target.reminder_offset = 0;
+    target.updated_at = nowIso;
+    snoozed = true;
     if (params.persistTodosAndHistory) {
       await params.persistTodosAndHistory(params.todos, history);
     }
@@ -219,7 +234,7 @@ export async function handleMarkDoneNotificationAction(params: {
     await params.syncQueue();
   }
 
-  return { completed: Boolean(target), taskId };
+  return { completed, snoozed, taskId };
 }
 
 export function isTodoForToday(todo: any, nowMs: number = Date.now()): boolean {
@@ -760,7 +775,7 @@ function getNotificationsModule() {
       return (Math.abs(hash) % 2147483647) || 1;
     },
 
-    generateRollingTaskNotifications(todo, nowMs, maxPerTask = 100) {
+    generateRollingTaskNotifications(todo, nowMs, maxPerTask = 100, soundFile = 'pop_ding.wav') {
       if (!todo || !todo.due_date || todo.is_completed || todo.deleted_at) return [];
       const d = this.parseDateSafe(todo.due_date);
       if (!d) return [];
@@ -798,7 +813,7 @@ function getNotificationsModule() {
             title: priorityPrefix + (todo.title || 'Công việc cần làm'),
             body: remainingText + ' • Hạn: ' + dueTimeStr + (todo.category ? (' • ' + todo.category) : '') + repeatSuffix,
             schedule: { at: new Date(triggerTime), allowWhileIdle: true },
-            sound: 'pop_ding.wav',
+            sound: soundFile || 'pop_ding.wav',
             actionTypeId: 'TASK_REMINDER_ACTIONS',
             extra: { taskId: todo.id, todoId: todo.id, baseId: baseId, iteration: i + 1 },
             triggerTime
@@ -829,6 +844,7 @@ function getNotificationsModule() {
       const pendingTodos = Array.isArray(this.todos) ? this.todos.filter(t => !t.is_completed && !t.deleted_at) : [];
       const pendingCount = pendingTodos.length;
       const highCount = pendingTodos.filter(t => t.priority === 'High').length;
+      const soundFile = this.notificationSound || 'pop_ding.wav';
 
       let morningBody = pendingCount > 0
         ? ('Bạn có ' + pendingCount + ' việc cần làm hôm nay' + (highCount > 0 ? (' (' + highCount + ' việc khẩn cấp)') : '') + '. Chúc bạn ngày mới hiệu quả!')
@@ -844,7 +860,7 @@ function getNotificationsModule() {
           title: '☀️ Chào buổi sáng! Kế hoạch hôm nay',
           body: morningBody,
           schedule: { at: new Date(morningMs), every: 'day', allowWhileIdle: true },
-          sound: 'pop_ding.wav',
+          sound: soundFile,
           extra: { type: 'daily_briefing_morning' }
         },
         {
@@ -852,7 +868,7 @@ function getNotificationsModule() {
           title: '🌙 Chào buổi tối! Tổng kết & việc tối nay',
           body: eveningBody,
           schedule: { at: new Date(eveningMs), every: 'day', allowWhileIdle: true },
-          sound: 'pop_ding.wav',
+          sound: soundFile,
           extra: { type: 'daily_briefing_evening' }
         }
       ];
@@ -865,7 +881,7 @@ function getNotificationsModule() {
       const extra = actionPerformed?.notification?.extra || {};
       const taskId = extra.taskId || extra.todoId;
 
-      if (actionId === 'MARK_DONE' && taskId) {
+      if ((actionId === 'MARK_DONE' || actionId === 'SNOOZE_10M') && taskId) {
         try {
           const Prefs = window.Capacitor?.Plugins?.Preferences;
           const LN = window.Capacitor?.Plugins?.LocalNotifications;
@@ -890,7 +906,7 @@ function getNotificationsModule() {
           }
 
           const targetTodo = Array.isArray(this.todos) ? this.todos.find(t => t.id === taskId) : null;
-          if (targetTodo && !targetTodo.is_completed) {
+          if (targetTodo && actionId === 'MARK_DONE' && !targetTodo.is_completed) {
             targetTodo.is_completed = 1;
             targetTodo.status = 'completed';
             targetTodo.updated_at = nowIso;
@@ -949,6 +965,21 @@ function getNotificationsModule() {
                 ]);
               }
             }
+          } else if (targetTodo && actionId === 'SNOOZE_10M') {
+            const snoozeTargetMs = nowMs + 10 * 60 * 1000;
+            targetTodo.due_date = new Date(snoozeTargetMs).toISOString();
+            targetTodo.reminder_offset = 0;
+            targetTodo.updated_at = nowIso;
+
+            if (typeof this.persistAllData === 'function') {
+              await this.persistAllData();
+            } else {
+              const todosStr = JSON.stringify(this.todos || []);
+              localStorage.setItem('local_todos', todosStr);
+              if (Prefs?.set) {
+                await Prefs.set({ key: 'local_todos', value: todosStr });
+              }
+            }
           }
 
           if (LN) {
@@ -985,7 +1016,7 @@ function getNotificationsModule() {
           await this._doSyncAllNativeLocalNotifications();
           return;
         } catch (err) {
-          console.warn('handleLocalNotificationAction MARK_DONE error:', err);
+          console.warn('handleLocalNotificationAction error:', err);
         }
       }
 
@@ -1013,6 +1044,11 @@ function getNotificationsModule() {
                   {
                     id: 'MARK_DONE',
                     title: 'Đã xong',
+                    foreground: false
+                  },
+                  {
+                    id: 'SNOOZE_10M',
+                    title: 'Nhắc lại sau 10 phút',
                     foreground: false
                   }
                 ]
@@ -1130,8 +1166,9 @@ function getNotificationsModule() {
           const validTodos = this.todos.filter(t => !t.is_completed && !t.deleted_at && t.due_date);
           const candidateNotifications = [];
 
+          const soundFile = this.notificationSound || 'pop_ding.wav';
           for (const t of validTodos) {
-            const taskNotifs = this.generateRollingTaskNotifications(t, now, 100);
+            const taskNotifs = this.generateRollingTaskNotifications(t, now, 100, soundFile);
             candidateNotifications.push(...taskNotifs);
           }
 

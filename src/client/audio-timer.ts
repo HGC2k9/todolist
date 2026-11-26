@@ -12,10 +12,54 @@ function getAudioTimerModule() {
     ambientVolume: 50,
     ambientNodes: null,
     soundEffectsEnabled: localStorage.getItem('soundEffectsEnabled') !== 'false',
+    notificationSound: localStorage.getItem('notificationSound') || 'pop_ding.wav',
+
+    triggerHaptic(kind = 'light') {
+      try {
+        const Haptics = window.Capacitor?.Plugins?.Haptics;
+        if (!Haptics) return;
+        if (kind === 'success') {
+          Haptics.notification({ type: 'SUCCESS' }).catch(() => {});
+        } else if (kind === 'warning') {
+          Haptics.notification({ type: 'WARNING' }).catch(() => {});
+        } else if (kind === 'selection') {
+          Haptics.selectionChanged().catch(() => {});
+        } else if (kind === 'medium') {
+          Haptics.impact({ style: 'MEDIUM' }).catch(() => {});
+        } else {
+          Haptics.impact({ style: 'LIGHT' }).catch(() => {});
+        }
+      } catch {}
+    },
+
+    setNotificationSound(soundFile) {
+      const allowed = ['pop_ding.wav', 'soft_chime.wav', 'crisp_click.wav'];
+      const chosen = allowed.includes(soundFile) ? soundFile : 'pop_ding.wav';
+      this.notificationSound = chosen;
+      try { localStorage.setItem('notificationSound', chosen); } catch {}
+      this.triggerHaptic('light');
+      if (this.soundEffectsEnabled) {
+        try {
+          const audio = new Audio('/sounds/' + chosen);
+          audio.volume = 0.65;
+          audio.play().catch(() => this.playSound('click'));
+        } catch {
+          this.playSound('click');
+        }
+      }
+      if (typeof this.syncAllNativeLocalNotifications === 'function') {
+        this.syncAllNativeLocalNotifications();
+      }
+      if (typeof this.showToast === 'function') {
+        const label = chosen === 'pop_ding.wav' ? 'Pop Ding' : (chosen === 'soft_chime.wav' ? 'Soft Chime' : 'Crisp Click');
+        this.showToast('🔔 Đã chọn âm thông báo: ' + label, 'info');
+      }
+    },
 
     toggleSoundEffects() {
       this.soundEffectsEnabled = !this.soundEffectsEnabled;
       localStorage.setItem('soundEffectsEnabled', String(this.soundEffectsEnabled));
+      this.triggerHaptic('light');
       if (this.soundEffectsEnabled) {
         this.playSound('click');
         this.showToast('Đã bật âm thanh thao tác 🔊', 'info');
@@ -47,6 +91,35 @@ function getAudioTimerModule() {
             osc.start(now + i * 0.06);
             osc.stop(now + i * 0.06 + 0.5);
           });
+        } else if (type === 'all_done') {
+          // Hợp âm 2 nốt vui tai khi hoàn thành 100% việc hôm nay
+          const notes = [783.99, 1046.50];
+          notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + i * 0.09);
+            gain.gain.setValueAtTime(0, now + i * 0.09);
+            gain.gain.linearRampToValueAtTime(0.24, now + i * 0.09 + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.09 + 0.55);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + i * 0.09);
+            osc.stop(now + i * 0.09 + 0.6);
+          });
+        } else if (type === 'sheet') {
+          // Tiếng tách cơ học cực nhẹ khi mở/đóng Bottom Sheet
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(640, now);
+          osc.frequency.exponentialRampToValueAtTime(420, now + 0.028);
+          gain.gain.setValueAtTime(0.09, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.035);
         } else if (type === 'uncomplete') {
           // Bỏ hoàn thành: nốt hạ nhẹ
           const osc = ctx.createOscillator();
@@ -88,18 +161,18 @@ function getAudioTimerModule() {
           osc.start(now);
           osc.stop(now + 0.17);
         } else if (type === 'delete') {
-          // Tiếng chuyển vào thùng rác: âm swoosh dịu
+          // Tiếng chuyển vào thùng rác: âm swoosh cực nhỏ
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(300, now);
-          osc.frequency.exponentialRampToValueAtTime(120, now + 0.14);
-          gain.gain.setValueAtTime(0.2, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+          osc.frequency.setValueAtTime(280, now);
+          osc.frequency.exponentialRampToValueAtTime(110, now + 0.12);
+          gain.gain.setValueAtTime(0.14, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
           osc.connect(gain);
           gain.connect(ctx.destination);
           osc.start(now);
-          osc.stop(now + 0.15);
+          osc.stop(now + 0.13);
         }
       } catch (err) {}
     },
@@ -430,7 +503,7 @@ function getAudioTimerModule() {
                 title: '⏳ Hẹn giờ kết thúc',
                 body: 'Thời gian hẹn giờ của bạn đã kết thúc!',
                 schedule: { at: new Date() },
-                sound: 'pop_ding.wav'
+                sound: this.notificationSound || 'pop_ding.wav'
               }]
             }).catch(() => {});
           }

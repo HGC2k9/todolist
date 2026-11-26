@@ -204,6 +204,11 @@ export function renderHTML(): string {
       transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.18s ease, background-color 0.18s ease, opacity 0.22s ease;
       will-change: transform, opacity;
     }
+    .todo-card-collapsing {
+      opacity: 0 !important;
+      transform: translateY(8px) scale(0.96) !important;
+      transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s ease !important;
+    }
     @media (hover: hover) and (pointer: fine) {
       .todo-card:hover {
         transform: translateY(-1.5px);
@@ -369,7 +374,21 @@ export function renderHTML(): string {
   </header>
 
   <!-- ═══════ PHẦN 2: BODY CUỘN ĐỘC LẬP ═══════ -->
-  <div class="flex-1 overflow-y-auto overscroll-contain ios-scroll-body w-full" style="padding-top: calc(max(14px, env(safe-area-inset-top, 0px)) + 60px); padding-bottom: calc(max(1.25rem, env(safe-area-inset-bottom, 0px)) + 4rem);">
+  <div class="flex-1 overflow-y-auto overscroll-contain ios-scroll-body w-full relative"
+       @touchstart="onBodyTouchStart($event)"
+       @touchmove="onBodyTouchMove($event)"
+       @touchend="onBodyTouchEnd()"
+       style="padding-top: calc(max(14px, env(safe-area-inset-top, 0px)) + 60px); padding-bottom: calc(max(1.25rem, env(safe-area-inset-bottom, 0px)) + 6rem);">
+
+  <!-- Pull-to-Refresh Lò xo kiểu iOS -->
+  <div x-show="pullRefreshY > 4 || pullRefreshing" x-cloak
+       class="flex items-center justify-center overflow-hidden transition-all duration-200 ease-out"
+       :style="'height: ' + (pullRefreshing ? 48 : pullRefreshY) + 'px; opacity: ' + Math.min(1, (pullRefreshing ? 48 : pullRefreshY) / 40) + ';'">
+    <div class="w-8 h-8 rounded-full bg-white dark:bg-slate-800 shadow-md border border-slate-200 dark:border-slate-700 flex items-center justify-center text-brand-600"
+         :style="'transform: scale(' + Math.min(1.05, 0.7 + (pullRefreshY / 120)) + ') rotate(' + (pullRefreshY * 4) + 'deg);'">
+      <svg class="w-4 h-4" :class="pullRefreshing && 'spinner'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><polyline points="21 3 21 9 15 9"/></svg>
+    </div>
+  </div>
 
   <!-- ─── Banner thông báo nhắc nhở theo mức độ ưu tiên ─── -->
   <div x-show="imminentTodos.length > 0" x-cloak
@@ -401,9 +420,9 @@ export function renderHTML(): string {
     <div class="bg-white dark:bg-slate-900/90 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-slate-800 px-4 py-3 sm:px-5 sm:py-3.5 mb-3.5 shadow-xs transition-all">
       <div class="flex items-center justify-between text-xs font-semibold gap-3 flex-wrap">
         <div class="flex items-center gap-2 sm:gap-2.5 flex-wrap">
-          <button type="button" @click="filterStatus='pending'"
+          <button type="button" @click="filterStatus='today'; triggerHaptic('light')"
                   class="h-7.5 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95"
-                  :class="filterStatus==='pending' && 'ring-1 ring-amber-500/50 bg-amber-50/50 dark:bg-amber-950/30'"
+                  :class="filterStatus==='today' && 'ring-1 ring-amber-500/50 bg-amber-50/50 dark:bg-amber-950/30'"
                   title="Bấm để lọc việc cần làm hôm nay">
             <span class="w-2 h-2 rounded-full bg-amber-500"></span>
             <strong class="text-sm font-black text-slate-900 dark:text-white" x-text="stats.todayPending"></strong>
@@ -434,18 +453,33 @@ export function renderHTML(): string {
         
         <div class="flex items-center gap-2.5 flex-shrink-0 ml-auto">
           <!-- Chuỗi ngày năng suất (Streak Counter) -->
-          <div class="h-7.5 inline-flex items-center justify-center gap-1 px-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 font-bold text-xs select-none shadow-xs"
+          <div class="h-8 inline-flex items-center justify-center gap-1 px-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 font-bold text-xs select-none shadow-xs"
                :title="'Chuỗi ngày năng suất: ' + streak + ' ngày liên tục'">
             <span class="text-sm">🔥</span>
             <span class="font-black text-xs sm:text-sm" x-text="streak"></span>
             <span class="hidden sm:inline text-[11px] font-semibold text-orange-700/80 dark:text-orange-300">streak</span>
           </div>
 
-          <div class="w-16 sm:w-24 h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5"
-               role="progressbar" :aria-valuenow="stats.todayPercent" aria-valuemin="0" aria-valuemax="100" :aria-label="'Tiến độ hôm nay: ' + stats.todayPercent + '%'">
-            <div class="h-full bg-gradient-to-r from-brand-500 via-indigo-500 to-emerald-500 rounded-full transition-all duration-500 ease-out" :style="'width: ' + stats.todayPercent + '%'"></div>
+          <!-- Activity Ring (Vòng tròn tiến độ Apple Fitness) -->
+          <div class="relative w-10 h-10 flex items-center justify-center flex-shrink-0"
+               role="progressbar" :aria-valuenow="stats.todayPercent" aria-valuemin="0" aria-valuemax="100" :aria-label="'Tiến độ hôm nay: ' + stats.todayPercent + '%'"
+               :title="'Hoàn thành hôm nay: ' + stats.todayPercent + '%'">
+            <svg class="w-10 h-10 -rotate-90" viewBox="0 0 40 40">
+              <circle cx="20" cy="20" r="16" fill="none" stroke="currentColor" stroke-width="3.5" class="text-slate-200 dark:text-slate-800"></circle>
+              <circle cx="20" cy="20" r="16" fill="none" stroke="url(#activityRingGrad)" stroke-width="3.5" stroke-linecap="round"
+                      stroke-dasharray="100.53"
+                      :stroke-dashoffset="100.53 - (100.53 * (stats.todayPercent || 0) / 100)"
+                      style="transition: stroke-dashoffset 0.55s cubic-bezier(0.22, 1, 0.36, 1);"></circle>
+              <defs>
+                <linearGradient id="activityRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#3b82f6"/>
+                  <stop offset="50%" stop-color="#6366f1"/>
+                  <stop offset="100%" stop-color="#10b981"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <span class="absolute text-[9px] font-black text-slate-700 dark:text-slate-200" x-text="stats.todayPercent + '%'"></span>
           </div>
-          <span class="text-[11px] font-black text-slate-500 dark:text-slate-400" x-text="stats.todayPercent + '%'"></span>
         </div>
       </div>
       
@@ -464,11 +498,19 @@ export function renderHTML(): string {
         <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </span>
-        <input id="search-input" name="searchQuery" x-model="searchQuery" type="text" placeholder="Tìm kiếm công việc nhanh (phím / để tìm)..."
-               aria-label="Tìm kiếm công việc"
-               class="w-full pl-9 pr-14 py-2 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/50 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-xs sm:text-sm font-medium" />
-        <div class="absolute inset-y-0 right-0 pr-2.5 flex items-center gap-1">
-          <button x-show="searchQuery" @click="searchQuery=''" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition" aria-label="Xóa nội dung tìm kiếm">
+        <input id="search-input" name="searchQuery" x-model="searchQuery" type="text"
+               @keydown.enter.prevent="quickAddFromText(searchQuery)"
+               placeholder="Tìm hoặc gõ nhanh: Họp team 15h mai #work !high (Enter tạo)..."
+               aria-label="Tìm kiếm hoặc nhập nhanh công việc"
+               class="w-full pl-9 pr-24 py-2 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/50 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-xs sm:text-sm font-medium" />
+        <div class="absolute inset-y-0 right-0 pr-2 flex items-center gap-1">
+          <button type="button" x-show="searchQuery && searchQuery.trim().length > 0"
+                  @click="quickAddFromText(searchQuery)"
+                  class="px-2 py-1 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-[10px] font-bold transition active:scale-95 cursor-pointer"
+                  title="Tạo công việc nhanh bằng ngôn ngữ tự nhiên">
+            ⚡ Tạo
+          </button>
+          <button x-show="searchQuery" @click="searchQuery=''" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer" aria-label="Xóa nội dung tìm kiếm">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
           <kbd class="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">/</kbd>
@@ -478,7 +520,7 @@ export function renderHTML(): string {
       <!-- Quick Filter Chips với số lượng đếm trực tiếp (Căn chỉnh đối xứng h-8) -->
       <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 -mx-0.5 px-0.5" role="group" aria-label="Bộ lọc trạng thái công việc">
         <template x-for="s in statusFilters" :key="s.value">
-          <button @click="filterStatus = s.value"
+          <button @click="filterStatus = s.value; triggerHaptic('light')"
                   role="button"
                   :aria-pressed="filterStatus === s.value"
                   class="flex-shrink-0 h-8 px-3 text-xs font-bold rounded-xl border transition-all duration-150 inline-flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
@@ -586,6 +628,17 @@ export function renderHTML(): string {
           <span class="hidden sm:inline">Thùng rác</span>
         </button>
 
+        <!-- Nút chế độ Gọn / Chi tiết -->
+        <button type="button" @click="toggleCompactMode()"
+                :aria-pressed="compactMode"
+                aria-label="Chuyển đổi chế độ hiển thị Gọn hoặc Chi tiết"
+                class="h-8 px-2.5 rounded-xl border font-bold flex-shrink-0 text-xs inline-flex items-center gap-1 transition active:scale-95 cursor-pointer"
+                :class="compactMode ? 'bg-brand-50 dark:bg-brand-950/60 border-brand-300 dark:border-brand-700 text-brand-700 dark:text-brand-300' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300'"
+                title="Chuyển chế độ hiển thị Gọn / Chi tiết">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          <span x-text="compactMode ? 'Gọn' : 'Chi tiết'"></span>
+        </button>
+
         <button x-show="stats.completed > 0" @click="confirmClearCompleted()"
                 aria-label="Dọn dẹp công việc đã hoàn thành"
                 class="h-8 ml-auto text-rose-500 hover:text-rose-600 font-bold inline-flex items-center justify-center gap-1 transition px-2.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/50 flex-shrink-0 text-xs active:scale-95"
@@ -626,6 +679,7 @@ export function renderHTML(): string {
             </div>
           </div>
         </div>
+        </div>
       </template>
     </div>
 
@@ -645,10 +699,42 @@ export function renderHTML(): string {
     <!-- ─── Todo List Item Cards (Tự động sắp xếp: Việc cần làm lên đầu, Quá hạn & Đã xong rớt xuống dưới) ─── -->
     <div class="space-y-3" x-show="viewMode === 'list' && !todosLoading && filteredSortedTodos.length > 0">
       <template x-for="todo in filteredSortedTodos" :key="todo.id">
-        <div class="todo-card bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-5 hover:shadow-md group relative"
+        <div class="relative rounded-3xl overflow-hidden">
+          <!-- Swipe-Right Layer: Hoàn thành nhanh -->
+          <div x-show="(todo._swipeX || 0) > 8" x-cloak
+               class="absolute inset-y-0 left-0 w-32 bg-emerald-500 text-white flex items-center pl-4 font-bold text-xs gap-1.5 rounded-l-3xl pointer-events-none">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Hoàn thành</span>
+          </div>
+
+          <!-- Swipe-Left Layer: 3 nút nhanh Ghim / Dời hạn / Xóa -->
+          <div x-show="(todo._swipeX || 0) < -8" x-cloak
+               class="absolute inset-y-0 right-0 flex items-stretch rounded-r-3xl overflow-hidden">
+            <button type="button" @click="togglePin(todo, $event)" aria-label="Ghim việc"
+                    class="w-12 bg-amber-500 text-white flex flex-col items-center justify-center text-[10px] font-bold active:opacity-80 cursor-pointer">
+              <span>📌</span><span>Ghim</span>
+            </button>
+            <button type="button" @click="postponeTodo(todo, '1h', $event)" aria-label="Dời hạn 1 giờ"
+                    class="w-12 bg-indigo-500 text-white flex flex-col items-center justify-center text-[10px] font-bold active:opacity-80 cursor-pointer">
+              <span>⏰</span><span>+1h</span>
+            </button>
+            <button type="button" @click="confirmDelete(todo)" aria-label="Xóa việc"
+                    class="w-12 bg-rose-500 text-white flex flex-col items-center justify-center text-[10px] font-bold active:opacity-80 cursor-pointer">
+              <span>🗑️</span><span>Xóa</span>
+            </button>
+          </div>
+
+        <div class="todo-card bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 hover:shadow-md group relative"
+             :style="(todo._swipeX ? ('transform: translateX(' + todo._swipeX + 'px); transition: ' + (todo._isSwiping ? 'none' : 'transform 0.24s cubic-bezier(0.22, 1, 0.36, 1)')) : '')"
+             @touchstart="startCardSwipe($event, todo)"
+             @touchmove="moveCardSwipe($event, todo)"
+             @touchend="endCardSwipe(todo)"
              :class="{
-               'opacity-50 bg-slate-50/50 dark:bg-slate-900/50': todo.is_completed,
-               'opacity-75 bg-rose-50/20 dark:bg-rose-950/20': !todo.is_completed && isOverdue(todo),
+               'p-2.5 sm:p-3': compactMode,
+               'p-4 sm:p-5': !compactMode,
+               'todo-card-collapsing': todo._collapsing,
+               'opacity-50 bg-slate-50/50 dark:bg-slate-900/50': todo.is_completed && !todo._collapsing,
+               'opacity-75 bg-rose-50/20 dark:bg-rose-950/20': !todo.is_completed && isOverdue(todo) && !todo._collapsing,
                'border-amber-300 dark:border-amber-800/80 ring-2 ring-amber-300/30': todo.is_pinned && !todo.is_completed,
                'ring-2 ring-brand-400 border-brand-400': draggedTodo && draggedTodo.id === todo.id
              }"
@@ -732,9 +818,9 @@ export function renderHTML(): string {
                 </div>
               </div>
 
-              <p x-show="todo.description" class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 line-clamp-2" x-text="todo.description"></p>
+              <p x-show="todo.description && !compactMode" class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 line-clamp-2" x-text="todo.description"></p>
 
-              <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-3">
+              <div class="flex flex-wrap items-center gap-1.5 sm:gap-2" :class="compactMode ? 'mt-1.5' : 'mt-3'">
                 <!-- Mức độ ưu tiên với Icon đẹp -->
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold"
                       :class="{
@@ -801,7 +887,7 @@ export function renderHTML(): string {
               </div>
 
               <!-- Khối Ảnh Minh chứng hoàn thành (Evidence Strip) -->
-              <div x-show="getTodoImages(todo.id).length > 0" class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+              <div x-show="!compactMode && getTodoImages(todo.id).length > 0" class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80">
                 <div class="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
                   <span class="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
                     <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
@@ -857,6 +943,7 @@ export function renderHTML(): string {
               </div>
             </div>
           </div>
+        </div>
         </div>
       </template>
     </div>
@@ -936,10 +1023,10 @@ export function renderHTML(): string {
 
   <!-- ─── Floating Action Button (FAB) cho Mobile ─── -->
   <div class="fixed sm:hidden z-40"
-       style="bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px)); right: calc(1.25rem + env(safe-area-inset-right, 0px));">
+       style="bottom: calc(5.15rem + env(safe-area-inset-bottom, 0px)); right: calc(1rem + env(safe-area-inset-right, 0px));">
     <button @click="openCreateModal()"
             aria-label="Thêm công việc mới"
-            class="w-14 h-14 rounded-full bg-gradient-to-tr from-brand-600 to-blue-500 text-white shadow-2xl shadow-brand-600/40 flex items-center justify-center active:scale-95 transition-all ring-4 ring-white dark:ring-slate-900 focus-visible:ring-4 focus-visible:ring-brand-400"
+            class="w-14 h-14 rounded-full bg-gradient-to-tr from-brand-600 to-blue-500 text-white shadow-2xl shadow-brand-600/40 flex items-center justify-center active:scale-95 transition-transform duration-150 ring-4 ring-white dark:ring-slate-900 focus-visible:ring-4 focus-visible:ring-brand-400"
             title="Thêm việc mới">
       <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -947,6 +1034,36 @@ export function renderHTML(): string {
       </svg>
     </button>
   </div>
+
+  <!-- ─── iOS Floating Bottom Tab Bar (Mobile) ─── -->
+  <nav class="fixed sm:hidden left-3 right-3 z-40 bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-full shadow-xl px-2 py-1.5 flex items-center justify-around select-none"
+       aria-label="Điều hướng chính"
+       style="bottom: calc(0.65rem + env(safe-area-inset-bottom, 0px));">
+    <button type="button" @click="setViewMode('list'); filterStatus='today'; triggerHaptic('light')"
+            class="flex flex-col items-center justify-center px-3 py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
+            :class="viewMode === 'list' && filterStatus === 'today' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/80 dark:bg-brand-950/60 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
+      <span class="text-base leading-none">☀️</span>
+      <span class="text-[10px] mt-0.5">Hôm nay</span>
+    </button>
+    <button type="button" @click="setViewMode('list'); filterStatus='all'; triggerHaptic('light')"
+            class="flex flex-col items-center justify-center px-3 py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
+            :class="viewMode === 'list' && filterStatus !== 'today' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/80 dark:bg-brand-950/60 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
+      <span class="text-base leading-none">📋</span>
+      <span class="text-[10px] mt-0.5">Tất cả</span>
+    </button>
+    <button type="button" @click="setViewMode('calendar'); triggerHaptic('light')"
+            class="flex flex-col items-center justify-center px-3 py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
+            :class="viewMode === 'calendar' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/80 dark:bg-brand-950/60 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
+      <span class="text-base leading-none">📅</span>
+      <span class="text-[10px] mt-0.5">Lịch</span>
+    </button>
+    <button type="button" @click="openPomodoro(); triggerHaptic('light')"
+            class="flex flex-col items-center justify-center px-3 py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
+            :class="showPomodoroModal || pomodoroRunning ? 'text-rose-600 dark:text-rose-400 bg-rose-50/80 dark:bg-rose-950/60 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
+      <span class="text-base leading-none">🍅</span>
+      <span class="text-[10px] mt-0.5">Tập trung</span>
+    </button>
+  </nav>
 </div>
 
 
@@ -982,6 +1099,26 @@ export function renderHTML(): string {
         <span class="text-slate-500 dark:text-slate-400">Tác giả:</span>
         <span class="font-bold text-slate-800 dark:text-slate-200">Chung</span>
       </div>
+      <div class="pt-2 border-t border-slate-200/70 dark:border-slate-700/70">
+        <span class="block text-slate-500 dark:text-slate-400 mb-2">Âm thanh thông báo iOS:</span>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button type="button" @click="setNotificationSound('pop_ding.wav')"
+                  class="py-1.5 px-2 rounded-xl border text-[11px] font-bold transition active:scale-95 cursor-pointer"
+                  :class="notificationSound === 'pop_ding.wav' ? 'bg-brand-600 text-white border-brand-600 shadow-xs' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'">
+            Pop Ding
+          </button>
+          <button type="button" @click="setNotificationSound('soft_chime.wav')"
+                  class="py-1.5 px-2 rounded-xl border text-[11px] font-bold transition active:scale-95 cursor-pointer"
+                  :class="notificationSound === 'soft_chime.wav' ? 'bg-brand-600 text-white border-brand-600 shadow-xs' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'">
+            Soft Chime
+          </button>
+          <button type="button" @click="setNotificationSound('crisp_click.wav')"
+                  class="py-1.5 px-2 rounded-xl border text-[11px] font-bold transition active:scale-95 cursor-pointer"
+                  :class="notificationSound === 'crisp_click.wav' ? 'bg-brand-600 text-white border-brand-600 shadow-xs' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'">
+            Crisp Click
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Nút hành động -->
@@ -1008,7 +1145,7 @@ export function renderHTML(): string {
 <div x-show="showModal" x-cloak class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4"
      role="dialog" aria-modal="true" aria-labelledby="todo-modal-title">
   
-  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showModal=false; modalDragY=0"
+  <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showModal=false; modalDragY=0; playSound('sheet')"
        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
 
@@ -1029,7 +1166,7 @@ export function renderHTML(): string {
 
       <div class="flex items-center justify-between pointer-events-auto">
         <h2 id="todo-modal-title" class="text-lg sm:text-xl font-black text-slate-900 dark:text-white" x-text="editingTodo ? 'Chỉnh sửa công việc' : 'Tạo công việc mới'"></h2>
-        <button @click="showModal=false; modalDragY=0" type="button" aria-label="Đóng cửa sổ" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 cursor-pointer">
+        <button @click="showModal=false; modalDragY=0; playSound('sheet')" type="button" aria-label="Đóng cửa sổ" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 cursor-pointer">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -1883,6 +2020,11 @@ function app() {
 
     statusFilters: [
       {
+        value: 'today',
+        label: 'Hôm nay',
+        icon: '<svg class="w-3.5 h-3.5 text-amber-500" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v3m0 16v3M4.22 4.22l2.12 2.12m11.32 11.32l2.12 2.12M1 12h3m16 0h3M4.22 19.78l2.12-2.12m11.32-11.32l2.12-2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+      },
+      {
         value: 'all',
         label: 'Tất cả',
         icon: '<svg class="w-3.5 h-3.5 text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>'
@@ -2034,6 +2176,7 @@ function app() {
     },
 
     getFilterCount(value) {
+      if (value === 'today') return (this.todos || []).filter(t => !t.deleted_at && !t.is_completed && (this.isTodoForToday(t) || this.isOverdue(t))).length;
       if (value === 'all') return this.stats.total;
       if (value === 'pending') return this.stats.pending;
       if (value === 'recurring') return this.stats.recurring;
@@ -2129,7 +2272,9 @@ function app() {
     get filteredSortedTodos() {
       let list = this.sortedTodos;
 
-      if (this.filterStatus === 'pending') {
+      if (this.filterStatus === 'today') {
+        list = list.filter(t => !t.is_completed && (this.isTodoForToday(t) || this.isOverdue(t)));
+      } else if (this.filterStatus === 'pending') {
         list = list.filter(t => !t.is_completed);
       } else if (this.filterStatus === 'completed') {
         list = list.filter(t => t.is_completed);

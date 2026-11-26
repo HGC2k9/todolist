@@ -47,13 +47,24 @@ export function parseTaskFromText(rawText: string): ParsedTask {
   }
   let cleanText = text.replace(tagRegex, '').trim();
 
-  // 2. Mức độ ưu tiên
+  // 2. Mức độ ưu tiên (hỗ trợ !high, !medium, !low và từ khóa tiếng Việt)
   let priority: 'Low' | 'Medium' | 'High' = 'Medium';
-  const lower = cleanText.toLowerCase();
-  if (lower.includes('gấp') || lower.includes('khẩn cấp') || lower.includes('quan trọng') || lower.includes('urgent') || lower.includes('high') || tags.includes('gap')) {
+  if (/!high\b/i.test(cleanText)) {
     priority = 'High';
-  } else if (lower.includes('thấp') || lower.includes('thong thả') || lower.includes('rảnh') || lower.includes('low')) {
+    cleanText = cleanText.replace(/!high\b/gi, '').trim();
+  } else if (/!low\b/i.test(cleanText)) {
     priority = 'Low';
+    cleanText = cleanText.replace(/!low\b/gi, '').trim();
+  } else if (/!medium\b/i.test(cleanText)) {
+    priority = 'Medium';
+    cleanText = cleanText.replace(/!medium\b/gi, '').trim();
+  } else {
+    const lower = cleanText.toLowerCase();
+    if (lower.includes('gấp') || lower.includes('khẩn cấp') || lower.includes('quan trọng') || lower.includes('urgent') || lower.includes('high') || tags.includes('gap')) {
+      priority = 'High';
+    } else if (lower.includes('thấp') || lower.includes('thong thả') || lower.includes('rảnh') || lower.includes('low')) {
+      priority = 'Low';
+    }
   }
 
   // 3. Phân loại Danh mục thông minh theo ý nghĩa

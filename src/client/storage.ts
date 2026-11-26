@@ -82,6 +82,12 @@ function getStorageModule() {
     newTagInput: '',
     lightboxImage: null,
     showLightbox: false,
+    compactMode: localStorage.getItem('compactMode') === 'true',
+    swipedTodoId: null,
+    pullRefreshY: 0,
+    pullRefreshing: false,
+    _pullStartY: 0,
+    _isPullingRefresh: false,
 
     todoForm: {
       title: '',
@@ -212,8 +218,301 @@ function getStorageModule() {
       return prefix + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
     },
 
+    toggleCompactMode() {
+      this.compactMode = !this.compactMode;
+      try { localStorage.setItem('compactMode', String(this.compactMode)); } catch {}
+      if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
+      if (typeof this.playSound === 'function') this.playSound('click');
+      this.showToast(this.compactMode ? 'Đã bật chế độ hiển thị Gọn' : 'Đã bật chế độ hiển thị Chi tiết', 'info');
+    },
+
+    parseQuickTaskText(rawText) {
+      let text = String(rawText || '').trim();
+      if (text.startsWith('/add')) text = text.substring(4).trim();
+
+      const tags = [];
+      const tagRegex = /#([a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]+)/g;
+      let m;
+      while ((m = tagRegex.exec(text)) !== null) {
+        tags.push(m[1].toLowerCase());
+      }
+      let cleanText = text.replace(tagRegex, '').trim();
+
+      let priority = 'Medium';
+      if (/!high\b/i.test(cleanText)) {
+        priority = 'High';
+        cleanText = cleanText.replace(/!high\b/gi, '').trim();
+      } else if (/!low\b/i.test(cleanText)) {
+        priority = 'Low';
+        cleanText = cleanText.replace(/!low\b/gi, '').trim();
+      } else if (/!medium\b/i.test(cleanText)) {
+        priority = 'Medium';
+        cleanText = cleanText.replace(/!medium\b/gi, '').trim();
+      } else {
+        const lower = cleanText.toLowerCase();
+        if (lower.includes('gấp') || lower.includes('khẩn cấp') || lower.includes('quan trọng') || lower.includes('urgent') || lower.includes('high') || tags.includes('gap')) {
+          priority = 'High';
+        } else if (lower.includes('thấp') || lower.includes('thong thả') || lower.includes('rảnh') || lower.includes('low')) {
+          priority = 'Low';
+        }
+      }
+
+      let category = 'Personal';
+      if (tags.includes('work') || /họp|báo\s*cáo|dự\s*án|khách|hợp\s*đồng|công\s*việc|task|code|deadline|email|mail|sếp|công\s*ty|văn\s*phòng/i.test(cleanText)) {
+        category = 'Work';
+      } else if (tags.includes('study') || /học|bài\s*tập|thi|ôn\s*tập|đọc\s*sách|sách|khóa\s*học|nghiên\s*cứu|tiếng\s*anh/i.test(cleanText)) {
+        category = 'Study';
+      } else if (tags.includes('health') || /thuốc|khám|bác\s*sĩ|bệnh|chạy\s*bộ|gym|thể\s*dục|yoga|sức\s*khỏe|uống\s*nước/i.test(cleanText)) {
+        category = 'Health';
+      } else if (tags.includes('shopping') || /mua|sắm|chợ|siêu\s*thị|order|đặt\s*hàng|shopping/i.test(cleanText)) {
+        category = 'Shopping';
+      } else if (tags.includes('finance') || /tiền|lương|hóa\s*đơn|thanh\s*toán|chuyển\s*khoản|ngân\s*hàng|nợ/i.test(cleanText)) {
+        category = 'Finance';
+      }
+
+      let dueDate = null;
+      const now = new Date();
+      const vnNow = new Date(now.getTime() + 7 * 3600 * 1000);
+      let targetYear = vnNow.getUTCFullYear();
+      let targetMonth = vnNow.getUTCMonth();
+      let targetDate = vnNow.getUTCDate();
+      let targetHour = null;
+      let targetMinute = 0;
+
+      if (/\b(ngày mai|mai)\b/i.test(cleanText)) {
+        targetDate += 1;
+        cleanText = cleanText.replace(/\b(ngày mai|mai)\b/gi, '').trim();
+      } else if (/\b(ngày kia|mốt)\b/i.test(cleanText)) {
+        targetDate += 2;
+        cleanText = cleanText.replace(/\b(ngày kia|mốt)\b/gi, '').trim();
+      } else if (/\b(hôm nay|nay)\b/i.test(cleanText)) {
+        cleanText = cleanText.replace(/\b(hôm nay|nay)\b/gi, '').trim();
+      }
+
+      const isAfternoonOrEvening = /\b(tối|chiều)\b/i.test(cleanText);
+      cleanText = cleanText.replace(/\b(tối nay|chiều nay|sáng nay|tối|chiều|sáng)\b/gi, '').trim();
+
+      const kemMatch = cleanText.match(/(\d{1,2})\s*(?:h|:|giờ)\s*kém\s*(\d{1,2})/i);
+      const ruoiMatch = cleanText.match(/(\d{1,2})\s*(?:h|:|giờ)?\s*rưỡi/i);
+      const timeMatch = cleanText.match(/(\d{1,2})(?:h|:)(\d{2})?/i) || cleanText.match(/(\d{1,2})\s*(?:giờ|g)/i);
+
+      if (kemMatch) {
+        let h = parseInt(kemMatch[1], 10) - 1;
+        const mMin = 60 - parseInt(kemMatch[2], 10);
+        if (h < 0) h = 23;
+        if (isAfternoonOrEvening && h < 12) h += 12;
+        if (h >= 0 && h <= 23 && mMin >= 0 && mMin <= 59) {
+          targetHour = h;
+          targetMinute = mMin;
+          cleanText = cleanText.replace(kemMatch[0], '').trim();
+        }
+      } else if (ruoiMatch) {
+        let h = parseInt(ruoiMatch[1], 10);
+        if (isAfternoonOrEvening && h < 12) h += 12;
+        if (h >= 0 && h <= 23) {
+          targetHour = h;
+          targetMinute = 30;
+          cleanText = cleanText.replace(ruoiMatch[0], '').trim();
+        }
+      } else if (timeMatch) {
+        let h = parseInt(timeMatch[1], 10);
+        const mMin = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
+        if (isAfternoonOrEvening && h < 12) h += 12;
+        if (h >= 0 && h <= 23 && mMin >= 0 && mMin <= 59) {
+          targetHour = h;
+          targetMinute = mMin;
+          cleanText = cleanText.replace(timeMatch[0], '').trim();
+        }
+      }
+
+      cleanText = cleanText
+        .replace(/\b(vào\s*lúc|lúc|vào)\b/gi, ' ')
+        .replace(/^(?:hãy|tạo\s*việc|thêm\s*việc|nhắc\s*tôi|nhắc)\s+/gi, ' ')
+        .replace(/\b(?:rưỡi|kém)\b/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (targetHour !== null) {
+        const targetUtc = new Date(Date.UTC(targetYear, targetMonth, targetDate, targetHour - 7, targetMinute, 0, 0));
+        dueDate = targetUtc.toISOString();
+      }
+
+      let title = cleanText || text || 'Công việc mới';
+      if (title) title = title.charAt(0).toUpperCase() + title.slice(1);
+      return { title, dueDate, priority, tags, category };
+    },
+
+    async quickAddFromText(rawText) {
+      const val = String(rawText || '').trim();
+      if (!val) return;
+      const parsed = this.parseQuickTaskText(val);
+      const nowIso = new Date().toISOString();
+      const maxPos = this.todos.reduce((max, t) => Math.max(max, typeof t.position === 'number' ? t.position : 0), 0);
+      const newTodo = {
+        id: this.generateLocalId('task'),
+        title: parsed.title,
+        description: '',
+        category: parsed.category || 'Personal',
+        priority: parsed.priority || 'Medium',
+        repeat_mode: 'none',
+        due_date: parsed.dueDate,
+        is_pinned: 0,
+        pomodoro_mode: 0,
+        subtasks: [],
+        tags: parsed.tags || [],
+        reminder_offset: 0,
+        estimated_minutes: 0,
+        actual_minutes: 0,
+        status: 'todo',
+        is_completed: 0,
+        deleted_at: null,
+        position: maxPos + 1,
+        created_at: nowIso,
+        updated_at: nowIso
+      };
+      this.todos.unshift(newTodo);
+      this.searchQuery = '';
+      await this.persistAllData();
+      if (newTodo.due_date) {
+        this.scheduleNativeLocalNotification(newTodo);
+      }
+      if (typeof this.playSound === 'function') this.playSound('add');
+      if (typeof this.triggerHaptic === 'function') this.triggerHaptic('success');
+      this.showToast('⚡ Đã tạo nhanh: "' + newTodo.title + '"', 'success');
+    },
+
+    // ─── SWIPE-TO-ACTION TRÊN THẺ CÔNG VIỆC ───
+    startCardSwipe(e, todo) {
+      if (!e.touches || !e.touches[0]) return;
+      if (this.swipedTodoId && this.swipedTodoId !== todo.id) {
+        const prev = this.todos.find(t => t.id === this.swipedTodoId);
+        if (prev) prev._swipeX = 0;
+        this.swipedTodoId = null;
+      }
+      todo._touchStartX = e.touches[0].clientX;
+      todo._touchStartY = e.touches[0].clientY;
+      todo._baseSwipeX = todo._swipeX || 0;
+      todo._swipeLocked = null;
+      todo._isSwiping = true;
+    },
+
+    moveCardSwipe(e, todo) {
+      if (!todo._isSwiping || !e.touches || !e.touches[0]) return;
+      const dx = e.touches[0].clientX - (todo._touchStartX || 0);
+      const dy = e.touches[0].clientY - (todo._touchStartY || 0);
+      if (todo._swipeLocked === null) {
+        if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.35) {
+          todo._swipeLocked = 'h';
+        } else if (Math.abs(dy) > 12) {
+          todo._swipeLocked = 'v';
+          todo._isSwiping = false;
+          return;
+        } else {
+          return;
+        }
+      }
+      if (todo._swipeLocked === 'h') {
+        if (e.cancelable) e.preventDefault();
+        const nextX = Math.max(-165, Math.min(100, (todo._baseSwipeX || 0) + dx));
+        todo._swipeX = nextX;
+      }
+    },
+
+    endCardSwipe(todo) {
+      if (!todo._isSwiping && todo._swipeLocked !== 'h') return;
+      todo._isSwiping = false;
+      const x = todo._swipeX || 0;
+      if (x >= 72) {
+        todo._swipeX = 0;
+        this.swipedTodoId = null;
+        this.toggleTodo(todo);
+      } else if (x <= -56) {
+        todo._swipeX = -148;
+        this.swipedTodoId = todo.id;
+        if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
+      } else {
+        todo._swipeX = 0;
+        if (this.swipedTodoId === todo.id) this.swipedTodoId = null;
+      }
+      todo._swipeLocked = null;
+    },
+
+    async postponeTodo(todo, mode = '1h', e) {
+      if (e?.stopPropagation) e.stopPropagation();
+      const nowMs = Date.now();
+      let targetMs = nowMs + 3600 * 1000;
+      if (mode === 'tomorrow') {
+        const base = todo.due_date ? this.parseDateSafe(todo.due_date) : null;
+        const vnBase = base ? this.getVnDateParts(base) : this.getVnDateParts(nowMs);
+        const vnTomo = this.getVnDateParts(nowMs + 24 * 3600 * 1000);
+        targetMs = Date.UTC(vnTomo.year, vnTomo.month, vnTomo.day, vnBase.hours, vnBase.minutes, 0) - (7 * 3600 * 1000);
+      } else if (todo.due_date) {
+        const cur = this.parseDateSafe(todo.due_date);
+        if (cur && cur.getTime() > nowMs) {
+          targetMs = cur.getTime() + 3600 * 1000;
+        }
+      }
+      todo.due_date = new Date(targetMs).toISOString();
+      todo.updated_at = new Date().toISOString();
+      todo._swipeX = 0;
+      this.swipedTodoId = null;
+      await this.persistAllData();
+      this.scheduleNativeLocalNotification(todo);
+      if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
+      if (typeof this.playSound === 'function') this.playSound('click');
+      this.showToast(mode === 'tomorrow' ? '📅 Đã dời hạn sang Ngày mai' : '⏰ Đã dời hạn thêm +1 giờ', 'info');
+    },
+
+    // ─── PULL-TO-REFRESH ĐÀN HỒI (LÒ XO) ───
+    onBodyTouchStart(e) {
+      const container = e.currentTarget;
+      if (!container || container.scrollTop > 2 || !e.touches?.[0]) {
+        this._isPullingRefresh = false;
+        return;
+      }
+      this._pullStartY = e.touches[0].clientY;
+      this._isPullingRefresh = true;
+    },
+
+    onBodyTouchMove(e) {
+      if (!this._isPullingRefresh || !e.touches?.[0]) return;
+      const container = e.currentTarget;
+      if (container && container.scrollTop > 2) {
+        this.pullRefreshY = 0;
+        this._isPullingRefresh = false;
+        return;
+      }
+      const dy = e.touches[0].clientY - this._pullStartY;
+      if (dy > 0) {
+        // Lực cản lò xo tự nhiên kiểu iOS
+        this.pullRefreshY = Math.min(84, Math.round(dy * 0.45));
+      } else {
+        this.pullRefreshY = 0;
+      }
+    },
+
+    onBodyTouchEnd() {
+      if (!this._isPullingRefresh) return;
+      this._isPullingRefresh = false;
+      if (this.pullRefreshY >= 54) {
+        this.pullRefreshing = true;
+        this.pullRefreshY = 48;
+        if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
+        this.checkAndResetRecurringTasksLocally();
+        this.syncAllNativeLocalNotifications();
+        setTimeout(() => {
+          this.pullRefreshing = false;
+          this.pullRefreshY = 0;
+        }, 480);
+      } else {
+        this.pullRefreshY = 0;
+      }
+    },
+
     // ─── TODOS CRUD (0MS PHẢN HỒI TỨC THÌ) ───
     openCreateModal() {
+      if (typeof this.playSound === 'function') this.playSound('sheet');
+      if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
       this.editingTodo = null;
       this.customCategoryMode = false;
       this.newSubtaskInput = '';
@@ -373,7 +672,6 @@ function getStorageModule() {
       if (e?.stopPropagation) e.stopPropagation();
       if (!todo || todo._isToggling) return;
       todo._isToggling = true;
-      setTimeout(() => { delete todo._isToggling; }, 250);
       const newStatus = todo.is_completed ? 0 : 1;
 
       // Kiểm tra việc con trước khi hoàn thành
@@ -381,22 +679,38 @@ function getStorageModule() {
         const subs = this.getSubtasks(todo);
         const uncompleted = subs.filter(st => !st.is_completed);
         if (uncompleted.length > 0) {
+          delete todo._isToggling;
+          if (typeof this.triggerHaptic === 'function') this.triggerHaptic('warning');
           this.showToast('Chưa thể hoàn thành: còn ' + uncompleted.length + ' việc con chưa xong!', 'warning');
           return;
         }
+        // Hiệu ứng thu gọn mượt ~280ms trước khi trượt xuống nhóm Đã xong
+        todo._collapsing = true;
+        if (typeof this.triggerHaptic === 'function') this.triggerHaptic('success');
+        if (typeof this.playSound === 'function') this.playSound('complete');
+        setTimeout(async () => {
+          todo._collapsing = false;
+          await this.executeToggleTodo(todo, newStatus, true);
+          delete todo._isToggling;
+        }, 280);
+        return;
       }
 
-      await this.executeToggleTodo(todo, newStatus);
+      await this.executeToggleTodo(todo, newStatus, false);
+      setTimeout(() => { delete todo._isToggling; }, 220);
     },
 
-    async executeToggleTodo(todo, targetStatus) {
+    async executeToggleTodo(todo, targetStatus, soundAlreadyPlayed = false) {
       const prevStatus = todo.is_completed;
       todo.is_completed = targetStatus;
       todo.status = targetStatus === 1 ? 'completed' : 'todo';
       todo.updated_at = new Date().toISOString();
 
       if (targetStatus === 1) {
-        if (typeof this.playSound === 'function') this.playSound('complete');
+        if (!soundAlreadyPlayed) {
+          if (typeof this.triggerHaptic === 'function') this.triggerHaptic('success');
+          if (typeof this.playSound === 'function') this.playSound('complete');
+        }
         this.playChime();
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
         this.triggerConfetti();
@@ -439,6 +753,11 @@ function getStorageModule() {
       }
 
       await this.persistAllData();
+      if (targetStatus === 1 && this.stats?.todayTotal > 0 && this.stats?.todayPercent === 100) {
+        setTimeout(() => {
+          if (typeof this.playSound === 'function') this.playSound('all_done');
+        }, 260);
+      }
       this.showToast(todo.is_completed ? 'Hoàn thành xuất sắc! 🎉' : 'Đã chuyển sang đang chờ.', 'info', {
         label: 'Hoàn tác',
         onClick: () => this.executeToggleTodo(todo, prevStatus)
@@ -448,8 +767,11 @@ function getStorageModule() {
     async togglePin(todo, e) {
       if (e?.stopPropagation) e.stopPropagation();
       todo.is_pinned = todo.is_pinned ? 0 : 1;
+      todo._swipeX = 0;
+      this.swipedTodoId = null;
       todo.updated_at = new Date().toISOString();
       await this.persistAllData();
+      if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
       this.showToast(todo.is_pinned ? 'Đã ghim công việc lên đầu' : 'Đã bỏ ghim');
     },
 
@@ -507,9 +829,12 @@ function getStorageModule() {
       const targetItem = this.todos.find(t => t.id === targetId);
       if (targetItem) {
         targetItem.deleted_at = new Date().toISOString();
+        targetItem._swipeX = 0;
+        this.swipedTodoId = null;
         this.cancelNativeLocalNotification(targetId);
         this.todos = [...this.todos];
         await this.persistAllData();
+        if (typeof this.triggerHaptic === 'function') this.triggerHaptic('warning');
         if (typeof this.playSound === 'function') this.playSound('delete');
         this.showToast('Đã chuyển công việc vào thùng rác', 'info', {
           label: 'Hoàn tác',
@@ -581,7 +906,7 @@ function getStorageModule() {
       try {
         const payload = {
           app: 'ToDoList-Local',
-          version: '3.2.3',
+          version: '3.3.0',
           exported_at: new Date().toISOString(),
           todos: this.todos,
           categories: this.categories,
@@ -635,7 +960,7 @@ function getStorageModule() {
       try {
         const payload = {
           app: 'ToDoList-Local',
-          version: '3.2.3',
+          version: '3.3.0',
           exported_at: new Date().toISOString(),
           todos: this.todos,
           categories: this.categories,
@@ -1050,7 +1375,7 @@ function getStorageModule() {
 
     checkAppVersion(manual = false) {
       if (manual) {
-        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.2.3') + ')! 🎉', 'success');
+        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.3.0') + ')! 🎉', 'success');
       }
     },
 

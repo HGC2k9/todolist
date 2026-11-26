@@ -1,8 +1,8 @@
 {
-  "version": "3.2.3-20261126100740",
-  "appVersion": "3.2.3",
-  "commit": "9509fcb",
-  "buildTime": "2026-11-26T10:07:40.985Z",
+  "version": "3.3.0-20261126104301",
+  "appVersion": "3.3.0",
+  "commit": "5da7592",
+  "buildTime": "2026-11-26T10:43:01.345Z",
   "files": [
     "icon-192.png",
     "icon-512.png",
@@ -11,7 +11,9 @@
     "index.js.map",
     "manifest.json",
     "README.md",
+    "sounds/crisp_click.wav",
     "sounds/pop_ding.wav",
+    "sounds/soft_chime.wav",
     "sw.js",
     "vendor/alpine.min.js",
     "vendor/confetti.browser.min.js",
