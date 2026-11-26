@@ -2323,8 +2323,15 @@ function app() {
       // Bắt đầu background timer worker & Ticker phản ứng thời gian thực 1s
       this.startBackgroundTimerWorker();
       this.currentTimeTick = Date.now();
+      let lastRecurringCheckMinute = this.getVnDateParts(this.currentTimeTick).inputStr;
       setInterval(() => {
-        this.currentTimeTick = Date.now();
+        const now = Date.now();
+        this.currentTimeTick = now;
+        const currentMinute = this.getVnDateParts(now).inputStr;
+        if (currentMinute !== lastRecurringCheckMinute) {
+          lastRecurringCheckMinute = currentMinute;
+          this.checkAndResetRecurringTasksLocally();
+        }
       }, 1000);
 
       document.addEventListener('visibilitychange', () => {

@@ -222,6 +222,98 @@ export async function handleMarkDoneNotificationAction(params: {
   return { completed: Boolean(target), taskId };
 }
 
+export function isTodoForToday(todo: any, nowMs: number = Date.now()): boolean {
+  if (!todo || todo.deleted_at) return false;
+  const vnNow = getVnDateParts(nowMs);
+  const mode = todo.repeat_mode || 'none';
+
+  if (mode === 'daily') return true;
+
+  if (mode === 'weekly') {
+    if (!todo.due_date) return false;
+    const d = parseDateSafe(todo.due_date);
+    if (!d) return false;
+    return getVnDateParts(d).dayOfWeek === vnNow.dayOfWeek;
+  }
+
+  if (!todo.due_date) return false;
+  const d = parseDateSafe(todo.due_date);
+  if (!d) return false;
+  return getVnDateParts(d).dateStr === vnNow.dateStr;
+}
+
+export function checkAndResetRecurringTasks(todos: any[], nowMs: number = Date.now()): boolean {
+  if (!Array.isArray(todos) || todos.length === 0) return false;
+  const vnNow = getVnDateParts(nowMs);
+  const todayStr = vnNow.dateStr;
+  const isAfter0001Today = vnNow.hours > 0 || vnNow.minutes >= 1;
+
+  const currentDay = vnNow.dayOfWeek;
+  const diffToMonday = currentDay === 0 ? 6 : currentDay - 1;
+  const mondayTime = nowMs - diffToMonday * 24 * 3600 * 1000;
+  const currentWeekMondayStr = getVnDateParts(mondayTime).dateStr;
+  const isAfterMonday0001 = currentDay !== 1 || vnNow.hours > 0 || vnNow.minutes >= 1;
+
+  let hasChanges = false;
+  for (const t of todos) {
+    if (!t || t.deleted_at || !t.repeat_mode || t.repeat_mode === 'none' || !t.is_completed) continue;
+    const lastUpdated = parseDateSafe(t.updated_at || t.created_at);
+    if (!lastUpdated) continue;
+    const lastUpdatedVn = getVnDateParts(lastUpdated);
+
+    if (t.repeat_mode === 'daily') {
+      if (isAfter0001Today && lastUpdatedVn.dateStr < todayStr) {
+        t.is_completed = 0;
+        t.status = 'todo';
+        t.updated_at = new Date(nowMs).toISOString();
+        if (t.subtasks) {
+          let subs = Array.isArray(t.subtasks) ? t.subtasks : [];
+          if (typeof t.subtasks === 'string') {
+            try { subs = JSON.parse(t.subtasks); } catch { subs = []; }
+          }
+          subs.forEach((st: any) => { st.is_completed = 0; });
+          t.subtasks = subs;
+        }
+        if (t.due_date) {
+          const dueVn = getVnDateParts(t.due_date);
+          const newVnMs = Date.UTC(vnNow.year, vnNow.month, vnNow.day, dueVn.hours, dueVn.minutes, 0) - (7 * 3600 * 1000);
+          t.due_date = new Date(newVnMs).toISOString();
+        }
+        hasChanges = true;
+      }
+    } else if (t.repeat_mode === 'weekly') {
+      const upDay = lastUpdatedVn.dayOfWeek;
+      const upDiffToMon = upDay === 0 ? 6 : upDay - 1;
+      const upMonTime = lastUpdated.getTime() - upDiffToMon * 24 * 3600 * 1000;
+      const upMonStr = getVnDateParts(upMonTime).dateStr;
+      if (isAfterMonday0001 && upMonStr < currentWeekMondayStr) {
+        t.is_completed = 0;
+        t.status = 'todo';
+        t.updated_at = new Date(nowMs).toISOString();
+        if (t.subtasks) {
+          let subs = Array.isArray(t.subtasks) ? t.subtasks : [];
+          if (typeof t.subtasks === 'string') {
+            try { subs = JSON.parse(t.subtasks); } catch { subs = []; }
+          }
+          subs.forEach((st: any) => { st.is_completed = 0; });
+          t.subtasks = subs;
+        }
+        if (t.due_date) {
+          const dueVn = getVnDateParts(t.due_date);
+          const dayOffsetFromMonday = dueVn.dayOfWeek === 0 ? 6 : dueVn.dayOfWeek - 1;
+          const targetDayMs = mondayTime + dayOffsetFromMonday * 24 * 3600 * 1000;
+          const targetVn = getVnDateParts(targetDayMs);
+          const newWkMs = Date.UTC(targetVn.year, targetVn.month, targetVn.day, dueVn.hours, dueVn.minutes, 0) - (7 * 3600 * 1000);
+          t.due_date = new Date(newWkMs).toISOString();
+        }
+        hasChanges = true;
+      }
+    }
+  }
+
+  return hasChanges;
+}
+
 export function generateRollingTaskNotifications(
   todo: { id: string; title: string; category?: string; priority?: string; due_date?: string; reminder_offset?: number },
   nowMs: number,
@@ -481,55 +573,52 @@ function getNotificationsModule() {
       return nowMs >= minuteEndMs;
     },
 
-    isTodoForToday(todo) {
-      if (!todo) return false;
-      const todayStr = this.getVnDateParts(Date.now()).dateStr;
+    isTodoForToday(todo, customNowMs) {
+      if (!todo || todo.deleted_at) return false;
+      const nowMs = typeof customNowMs === 'number' ? customNowMs : (this.currentTimeTick || Date.now());
+      const vnNow = this.getVnDateParts(nowMs);
+      const mode = todo.repeat_mode || 'none';
 
-      if (todo.due_date) {
+      if (mode === 'daily') return true;
+
+      if (mode === 'weekly') {
+        if (!todo.due_date) return false;
         const d = this.parseDateSafe(todo.due_date);
-        if (d) {
-          const dueStr = this.getVnDateParts(d).dateStr;
-          if (dueStr === todayStr) return true;
-        }
+        if (!d) return false;
+        return this.getVnDateParts(d).dayOfWeek === vnNow.dayOfWeek;
       }
-      if (todo.repeat_mode === 'daily') return true;
-      if (todo.is_completed) {
-        const d = this.parseDateSafe(todo.updated_at || todo.created_at);
-        if (d) {
-          const compStr = this.getVnDateParts(d).dateStr;
-          if (compStr === todayStr) return true;
-        }
-      }
-      if (!todo.due_date && todo.created_at) {
-        const d = this.parseDateSafe(todo.created_at);
-        if (d) {
-          const createStr = this.getVnDateParts(d).dateStr;
-          if (createStr === todayStr) return true;
-        }
-      }
-      return false;
+
+      if (!todo.due_date) return false;
+      const d = this.parseDateSafe(todo.due_date);
+      if (!d) return false;
+      return this.getVnDateParts(d).dateStr === vnNow.dateStr;
     },
 
-    checkAndResetRecurringTasksLocally() {
+    checkAndResetRecurringTasksLocally(customNowMs) {
       if (!Array.isArray(this.todos) || this.todos.length === 0) return;
-      const vnNow = this.getVnDateParts(Date.now());
+      const nowMs = typeof customNowMs === 'number' ? customNowMs : Date.now();
+      const vnNow = this.getVnDateParts(nowMs);
       const todayStr = vnNow.dateStr;
+      const isAfter0001Today = vnNow.hours > 0 || vnNow.minutes >= 1;
 
       const currentDay = vnNow.dayOfWeek;
       const diffToMonday = currentDay === 0 ? 6 : currentDay - 1;
-      const mondayTime = Date.now() - diffToMonday * 24 * 3600 * 1000;
+      const mondayTime = nowMs - diffToMonday * 24 * 3600 * 1000;
       const currentWeekMondayStr = this.getVnDateParts(mondayTime).dateStr;
+      const isAfterMonday0001 = currentDay !== 1 || vnNow.hours > 0 || vnNow.minutes >= 1;
 
       let hasChanges = false;
       for (const t of this.todos) {
-        if (!t.repeat_mode || t.repeat_mode === 'none' || !t.is_completed) continue;
+        if (!t || t.deleted_at || !t.repeat_mode || t.repeat_mode === 'none' || !t.is_completed) continue;
         const lastUpdated = this.parseDateSafe(t.updated_at || t.created_at);
         if (!lastUpdated) continue;
         const lastUpdatedVn = this.getVnDateParts(lastUpdated);
 
         if (t.repeat_mode === 'daily') {
-          if (lastUpdatedVn.dateStr < todayStr) {
+          if (isAfter0001Today && lastUpdatedVn.dateStr < todayStr) {
             t.is_completed = 0;
+            t.status = 'todo';
+            t.updated_at = new Date(nowMs).toISOString();
             if (t.subtasks) {
               let subs = Array.isArray(t.subtasks) ? t.subtasks : [];
               if (typeof t.subtasks === 'string') {
@@ -550,8 +639,10 @@ function getNotificationsModule() {
           const upDiffToMon = upDay === 0 ? 6 : upDay - 1;
           const upMonTime = lastUpdated.getTime() - upDiffToMon * 24 * 3600 * 1000;
           const upMonStr = this.getVnDateParts(upMonTime).dateStr;
-          if (upMonStr < currentWeekMondayStr) {
+          if (isAfterMonday0001 && upMonStr < currentWeekMondayStr) {
             t.is_completed = 0;
+            t.status = 'todo';
+            t.updated_at = new Date(nowMs).toISOString();
             if (t.subtasks) {
               let subs = Array.isArray(t.subtasks) ? t.subtasks : [];
               if (typeof t.subtasks === 'string') {
@@ -563,7 +654,7 @@ function getNotificationsModule() {
             if (t.due_date) {
               const dueVn = this.getVnDateParts(t.due_date);
               const dayOffsetFromMonday = dueVn.dayOfWeek === 0 ? 6 : dueVn.dayOfWeek - 1;
-              const targetDayMs = (Date.now() - diffToMonday * 24 * 3600 * 1000) + dayOffsetFromMonday * 24 * 3600 * 1000;
+              const targetDayMs = mondayTime + dayOffsetFromMonday * 24 * 3600 * 1000;
               const targetVn = this.getVnDateParts(targetDayMs);
               const newWkMs = Date.UTC(targetVn.year, targetVn.month, targetVn.day, dueVn.hours, dueVn.minutes, 0) - (7 * 3600 * 1000);
               t.due_date = new Date(newWkMs).toISOString();
@@ -574,7 +665,9 @@ function getNotificationsModule() {
       }
 
       if (hasChanges) {
-        this.saveCachedTodos();
+        if (typeof this.persistAllData === 'function') {
+          this.persistAllData();
+        }
         this.syncAllNativeLocalNotifications();
       }
     },
