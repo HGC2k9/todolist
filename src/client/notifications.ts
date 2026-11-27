@@ -54,6 +54,12 @@ export function formatVnTime(dateOrMsOrStr: any): string {
   return getVnDateParts(dateOrMsOrStr).timeStr;
 }
 
+export function calculatePostponedDueDate(currentDueDate: string | null | undefined, addMinutes: number = 15, nowMs: number = Date.now()): string {
+  const cur = parseDateSafe(currentDueDate);
+  const baseMs = cur && !isNaN(cur.getTime()) ? cur.getTime() : nowMs;
+  return new Date(baseMs + addMinutes * 60 * 1000).toISOString();
+}
+
 export function parseDateSafe(dateStr: string | null | undefined): Date | null {
   if (!dateStr) return null;
   const s = String(dateStr).trim();

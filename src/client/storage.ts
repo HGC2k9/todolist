@@ -82,6 +82,8 @@ function getStorageModule() {
     newTagInput: '',
     lightboxImage: null,
     showLightbox: false,
+    activePhotoTodoId: null,
+    completingPhotoName: '',
     compactMode: localStorage.getItem('compactMode') === 'true',
     swipedTodoId: null,
     highlightedTodoId: null,
@@ -384,29 +386,57 @@ function getStorageModule() {
       this.showToast('⚡ Đã tạo nhanh: "' + newTodo.title + '"', 'success');
     },
 
-    // ─── SWIPE-TO-ACTION TRÊN THẺ CÔNG VIỆC ───
+    // ─── IOS ELASTIC SWIPE-TO-ACTION (TRÁI→PHẢI: HOÃN 15P | PHẢI→TRÁI: HOÀN THÀNH/HOÀN TÁC) ───
+    closeOpenedSwipe(e) {
+      if (!this.swipedTodoId) return;
+      if (e?.target?.closest) {
+        const openedEl = e.target.closest('.swipe-card-wrap[data-swipe-id="' + this.swipedTodoId + '"]');
+        if (openedEl) return;
+      }
+      const prev = this.todos.find(t => t.id === this.swipedTodoId);
+      if (prev) {
+        prev._swipeX = 0;
+        prev._swipeFullReady = false;
+      }
+      this.swipedTodoId = null;
+    },
+
     startCardSwipe(e, todo) {
       if (!e.touches || !e.touches[0]) return;
       if (this.swipedTodoId && this.swipedTodoId !== todo.id) {
         const prev = this.todos.find(t => t.id === this.swipedTodoId);
-        if (prev) prev._swipeX = 0;
+        if (prev) {
+          prev._swipeX = 0;
+          prev._swipeFullReady = false;
+        }
         this.swipedTodoId = null;
       }
+      if (todo._swipeRaf) {
+        cancelAnimationFrame(todo._swipeRaf);
+        todo._swipeRaf = null;
+      }
+      const cardEl = e.currentTarget;
+      todo._cardWidth = cardEl?.offsetWidth || window.innerWidth || 360;
       todo._touchStartX = e.touches[0].clientX;
       todo._touchStartY = e.touches[0].clientY;
       todo._baseSwipeX = todo._swipeX || 0;
       todo._swipeLocked = null;
+      todo._swipeHapticFired = false;
+      todo._swipeFullReady = false;
       todo._isSwiping = true;
     },
 
     moveCardSwipe(e, todo) {
       if (!todo._isSwiping || !e.touches || !e.touches[0]) return;
-      const dx = e.touches[0].clientX - (todo._touchStartX || 0);
-      const dy = e.touches[0].clientY - (todo._touchStartY || 0);
+      const clientX = e.touches[0].clientX;
+      const clientY = e.touches[0].clientY;
+      const dx = clientX - (todo._touchStartX || 0);
+      const dy = clientY - (todo._touchStartY || 0);
+
       if (todo._swipeLocked === null) {
-        if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.35) {
+        if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.35) {
           todo._swipeLocked = 'h';
-        } else if (Math.abs(dy) > 12) {
+        } else if (Math.abs(dy) > 10) {
           todo._swipeLocked = 'v';
           todo._isSwiping = false;
           return;
@@ -414,34 +444,102 @@ function getStorageModule() {
           return;
         }
       }
+
       if (todo._swipeLocked === 'h') {
         if (e.cancelable) e.preventDefault();
-        const nextX = Math.max(-165, Math.min(100, (todo._baseSwipeX || 0) + dx));
-        todo._swipeX = nextX;
+        const width = todo._cardWidth || 360;
+        const fullThreshold = Math.max(150, Math.round(width * 0.55));
+        const rawNext = (todo._baseSwipeX || 0) + dx;
+        const maxDrag = Math.round(width * 0.82);
+        const softCap = Math.round(width * 0.68);
+        const sign = rawNext >= 0 ? 1 : -1;
+        const absRaw = Math.abs(rawNext);
+        const elasticAbs = absRaw <= softCap ? absRaw : (softCap + (absRaw - softCap) * 0.35);
+        const nextX = sign * Math.min(maxDrag, Math.round(elasticAbs));
+        const reachedFull = Math.abs(nextX) >= fullThreshold;
+
+        if (reachedFull && !todo._swipeHapticFired) {
+          todo._swipeHapticFired = true;
+          if (typeof this.triggerHaptic === 'function') this.triggerHaptic('medium');
+        } else if (!reachedFull && todo._swipeHapticFired) {
+          todo._swipeHapticFired = false;
+        }
+
+        if (todo._swipeRaf) cancelAnimationFrame(todo._swipeRaf);
+        todo._swipeRaf = requestAnimationFrame(() => {
+          todo._swipeX = nextX;
+          todo._swipeFullReady = reachedFull;
+          todo._swipeRaf = null;
+        });
       }
     },
 
     endCardSwipe(todo) {
+      if (todo._swipeRaf) {
+        cancelAnimationFrame(todo._swipeRaf);
+        todo._swipeRaf = null;
+      }
       if (!todo._isSwiping && todo._swipeLocked !== 'h') return;
       todo._isSwiping = false;
+      const width = todo._cardWidth || 360;
+      const fullThreshold = Math.max(150, Math.round(width * 0.55));
       const x = todo._swipeX || 0;
-      if (x >= 72) {
+      todo._swipeFullReady = false;
+      todo._swipeHapticFired = false;
+      todo._swipeLocked = null;
+
+      if (x >= fullThreshold) {
+        todo._swipeX = 0;
+        this.swipedTodoId = null;
+        this.postponeTodo15m(todo);
+      } else if (x >= 48) {
+        todo._swipeX = 96;
+        this.swipedTodoId = todo.id;
+        if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
+      } else if (x <= -fullThreshold) {
         todo._swipeX = 0;
         this.swipedTodoId = null;
         this.toggleTodo(todo);
-      } else if (x <= -56) {
-        todo._swipeX = -148;
+      } else if (x <= -48) {
+        todo._swipeX = -108;
         this.swipedTodoId = todo.id;
         if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
       } else {
         todo._swipeX = 0;
         if (this.swipedTodoId === todo.id) this.swipedTodoId = null;
       }
-      todo._swipeLocked = null;
+    },
+
+    async postponeTodo15m(todo, e) {
+      if (e?.stopPropagation) e.stopPropagation();
+      if (!todo) return;
+      const nowMs = Date.now();
+      const cur = todo.due_date ? this.parseDateSafe(todo.due_date) : null;
+      const baseMs = cur && !isNaN(cur.getTime()) ? cur.getTime() : nowMs;
+      const targetMs = baseMs + 15 * 60 * 1000;
+      todo.due_date = new Date(targetMs).toISOString();
+      todo.reminder_offset = 0;
+      todo.updated_at = new Date(nowMs).toISOString();
+      todo._swipeX = 0;
+      todo._swipeFullReady = false;
+      this.swipedTodoId = null;
+      await this.persistAllData();
+      if (typeof this.cancelNativeLocalNotification === 'function') {
+        await this.cancelNativeLocalNotification(todo.id);
+      }
+      if (typeof this.scheduleNativeLocalNotification === 'function') {
+        await this.scheduleNativeLocalNotification(todo);
+      }
+      if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
+      if (typeof this.playSound === 'function') this.playSound('click');
+      this.showToast('⏰ Đã hoãn thêm 15 phút', 'info');
     },
 
     async postponeTodo(todo, mode = '1h', e) {
       if (e?.stopPropagation) e.stopPropagation();
+      if (mode === '15m') {
+        return this.postponeTodo15m(todo, e);
+      }
       const nowMs = Date.now();
       let targetMs = nowMs + 3600 * 1000;
       if (mode === 'tomorrow') {
@@ -460,6 +558,7 @@ function getStorageModule() {
       todo._swipeX = 0;
       this.swipedTodoId = null;
       await this.persistAllData();
+      await this.cancelNativeLocalNotification(todo.id);
       this.scheduleNativeLocalNotification(todo);
       if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
       if (typeof this.playSound === 'function') this.playSound('click');
@@ -957,7 +1056,7 @@ function getStorageModule() {
       try {
         const payload = {
           app: 'ToDoList-Local',
-          version: '3.4.0',
+          version: '3.5.0',
           exported_at: new Date().toISOString(),
           todos: this.todos,
           categories: this.categories,
@@ -1011,7 +1110,7 @@ function getStorageModule() {
       try {
         const payload = {
           app: 'ToDoList-Local',
-          version: '3.4.0',
+          version: '3.5.0',
           exported_at: new Date().toISOString(),
           todos: this.todos,
           categories: this.categories,
@@ -1339,13 +1438,122 @@ function getStorageModule() {
     },
 
     getTodoImages(todoId) {
-      this.todoImagesMap = this.todoImagesMap || {};
-      return this.todoImagesMap[todoId] || [];
+      if (!todoId || !this.todoImagesMap) return [];
+      const list = this.todoImagesMap[todoId];
+      return Array.isArray(list) ? list : [];
     },
 
-    openLightbox(imageData) {
+    openLightbox(imageData, e) {
+      if (e?.stopPropagation) e.stopPropagation();
+      if (!imageData) return;
       this.lightboxImage = imageData;
       this.showLightbox = true;
+      if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
+    },
+
+    closeLightbox() {
+      this.showLightbox = false;
+      this.lightboxImage = null;
+    },
+
+    async compressImageToDataUrl(rawDataUrl) {
+      return new Promise((resolve) => {
+        if (!rawDataUrl || typeof rawDataUrl !== 'string') return resolve('');
+        try {
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const maxDim = 1280;
+              let w = img.naturalWidth || img.width || 800;
+              let h = img.naturalHeight || img.height || 800;
+              if (w > maxDim || h > maxDim) {
+                if (w >= h) {
+                  h = Math.round((h * maxDim) / w);
+                  w = maxDim;
+                } else {
+                  w = Math.round((w * maxDim) / h);
+                  h = maxDim;
+                }
+              }
+              const canvas = document.createElement('canvas');
+              canvas.width = w;
+              canvas.height = h;
+              const ctx = canvas.getContext('2d');
+              if (!ctx) return resolve(rawDataUrl);
+              ctx.drawImage(img, 0, 0, w, h);
+              const compressed = canvas.toDataURL('image/jpeg', 0.82);
+              resolve(compressed || rawDataUrl);
+            } catch {
+              resolve(rawDataUrl);
+            }
+          };
+          img.onerror = () => resolve(rawDataUrl);
+          img.src = rawDataUrl;
+        } catch {
+          resolve(rawDataUrl);
+        }
+      });
+    },
+
+    async saveProofDataUrl(dataUrl, fileName = '') {
+      if (!dataUrl) return;
+      const safeName = fileName || ('proof_' + Date.now() + '.jpg');
+      if (this.showCompletionModal && !this.activePhotoTodoId) {
+        this.completingProofPhoto = dataUrl;
+        this.completingPhotoName = safeName;
+        this.completingUploadingPhoto = false;
+        if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
+        return;
+      }
+
+      const targetId = this.activePhotoTodoId || this.editingTodo?.id;
+      this.activePhotoTodoId = null;
+
+      if (targetId) {
+        const curMap = this.todoImagesMap || {};
+        const prevList = Array.isArray(curMap[targetId]) ? curMap[targetId] : [];
+        const newImg = {
+          id: 'img_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+          image_data: dataUrl,
+          file_name: safeName,
+          created_at: new Date().toISOString()
+        };
+        this.todoImagesMap = { ...curMap, [targetId]: [...prevList, newImg] };
+        if (this.editingTodo && this.editingTodo.id === targetId) {
+          this.editingTodoImages = [...(this.editingTodoImages || []), { ...newImg }];
+        }
+        await this.persistAllData();
+        if (typeof this.triggerHaptic === 'function') this.triggerHaptic('success');
+        if (typeof this.playSound === 'function') this.playSound('add');
+        this.showToast('📸 Đã lưu ảnh minh chứng!', 'success');
+      } else if (this.showModal) {
+        this.editingTodoImages = [
+          ...(this.editingTodoImages || []),
+          { id: 'temp_img_' + Date.now(), image_data: dataUrl, file_name: safeName }
+        ];
+      }
+    },
+
+    async handleProofImageSelected(event) {
+      const inputEl = event?.target;
+      const file = inputEl?.files?.[0];
+      if (!file) return;
+      try {
+        this.completingUploadingPhoto = Boolean(this.showCompletionModal && !this.activePhotoTodoId);
+        const rawDataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ''));
+          reader.onerror = () => reject(new Error('Không đọc được tệp ảnh'));
+          reader.readAsDataURL(file);
+        });
+        const optimized = await this.compressImageToDataUrl(rawDataUrl);
+        await this.saveProofDataUrl(optimized || rawDataUrl, file.name || ('proof_' + Date.now() + '.jpg'));
+      } catch (err) {
+        this.completingUploadingPhoto = false;
+        this.showToast('Không thể đọc ảnh: ' + (err?.message || err), 'error');
+      } finally {
+        if (inputEl) inputEl.value = '';
+      }
     },
 
     async deleteImage(todoId, imageId) {
@@ -1363,22 +1571,75 @@ function getStorageModule() {
       });
       if (!confirmed) return;
       if (this.todoImagesMap[todoId]) {
-        this.todoImagesMap[todoId] = this.todoImagesMap[todoId].filter(img => img.id !== imageId);
+        const nextList = this.todoImagesMap[todoId].filter(img => img.id !== imageId);
+        this.todoImagesMap = { ...this.todoImagesMap, [todoId]: nextList };
       }
       this.editingTodoImages = this.editingTodoImages.filter(img => img.id !== imageId);
       await this.persistAllData();
       this.showToast('Đã xóa ảnh minh chứng', 'info');
     },
 
-    chooseOrCapturePhoto(todoId) {
+    async chooseOrCapturePhoto(todoId, preferredSource = 'prompt') {
       this.activePhotoTodoId = todoId;
-      const cam = document.getElementById('todo-camera-input');
+      const Cam = window.Capacitor?.Plugins?.Camera;
+      if (Cam?.getPhoto) {
+        try {
+          const source = preferredSource === 'camera' ? 'CAMERA' : (preferredSource === 'album' ? 'PHOTOS' : 'PROMPT');
+          const photo = await Cam.getPhoto({
+            quality: 82,
+            width: 1280,
+            allowEditing: false,
+            correctOrientation: true,
+            resultType: 'dataUrl',
+            source,
+            promptLabelHeader: 'Ảnh minh chứng',
+            promptLabelPhoto: 'Chọn từ Thư viện ảnh',
+            promptLabelPicture: 'Chụp ảnh mới',
+            promptLabelCancel: 'Hủy'
+          });
+          if (photo?.dataUrl) {
+            const optimized = await this.compressImageToDataUrl(photo.dataUrl);
+            await this.saveProofDataUrl(optimized || photo.dataUrl, 'proof_' + Date.now() + '.jpg');
+            return;
+          }
+        } catch (err) {
+          const msg = String(err?.message || err || '').toLowerCase();
+          if (msg.includes('cancel') || msg.includes('user')) {
+            this.activePhotoTodoId = null;
+            return;
+          }
+        }
+      }
       const img = document.getElementById('todo-image-input');
-      if (cam) cam.click();
+      const cam = document.getElementById('todo-camera-input');
+      if (preferredSource === 'camera' && cam) cam.click();
       else if (img) img.click();
+      else if (cam) cam.click();
     },
 
-    chooseOrCaptureProofForCompletion(mode) {
+    async chooseOrCaptureProofForCompletion(mode) {
+      this.activePhotoTodoId = null;
+      const Cam = window.Capacitor?.Plugins?.Camera;
+      if (Cam?.getPhoto) {
+        try {
+          const photo = await Cam.getPhoto({
+            quality: 82,
+            width: 1280,
+            allowEditing: false,
+            correctOrientation: true,
+            resultType: 'dataUrl',
+            source: mode === 'camera' ? 'CAMERA' : 'PHOTOS'
+          });
+          if (photo?.dataUrl) {
+            const optimized = await this.compressImageToDataUrl(photo.dataUrl);
+            await this.saveProofDataUrl(optimized || photo.dataUrl, 'proof_' + Date.now() + '.jpg');
+            return;
+          }
+        } catch (err) {
+          const msg = String(err?.message || err || '').toLowerCase();
+          if (msg.includes('cancel') || msg.includes('user')) return;
+        }
+      }
       if (mode === 'camera') {
         document.getElementById('todo-camera-input')?.click();
       } else {
@@ -1411,12 +1672,20 @@ function getStorageModule() {
 
       if (proofPhoto) {
         const fileName = photoName || ('proof_' + Date.now() + '.jpg');
-        if (!this.todoImagesMap[todo.id]) this.todoImagesMap[todo.id] = [];
-        this.todoImagesMap[todo.id].push({
-          id: 'img_' + Date.now(),
-          image_data: proofPhoto,
-          file_name: fileName
-        });
+        const curMap = this.todoImagesMap || {};
+        const prevList = Array.isArray(curMap[todo.id]) ? curMap[todo.id] : [];
+        this.todoImagesMap = {
+          ...curMap,
+          [todo.id]: [
+            ...prevList,
+            {
+              id: 'img_' + Date.now(),
+              image_data: proofPhoto,
+              file_name: fileName,
+              created_at: new Date().toISOString()
+            }
+          ]
+        };
       }
 
       await this.executeToggleTodo(todo, 1);
@@ -1426,7 +1695,7 @@ function getStorageModule() {
 
     checkAppVersion(manual = false) {
       if (manual) {
-        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.4.0') + ')! 🎉', 'success');
+        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.5.0') + ')! 🎉', 'success');
       }
     },
 

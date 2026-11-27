@@ -379,9 +379,10 @@ export function renderHTML(): string {
 
   <!-- ═══════ PHẦN 2: BODY CUỘN ĐỘC LẬP ═══════ -->
   <div class="flex-1 overflow-y-auto overscroll-contain ios-scroll-body w-full relative"
-       @touchstart="onBodyTouchStart($event)"
+       @touchstart="onBodyTouchStart($event); closeOpenedSwipe($event)"
        @touchmove="onBodyTouchMove($event)"
        @touchend="onBodyTouchEnd()"
+       @click="closeOpenedSwipe($event)"
        style="padding-top: calc(max(14px, env(safe-area-inset-top, 0px)) + 60px); padding-bottom: calc(max(1.25rem, env(safe-area-inset-bottom, 0px)) + 6rem);">
 
   <!-- Pull-to-Refresh Lò xo kiểu iOS (60fps GPU translate3d) -->
@@ -422,34 +423,34 @@ export function renderHTML(): string {
   <main class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-5">
 
     <!-- ─── Sleek Status & Progress Overview (Giao diện tối giản, tinh tế) ─── -->
-    <div class="bg-white dark:bg-slate-900/90 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-slate-800 px-4 py-3 sm:px-5 sm:py-3.5 mb-3.5 shadow-xs transition-all">
-      <div class="flex items-center justify-between text-xs font-semibold gap-3 flex-wrap">
-        <div class="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+    <div class="bg-white dark:bg-slate-900/95 rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800/90 px-4 py-3 sm:px-5 sm:py-3.5 mb-3.5 shadow-xs transition-all">
+      <div class="flex items-center justify-between text-xs font-semibold gap-2.5 flex-wrap">
+        <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
           <button type="button" @click="filterStatus='today'; triggerHaptic('light')"
-                  class="h-7.5 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95"
-                  :class="filterStatus==='today' && 'ring-1 ring-amber-500/50 bg-amber-50/50 dark:bg-amber-950/30'"
+                  class="h-8 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 cursor-pointer"
+                  :class="filterStatus==='today' && 'ring-1 ring-amber-500/60 bg-amber-50/70 dark:bg-amber-950/40'"
                   title="Bấm để lọc việc cần làm hôm nay">
             <span class="w-2 h-2 rounded-full bg-amber-500"></span>
             <strong class="text-sm font-black text-slate-900 dark:text-white" x-text="stats.todayPending"></strong>
-            <span class="text-slate-600 dark:text-slate-400">cần làm hôm nay</span>
+            <span class="text-slate-600 dark:text-slate-300">cần làm hôm nay</span>
           </button>
           
-          <span class="text-slate-200 dark:text-slate-700">•</span>
+          <span class="text-slate-300 dark:text-slate-700">•</span>
           
           <button type="button" x-show="stats.overdue > 0" @click="filterStatus='overdue'"
-                  class="h-7.5 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition active:scale-95"
-                  :class="filterStatus==='overdue' && 'ring-1 ring-rose-500/50 bg-rose-50/70 dark:bg-rose-950/40'"
+                  class="h-8 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition active:scale-95 cursor-pointer"
+                  :class="filterStatus==='overdue' && 'ring-1 ring-rose-500/60 bg-rose-50/80 dark:bg-rose-950/45'"
                   title="Bấm để lọc việc quá hạn">
             <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
             <strong class="text-sm font-black" x-text="stats.overdue"></strong>
             <span>quá hạn</span>
           </button>
           
-          <span x-show="stats.overdue > 0" class="text-slate-200 dark:text-slate-700">•</span>
+          <span x-show="stats.overdue > 0" class="text-slate-300 dark:text-slate-700">•</span>
           
           <button type="button" @click="filterStatus='completed'"
-                  class="h-7.5 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95"
-                  :class="filterStatus==='completed' && 'ring-1 ring-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/30'"
+                  class="h-8 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 cursor-pointer"
+                  :class="filterStatus==='completed' && 'ring-1 ring-emerald-500/60 bg-emerald-50/70 dark:bg-emerald-950/40'"
                   title="Bấm để lọc việc đã xong">
             <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
             <span><strong class="text-emerald-600 dark:text-emerald-400 font-black text-sm" x-text="stats.todayCompleted"></strong>/<span x-text="stats.todayTotal"></span> đã xong</span>
@@ -458,11 +459,11 @@ export function renderHTML(): string {
         
         <div class="flex items-center gap-2.5 flex-shrink-0 ml-auto">
           <!-- Chuỗi ngày năng suất (Streak Counter) -->
-          <div class="h-8 inline-flex items-center justify-center gap-1 px-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 font-bold text-xs select-none shadow-xs"
+          <div class="h-8 inline-flex items-center justify-center gap-1 px-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/70 border border-orange-200/90 dark:border-orange-800/80 text-orange-600 dark:text-orange-400 font-bold text-xs select-none shadow-xs"
                :title="'Chuỗi ngày năng suất: ' + streak + ' ngày liên tục'">
-            <span class="text-sm">🔥</span>
+            ${svgIcon('flame', 'w-3.5 h-3.5 text-orange-500')}
             <span class="font-black text-xs sm:text-sm" x-text="streak"></span>
-            <span class="hidden sm:inline text-[11px] font-semibold text-orange-700/80 dark:text-orange-300">streak</span>
+            <span class="hidden sm:inline text-[11px] font-semibold text-orange-700/90 dark:text-orange-300">streak</span>
           </div>
 
           <!-- Activity Ring (Vòng tròn tiến độ Apple Fitness) -->
@@ -497,7 +498,7 @@ export function renderHTML(): string {
     </div>
 
     <!-- ─── Search & Quick Filter Row ─── -->
-    <div class="bg-white dark:bg-slate-900/90 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-slate-800 p-3 sm:p-3.5 mb-4 space-y-2.5 shadow-xs">
+    <div class="bg-white dark:bg-slate-900/95 rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800/90 p-3 sm:p-3.5 mb-4 space-y-2.5 shadow-xs">
       <!-- Search Input with clear button and keyboard shortcut hint -->
       <div class="relative">
         <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -507,13 +508,14 @@ export function renderHTML(): string {
                @keydown.enter.prevent="quickAddFromText(searchQuery)"
                placeholder="Tìm hoặc gõ nhanh: Họp team 15h mai #work !high (Enter tạo)..."
                aria-label="Tìm kiếm hoặc nhập nhanh công việc"
-               class="w-full pl-9 pr-24 py-2 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/50 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-xs sm:text-sm font-medium" />
+               class="w-full h-10 pl-9 pr-24 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-400 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 focus:bg-white dark:focus:bg-slate-800 outline-none transition text-xs sm:text-sm font-medium" />
         <div class="absolute inset-y-0 right-0 pr-2 flex items-center gap-1">
           <button type="button" x-show="searchQuery && searchQuery.trim().length > 0"
                   @click="quickAddFromText(searchQuery)"
-                  class="px-2 py-1 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-[10px] font-bold transition active:scale-95 cursor-pointer"
+                  class="h-6 px-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-[10px] font-bold inline-flex items-center gap-1 transition active:scale-95 cursor-pointer"
                   title="Tạo công việc nhanh bằng ngôn ngữ tự nhiên">
-            ⚡ Tạo
+            ${svgIcon('flash', 'w-3 h-3')}
+            <span>Tạo</span>
           </button>
           <button x-show="searchQuery" @click="searchQuery=''" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer" aria-label="Xóa nội dung tìm kiếm">
             ${svgIcon('close', 'w-3.5 h-3.5')}
@@ -531,29 +533,29 @@ export function renderHTML(): string {
                   class="flex-shrink-0 h-8 px-3 text-xs font-bold rounded-xl border transition-all duration-150 items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
                   :class="(s.value === 'today' || s.value === 'all' ? 'hidden sm:inline-flex ' : 'inline-flex ') + (filterStatus === s.value
                     ? 'bg-brand-600 text-white border-brand-600 shadow-xs'
-                    : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-slate-700/80 hover:border-brand-400 dark:hover:border-brand-500')">
+                    : 'bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 border-slate-200/90 dark:border-slate-700 hover:border-brand-400 dark:hover:border-brand-500')">
             <span x-html="s.icon" class="flex-shrink-0"></span>
             <span x-text="s.label"></span>
             <span class="ml-0.5 text-[10px] font-black px-1.5 py-0.2 rounded-full"
-                  :class="filterStatus === s.value ? 'bg-white/20 text-white' : 'bg-slate-200/70 dark:bg-slate-700/70 text-slate-600 dark:text-slate-300'"
+                  :class="filterStatus === s.value ? 'bg-white/20 text-white' : 'bg-slate-200/80 dark:bg-slate-700 text-slate-700 dark:text-slate-200'"
                   x-text="getFilterCount(s.value)"></span>
           </button>
         </template>
       </div>
 
       <!-- Chế độ xem: Danh sách / Lịch (Ẩn trên mobile vì đã có Lịch ở Footer Tab Bar) & Lọc thẻ -->
-      <div class="hidden sm:flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800 gap-2 flex-wrap"
+      <div class="hidden sm:flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 gap-2 flex-wrap"
            :class="allTags.length > 0 && '!flex'">
-        <div class="hidden sm:inline-flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-bold border border-slate-200/80 dark:border-slate-700/80 h-8">
+        <div class="hidden sm:inline-flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-bold border border-slate-200/80 dark:border-slate-700 h-8">
           <button type="button" @click="setViewMode('list')"
-                  class="h-7 px-2.5 rounded-lg transition inline-flex items-center justify-center gap-1.5 active:scale-95"
-                  :class="viewMode === 'list' ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'">
+                  class="h-7 px-2.5 rounded-lg transition inline-flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+                  :class="viewMode === 'list' ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'">
             ${svgIcon('list', 'w-3.5 h-3.5 flex-shrink-0')}
             <span>Danh sách</span>
           </button>
           <button type="button" @click="setViewMode('calendar')"
-                  class="h-7 px-2.5 rounded-lg transition inline-flex items-center justify-center gap-1.5 active:scale-95"
-                  :class="viewMode === 'calendar' ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'">
+                  class="h-7 px-2.5 rounded-lg transition inline-flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+                  :class="viewMode === 'calendar' ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'">
             ${svgIcon('calendar', 'w-3.5 h-3.5 flex-shrink-0')}
             <span>Lịch</span>
           </button>
@@ -561,16 +563,16 @@ export function renderHTML(): string {
 
         <!-- Lọc theo #tag -->
         <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 text-xs max-w-full" x-show="allTags.length > 0">
-          <span class="text-slate-400 text-[11px] font-bold flex-shrink-0">Thẻ:</span>
+          <span class="text-slate-500 dark:text-slate-400 text-[11px] font-bold flex-shrink-0">Thẻ:</span>
           <button type="button" @click="filterTag = 'all'"
-                  class="h-7 px-2.5 rounded-lg text-[11px] font-bold border transition inline-flex items-center justify-center active:scale-95 flex-shrink-0"
-                  :class="filterTag === 'all' ? 'bg-brand-600 text-white border-brand-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'">
+                  class="h-7 px-2.5 rounded-lg text-[11px] font-bold border transition inline-flex items-center justify-center active:scale-95 flex-shrink-0 cursor-pointer"
+                  :class="filterTag === 'all' ? 'bg-brand-600 text-white border-brand-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'">
             #tất cả
           </button>
           <template x-for="tg in allTags" :key="tg">
             <button type="button" @click="filterTag = (filterTag === tg ? 'all' : tg)"
-                    class="h-7 px-2.5 rounded-lg text-[11px] font-bold border transition inline-flex items-center justify-center active:scale-95 flex-shrink-0"
-                    :class="filterTag === tg ? 'bg-brand-600 text-white border-brand-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'">
+                    class="h-7 px-2.5 rounded-lg text-[11px] font-bold border transition inline-flex items-center justify-center active:scale-95 flex-shrink-0 cursor-pointer"
+                    :class="filterTag === tg ? 'bg-brand-600 text-white border-brand-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'">
               #<span x-text="tg"></span>
             </button>
           </template>
@@ -578,10 +580,10 @@ export function renderHTML(): string {
       </div>
 
       <!-- Secondary Filters (Danh mục, Ưu tiên, Sắp xếp) & Dọn dẹp -->
-      <div class="flex items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800 overflow-x-auto no-scrollbar text-xs">
+      <div class="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 overflow-x-auto no-scrollbar text-xs">
         <select id="filter-category" name="filterCategory" x-model="filterCategory"
                 aria-label="Lọc theo danh mục"
-                class="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
+                class="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 text-slate-800 dark:text-slate-200 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
           <option value="all">📁 Danh mục (Tất cả)</option>
           <template x-for="cat in categories" :key="cat">
             <option :value="cat" x-text="cat"></option>
@@ -590,7 +592,7 @@ export function renderHTML(): string {
 
         <select id="filter-priority" name="filterPriority" x-model="filterPriority"
                 aria-label="Lọc theo mức độ ưu tiên"
-                class="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
+                class="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 text-slate-800 dark:text-slate-200 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
           <option value="all">⚡ Ưu tiên (Tất cả)</option>
           <option value="High">🔴 Khẩn cấp (High)</option>
           <option value="Medium">🟡 Bình thường (Medium)</option>
@@ -599,7 +601,7 @@ export function renderHTML(): string {
 
         <select id="filter-sort-by" name="sortBy" x-model="sortBy"
                 aria-label="Sắp xếp danh sách công việc"
-                class="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
+                class="h-8 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 text-slate-800 dark:text-slate-200 font-semibold outline-none cursor-pointer flex-shrink-0 text-xs transition hover:border-slate-300 dark:hover:border-slate-600 focus:ring-1 focus:ring-brand-500">
           <option value="due_date-asc">📅 Hạn: Gần → Xa</option>
           <option value="due_date-desc">📅 Hạn: Xa → Gần</option>
           <option value="created_at-desc">🕐 Mới tạo trước</option>
@@ -705,45 +707,46 @@ export function renderHTML(): string {
     <!-- ─── Todo List Item Cards (Tự động sắp xếp: Việc cần làm lên đầu, Quá hạn & Đã xong rớt xuống dưới) ─── -->
     <div class="space-y-3" x-show="viewMode === 'list' && !todosLoading && filteredSortedTodos.length > 0">
       <template x-for="todo in filteredSortedTodos" :key="todo.id">
-        <div class="relative rounded-3xl overflow-hidden">
-          <!-- Swipe-Right Layer: Hoàn thành nhanh -->
-          <div x-show="(todo._swipeX || 0) > 8" x-cloak
-               class="absolute inset-y-0 left-0 w-32 bg-emerald-500 text-white flex items-center pl-4 font-bold text-xs gap-1.5 rounded-l-3xl pointer-events-none">
-            ${svgIcon('check', 'w-5 h-5')}
-            <span>Hoàn thành</span>
+        <div class="swipe-card-wrap relative rounded-3xl overflow-hidden bg-slate-100/80 dark:bg-slate-800/60" :data-swipe-id="todo.id">
+          <!-- Leading Swipe (Trái -> Phải): Hoãn 15 phút (Bo tròn đàn hồi) -->
+          <div x-show="(todo._swipeX || 0) > 6" x-cloak
+               class="absolute inset-y-1 left-1 flex items-center justify-start pointer-events-none">
+            <button type="button" @click.stop="postponeTodo15m(todo, $event)" aria-label="Hoãn 15 phút"
+                    class="pointer-events-auto h-full rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex flex-col items-center justify-center gap-1 px-3 font-bold text-[11px] shadow-sm active:opacity-90 cursor-pointer overflow-hidden whitespace-nowrap"
+                    :style="'width: ' + Math.max(84, Math.round((todo._swipeX || 0) - 8)) + 'px;' + (!todo._isSwiping ? ' transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1);' : '')">
+              ${svgIcon('clock', 'w-5 h-5 transition-transform duration-150', ':class="todo._swipeFullReady && \'scale-110\'"')}
+              <span x-text="todo._swipeFullReady ? 'Thả: Hoãn 15p' : 'Hoãn 15p'"></span>
+            </button>
           </div>
 
-          <!-- Swipe-Left Layer: 3 nút nhanh Ghim / Dời hạn / Xóa -->
-          <div x-show="(todo._swipeX || 0) < -8" x-cloak
-               class="absolute inset-y-0 right-0 flex items-stretch rounded-r-3xl overflow-hidden">
-            <button type="button" @click="togglePin(todo, $event)" aria-label="Ghim việc"
-                    class="w-12 bg-amber-500 text-white flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold active:opacity-80 cursor-pointer">
-              ${svgIcon('pin', 'w-3.5 h-3.5')}<span>Ghim</span>
-            </button>
-            <button type="button" @click="postponeTodo(todo, '1h', $event)" aria-label="Dời hạn 1 giờ"
-                    class="w-12 bg-indigo-500 text-white flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold active:opacity-80 cursor-pointer">
-              ${svgIcon('clock', 'w-3.5 h-3.5')}<span>+1h</span>
-            </button>
-            <button type="button" @click="confirmDelete(todo)" aria-label="Xóa việc"
-                    class="w-12 bg-rose-500 text-white flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold active:opacity-80 cursor-pointer">
-              ${svgIcon('trash', 'w-3.5 h-3.5')}<span>Xóa</span>
+          <!-- Trailing Swipe (Phải -> Trái): Hoàn thành / Hoàn tác (Bo tròn đàn hồi) -->
+          <div x-show="(todo._swipeX || 0) < -6" x-cloak
+               class="absolute inset-y-1 right-1 flex items-center justify-end pointer-events-none">
+            <button type="button" @click.stop="toggleTodo(todo, $event)"
+                    :aria-label="todo.is_completed ? 'Hoàn tác công việc' : 'Hoàn thành công việc'"
+                    class="pointer-events-auto h-full rounded-2xl text-white flex flex-col items-center justify-center gap-1 px-3 font-bold text-[11px] shadow-sm active:opacity-90 cursor-pointer overflow-hidden whitespace-nowrap"
+                    :class="todo.is_completed ? 'bg-sky-600' : 'bg-emerald-500'"
+                    :style="'width: ' + Math.max(92, Math.round(Math.abs(todo._swipeX || 0) - 8)) + 'px;' + (!todo._isSwiping ? ' transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1);' : '')">
+              ${svgIcon('check', 'w-5 h-5 transition-transform duration-150', 'x-show="!todo.is_completed" :class="todo._swipeFullReady && \'scale-110\'"')}
+              ${svgIcon('undo', 'w-5 h-5 transition-transform duration-150', 'x-show="todo.is_completed" :class="todo._swipeFullReady && \'scale-110\'"')}
+              <span x-text="todo._swipeFullReady ? (todo.is_completed ? 'Thả: Hoàn tác' : 'Thả: Xong!') : (todo.is_completed ? 'Hoàn tác' : 'Hoàn thành')"></span>
             </button>
           </div>
 
         <div :id="'todo-card-' + todo.id"
-             class="todo-card bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 hover:shadow-md group relative"
-             :style="(todo._swipeX ? ('transform: translateX(' + todo._swipeX + 'px); transition: ' + (todo._isSwiping ? 'none' : 'transform 0.24s cubic-bezier(0.22, 1, 0.36, 1)')) : '')"
+             class="todo-card bg-white dark:bg-slate-900/95 rounded-3xl border border-slate-200/90 dark:border-slate-800/90 hover:shadow-md group relative"
+             :style="'touch-action: pan-y; ' + (todo._swipeX ? ('transform: translate3d(' + todo._swipeX + 'px, 0, 0);' + (todo._isSwiping ? '' : ' transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);')) : 'transform: translate3d(0, 0, 0);')"
              @touchstart="startCardSwipe($event, todo)"
              @touchmove="moveCardSwipe($event, todo)"
              @touchend="endCardSwipe(todo)"
              :class="{
-               'p-2.5 sm:p-3': compactMode,
+               'p-3 sm:p-3.5': compactMode,
                'p-4 sm:p-5': !compactMode,
                'todo-card-collapsing': todo._collapsing,
-               'ring-2 ring-amber-400 shadow-lg shadow-amber-400/25 bg-amber-50/40 dark:bg-amber-950/30': highlightedTodoId === todo.id && !todo._collapsing,
-               'opacity-50 bg-slate-50/50 dark:bg-slate-900/50': todo.is_completed && !todo._collapsing,
-               'opacity-75 bg-rose-50/20 dark:bg-rose-950/20': !todo.is_completed && isOverdue(todo) && !todo._collapsing,
-               'border-amber-300 dark:border-amber-800/80 ring-2 ring-amber-300/30': todo.is_pinned && !todo.is_completed && highlightedTodoId !== todo.id,
+               'ring-2 ring-amber-400 shadow-lg shadow-amber-400/25 bg-amber-50/50 dark:bg-amber-950/35': highlightedTodoId === todo.id && !todo._collapsing,
+               'opacity-65 bg-slate-50/80 dark:bg-slate-900/60': todo.is_completed && !todo._collapsing,
+               'bg-rose-50/45 dark:bg-rose-950/25 border-rose-200/80 dark:border-rose-900/60': !todo.is_completed && isOverdue(todo) && !todo._collapsing,
+               'border-amber-300 dark:border-amber-700/80 ring-2 ring-amber-300/30': todo.is_pinned && !todo.is_completed && highlightedTodoId !== todo.id,
                'ring-2 ring-brand-400 border-brand-400': draggedTodo && draggedTodo.id === todo.id
              }"
              :draggable="sortBy === 'custom'"
@@ -828,13 +831,13 @@ export function renderHTML(): string {
 
               <p x-show="todo.description && !compactMode" class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 line-clamp-2" x-text="todo.description"></p>
 
-              <div class="flex flex-wrap items-center gap-1.5 sm:gap-2" :class="compactMode ? 'mt-1.5' : 'mt-3'">
+              <div class="flex flex-wrap items-center gap-1.5 sm:gap-2" :class="compactMode ? 'mt-1.5' : 'mt-2.5'">
                 <!-- Mức độ ưu tiên với Icon SVG Repo -->
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold"
+                <span class="h-6 inline-flex items-center gap-1.5 px-2.5 rounded-lg text-[11px] font-bold"
                       :class="{
-                        'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900': todo.priority==='High',
-                        'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900': todo.priority==='Medium',
-                        'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900': todo.priority==='Low'
+                        'bg-rose-50 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/80': todo.priority==='High',
+                        'bg-amber-50 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/80': todo.priority==='Medium',
+                        'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/80': todo.priority==='Low'
                       }">
                   ${svgIcon('star', 'w-3.5 h-3.5 text-rose-500', 'x-show="todo.priority===\'High\'"')}
                   ${svgIcon('flash', 'w-3.5 h-3.5 text-amber-500', 'x-show="todo.priority===\'Medium\'"')}
@@ -843,55 +846,54 @@ export function renderHTML(): string {
                 </span>
 
                 <!-- Danh mục với Icon Folder -->
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
-                  ${svgIcon('folder', 'w-3.5 h-3.5 text-blue-500')}
+                <span class="h-6 inline-flex items-center gap-1.5 px-2.5 rounded-lg text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/80">
+                  ${svgIcon('folder', 'w-3.5 h-3.5 text-blue-500 dark:text-blue-400')}
                   <span x-text="todo.category"></span>
                 </span>
 
                 <!-- Badge chu kỳ lặp lại: Hàng ngày / Hàng tuần -->
                 <span x-show="todo.repeat_mode && todo.repeat_mode !== 'none'"
-                      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold"
+                      class="h-6 inline-flex items-center gap-1.5 px-2.5 rounded-lg text-[11px] font-bold"
                       :class="todo.repeat_mode === 'daily'
-                        ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900'
-                        : 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-900'">
+                        ? 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/80'
+                        : 'bg-purple-50 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/80'">
                   ${svgIcon('repeat', 'w-3.5 h-3.5')}
                   <span x-text="todo.repeat_mode === 'daily' ? 'Hàng ngày' : 'Hàng tuần'"></span>
                 </span>
 
                 <!-- Thời hạn: Hiển thị đúng theo chu kỳ -->
-                <span x-show="todo.due_date" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold"
+                <span x-show="todo.due_date" class="h-6 inline-flex items-center gap-1.5 px-2.5 rounded-lg text-[11px] font-semibold"
                       :class="isOverdue(todo)
-                        ? 'bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-400 border border-rose-300 dark:border-rose-800'
+                        ? 'bg-rose-50 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800'
                         : isImminent(todo)
-                          ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-400 animate-pulse-warning'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'">
+                          ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-400 animate-pulse-warning'
+                          : 'bg-slate-100 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700'">
                   ${svgIcon('warning', 'w-3.5 h-3.5 text-rose-500', 'x-show="isOverdue(todo)"')}
-                  ${svgIcon('clock', 'w-3.5 h-3.5 text-amber-600 animate-spin', 'x-show="!isOverdue(todo) && isImminent(todo)"')}
-                  ${svgIcon('calendar', 'w-3.5 h-3.5 text-indigo-500', 'x-show="!isOverdue(todo) && !isImminent(todo)"')}
+                  ${svgIcon('clock', 'w-3.5 h-3.5 text-amber-600 dark:text-amber-400 animate-spin', 'x-show="!isOverdue(todo) && isImminent(todo)"')}
+                  ${svgIcon('calendar', 'w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400', 'x-show="!isOverdue(todo) && !isImminent(todo)"')}
                   <span x-text="formatTodoDueDate(todo)"></span>
                 </span>
 
-                <span x-show="isImminent(todo)" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black tracking-wide bg-orange-600 text-white animate-pulse">
-                  ⏰ <span x-text="formatRemainingDeadlineText(todo)"></span>
+                <span x-show="isImminent(todo)" class="h-6 inline-flex items-center gap-1 px-2 rounded-lg text-[10px] font-black tracking-wide bg-orange-600 text-white animate-pulse">
+                  ${svgIcon('clock', 'w-3 h-3')}
+                  <span x-text="formatRemainingDeadlineText(todo)"></span>
                 </span>
 
                 <!-- Thẻ #tags -->
                 <template x-for="(tg, tgIdx) in getTags(todo)" :key="tg + '_' + tgIdx">
-                  <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                  <span class="h-6 inline-flex items-center px-2 rounded-lg text-[10px] font-bold bg-slate-100 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
                     #<span x-text="tg"></span>
                   </span>
                 </template>
 
                 <!-- Nút Minh chứng hoàn thành (Chụp ảnh/Tải ảnh kết quả, có thể không chụp) -->
-                <div class="inline-flex items-center gap-1.5">
-                  <button type="button" @click="chooseOrCapturePhoto(todo.id)"
-                          class="h-6 px-1.5 rounded-lg text-[10px] font-bold border inline-flex items-center gap-1 transition active:scale-95 shadow-xs cursor-pointer"
-                          :class="getTodoImages(todo.id).length > 0 ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'"
-                          title="Chụp ảnh hoặc chọn ảnh minh chứng kết quả hoàn thành">
-                    <span>📸</span>
-                    <span x-text="getTodoImages(todo.id).length > 0 ? ('Minh chứng (' + getTodoImages(todo.id).length + ')') : 'Minh chứng'"></span>
-                  </button>
-                </div>
+                <button type="button" @click.stop="chooseOrCapturePhoto(todo.id)"
+                        class="h-6 px-2 rounded-lg text-[10px] font-bold border inline-flex items-center gap-1 transition active:scale-95 shadow-xs cursor-pointer"
+                        :class="getTodoImages(todo.id).length > 0 ? 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/80' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'"
+                        title="Chụp ảnh hoặc chọn ảnh minh chứng kết quả hoàn thành">
+                  <span>📸</span>
+                  <span x-text="getTodoImages(todo.id).length > 0 ? ('Minh chứng (' + getTodoImages(todo.id).length + ')') : 'Minh chứng'"></span>
+                </button>
               </div>
 
               <!-- Khối Ảnh Minh chứng hoàn thành (Evidence Strip) -->
@@ -901,16 +903,19 @@ export function renderHTML(): string {
                     ${svgIcon('check', 'w-3.5 h-3.5')}
                     <span>Ảnh minh chứng kết quả (<span x-text="getTodoImages(todo.id).length"></span>)</span>
                   </span>
-                  <button type="button" @click="chooseOrCapturePhoto(todo.id)" class="text-[10px] text-brand-600 hover:underline font-bold cursor-pointer">+ Thêm ảnh</button>
+                  <button type="button" @click.stop="chooseOrCapturePhoto(todo.id)" class="text-[10px] text-brand-600 dark:text-brand-400 hover:underline font-bold cursor-pointer">+ Thêm ảnh</button>
                 </div>
                 <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
                   <template x-for="img in getTodoImages(todo.id)" :key="img.id">
                     <div class="relative group flex-shrink-0">
-                      <img :src="img.image_data" @click="openLightbox(img.image_data)" alt="Ảnh minh chứng"
-                           class="w-12 h-12 sm:w-14 sm:h-14 object-cover rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:opacity-85 transition hover:scale-105 shadow-xs" />
+                      <img :src="img.image_data" @click.stop="openLightbox(img.image_data, $event)" alt="Ảnh minh chứng"
+                           class="w-12 h-12 sm:w-14 sm:h-14 object-cover bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:opacity-90 transition hover:scale-105 shadow-xs" />
                       <button type="button" @click.stop="deleteImage(todo.id, img.id)"
-                              class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center text-[9px] font-black shadow-xs hover:bg-rose-600 transition cursor-pointer"
-                              title="Xóa ảnh minh chứng này">✕</button>
+                              aria-label="Xóa ảnh minh chứng"
+                              class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-xs hover:bg-rose-600 transition cursor-pointer"
+                              title="Xóa ảnh minh chứng này">
+                        ${svgIcon('close', 'w-2.5 h-2.5')}
+                      </button>
                     </div>
                   </template>
                 </div>
@@ -1043,34 +1048,34 @@ export function renderHTML(): string {
   </div>
 
   <!-- ─── iOS Floating Bottom Tab Bar (Mobile) ─── -->
-  <nav class="fixed sm:hidden left-3 right-3 z-40 bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-full shadow-xl px-2 py-1.5 flex items-center justify-around select-none"
+  <nav class="fixed sm:hidden left-3 right-3 z-40 bg-white/92 dark:bg-slate-900/92 backdrop-blur-xl border border-slate-200/90 dark:border-slate-700/80 rounded-full shadow-xl dark:shadow-black/50 px-1.5 py-1.5 flex items-center gap-1 select-none"
        aria-label="Điều hướng chính"
        style="bottom: calc(0.65rem + env(safe-area-inset-bottom, 0px));">
     <button type="button" @click="setViewMode('list'); filterStatus='today'; triggerHaptic('light')"
             aria-label="Việc hôm nay"
-            class="flex flex-col items-center justify-center px-3 py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
-            :class="viewMode === 'list' && filterStatus === 'today' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/80 dark:bg-brand-950/60 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
+            class="flex-1 flex flex-col items-center justify-center py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
+            :class="viewMode === 'list' && filterStatus === 'today' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/90 dark:bg-brand-950/70 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
       ${svgIcon('sun', 'w-4 h-4')}
       <span class="text-[10px] mt-0.5">Hôm nay</span>
     </button>
     <button type="button" @click="setViewMode('list'); filterStatus='all'; triggerHaptic('light')"
             aria-label="Tất cả công việc"
-            class="flex flex-col items-center justify-center px-3 py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
-            :class="viewMode === 'list' && filterStatus !== 'today' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/80 dark:bg-brand-950/60 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
+            class="flex-1 flex flex-col items-center justify-center py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
+            :class="viewMode === 'list' && filterStatus !== 'today' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/90 dark:bg-brand-950/70 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
       ${svgIcon('list', 'w-4 h-4')}
       <span class="text-[10px] mt-0.5">Tất cả</span>
     </button>
     <button type="button" @click="setViewMode('calendar'); triggerHaptic('light')"
             aria-label="Xem theo lịch"
-            class="flex flex-col items-center justify-center px-3 py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
-            :class="viewMode === 'calendar' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/80 dark:bg-brand-950/60 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
+            class="flex-1 flex flex-col items-center justify-center py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
+            :class="viewMode === 'calendar' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/90 dark:bg-brand-950/70 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
       ${svgIcon('calendar', 'w-4 h-4')}
       <span class="text-[10px] mt-0.5">Lịch</span>
     </button>
     <button type="button" @click="openPomodoro(); triggerHaptic('light')"
             aria-label="Chế độ tập trung"
-            class="flex flex-col items-center justify-center px-3 py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
-            :class="showPomodoroModal || pomodoroRunning ? 'text-rose-600 dark:text-rose-400 bg-rose-50/80 dark:bg-rose-950/60 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
+            class="flex-1 flex flex-col items-center justify-center py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
+            :class="showPomodoroModal || pomodoroRunning ? 'text-rose-600 dark:text-rose-400 bg-rose-50/90 dark:bg-rose-950/70 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
       ${svgIcon('stopwatch', 'w-4 h-4')}
       <span class="text-[10px] mt-0.5">Tập trung</span>
     </button>
@@ -1387,6 +1392,32 @@ export function renderHTML(): string {
         </div>
       </div>
 
+      <!-- Ảnh minh chứng trong form chỉnh sửa/tạo việc -->
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+            Ảnh minh chứng (Tùy chọn)
+          </label>
+          <button type="button" @click="chooseOrCapturePhoto(editingTodo ? editingTodo.id : null)"
+                  class="text-[11px] font-bold text-brand-600 dark:text-brand-400 hover:underline cursor-pointer">
+            + Chụp / Chọn ảnh
+          </button>
+        </div>
+        <div x-show="editingTodoImages && editingTodoImages.length > 0" class="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          <template x-for="img in editingTodoImages" :key="img.id">
+            <div class="relative flex-shrink-0">
+              <img :src="img.image_data" @click.stop="openLightbox(img.image_data, $event)" alt="Ảnh minh chứng"
+                   class="w-14 h-14 object-cover bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:opacity-90 transition" />
+              <button type="button" @click.stop="deleteImage(editingTodo ? editingTodo.id : null, img.id)"
+                      aria-label="Xóa ảnh"
+                      class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-xs hover:bg-rose-600 cursor-pointer">
+                ${svgIcon('close', 'w-2.5 h-2.5')}
+              </button>
+            </div>
+          </template>
+        </div>
+      </div>
+
       <!-- Ghim công việc -->
       <div class="flex items-center gap-2 pt-1">
         <input type="checkbox" id="pinCheck" name="is_pinned" aria-label="Ghim công việc này lên đầu danh sách" x-model="todoForm.is_pinned" class="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer" />
@@ -1458,8 +1489,10 @@ export function renderHTML(): string {
 
       <!-- Preview ảnh nếu đã chọn -->
       <div x-show="completingProofPhoto" class="relative inline-block mb-2">
-        <img :src="completingProofPhoto" class="w-20 h-20 object-cover rounded-xl border border-emerald-400 shadow-sm" alt="Minh chứng" />
-        <button type="button" @click="completingProofPhoto=null; completingPhotoName=''" class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px] font-black shadow-md cursor-pointer hover:bg-rose-600">✕</button>
+        <img :src="completingProofPhoto" @click.stop="openLightbox(completingProofPhoto, $event)" class="w-20 h-20 object-cover bg-slate-100 dark:bg-slate-800 rounded-xl border border-emerald-400 shadow-sm cursor-pointer hover:opacity-90 transition" alt="Minh chứng" />
+        <button type="button" @click.stop="completingProofPhoto=null; completingPhotoName=''" aria-label="Xóa ảnh xem trước" class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-md cursor-pointer hover:bg-rose-600">
+          ${svgIcon('close', 'w-3 h-3')}
+        </button>
       </div>
 
       <div x-show="!completingProofPhoto" class="flex items-center gap-2">
@@ -2011,17 +2044,21 @@ export function renderHTML(): string {
 </div>
 
 <!-- ═══════ LIGHTBOX IMAGE MODAL ═══════ -->
-<div x-show="lightboxImage" x-cloak class="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md"
-     @click="lightboxImage=null">
+<div x-show="showLightbox && Boolean(lightboxImage)" x-cloak
+     @keydown.escape.window="closeLightbox()"
+     class="fixed inset-0 z-[240] flex items-center justify-center p-4 bg-slate-950/92 backdrop-blur-md"
+     role="dialog" aria-modal="true" aria-label="Xem phóng to ảnh minh chứng"
+     @click="closeLightbox()">
   <div class="relative max-w-3xl max-h-[90vh] flex flex-col items-center" @click.stop>
-    <img :src="lightboxImage" alt="Phóng to ảnh" class="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl border border-white/20" />
+    <img :src="lightboxImage" alt="Phóng to ảnh" class="max-w-full max-h-[78vh] object-contain rounded-2xl shadow-2xl border border-white/20 bg-slate-900" />
     <div class="flex items-center gap-3 mt-4">
       <a :href="lightboxImage" download="todo-image.jpg" class="h-9 px-4 rounded-xl bg-white text-slate-900 font-bold text-xs inline-flex items-center gap-1.5 shadow-lg hover:bg-slate-100 transition active:scale-95">
         ${svgIcon('download', 'w-4 h-4')}
         <span>Tải ảnh về máy</span>
       </a>
-      <button type="button" @click="lightboxImage=null" class="h-9 px-4 rounded-xl bg-slate-800 text-white font-bold text-xs inline-flex items-center gap-1.5 hover:bg-slate-700 transition active:scale-95 cursor-pointer">
-        Đóng
+      <button type="button" @click="closeLightbox()" class="h-9 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 font-bold text-xs inline-flex items-center gap-1.5 transition active:scale-95 cursor-pointer">
+        ${svgIcon('close', 'w-3.5 h-3.5')}
+        <span>Đóng</span>
       </button>
     </div>
   </div>

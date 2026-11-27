@@ -1,8 +1,8 @@
 {
-  "version": "3.4.0-20261126152233",
-  "appVersion": "3.4.0",
-  "commit": "fc51f07",
-  "buildTime": "2026-11-26T15:22:33.954Z",
+  "version": "3.5.0-20261127055507",
+  "appVersion": "3.5.0",
+  "commit": "c1c4225",
+  "buildTime": "2026-11-27T05:55:07.138Z",
   "files": [
     "icon-192.png",
     "icon-512.png",

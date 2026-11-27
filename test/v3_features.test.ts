@@ -9,6 +9,7 @@ import {
   getVnDateParts,
   formatVnTime,
   parseDateSafe,
+  calculatePostponedDueDate,
   generateRollingTaskNotifications,
   formatRemainingDeadlineText,
   handleMarkDoneNotificationAction,
@@ -312,6 +313,86 @@ async function run() {
   timer.addCountdownSeconds(300);
   assert.strictEqual(timer.countdownTimeLeft, 900, 'Bấm 10p + 5p phải cộng dồn thành 15p (900s)');
   console.log('  ✅ PASS: Toàn bộ SVG Repo icons chuẩn currentColor & Countdown cộng dồn hoạt động chính xác');
+
+  // Test 15: Logic Hoãn 15 phút (calculatePostponedDueDate + postponeTodo15m hủy thông báo cũ & sync queue)
+  const postponedFromExisting = calculatePostponedDueDate('2026-11-27T07:00:00.000Z', 15, 0);
+  assert.strictEqual(postponedFromExisting, '2026-11-27T07:15:00.000Z', 'Phải cộng đúng 15 phút vào due_date hiện tại');
+  const fixedNow = Date.UTC(2026, 10, 27, 8, 0, 0);
+  const postponedFromNull = calculatePostponedDueDate(null, 15, fixedNow);
+  assert.strictEqual(postponedFromNull, new Date(fixedNow + 15 * 60_000).toISOString(), 'Chưa có hạn phải lấy Date.now() + 15 phút');
+
+  const { storageScript } = await import('../src/client/storage');
+  const storageCtx: any = {
+    localStorage: { getItem: () => null, setItem: () => {} },
+    window: {},
+    document: {},
+    requestAnimationFrame: (fn: Function) => { fn(); return 1; },
+    cancelAnimationFrame: () => {},
+  };
+  vm.runInNewContext(`${storageScript}; this.__storage = getStorageModule();`, storageCtx);
+  const store = storageCtx.__storage;
+  let canceledSwipeTaskId: string | null = null;
+  let rescheduledSwipeTaskId: string | null = null;
+  let swipeToastMsg = '';
+  let persistedSwipe = 0;
+  let toggledTodoId: string | null = null;
+
+  store.parseDateSafe = parseDateSafe;
+  store.triggerHaptic = () => {};
+  store.playSound = () => {};
+  store.showToast = (m: string) => { swipeToastMsg = m; };
+  store.persistAllData = async () => { persistedSwipe++; };
+  store.cancelNativeLocalNotification = async (id: string) => { canceledSwipeTaskId = id; };
+  store.scheduleNativeLocalNotification = async (t: any) => { rescheduledSwipeTaskId = t.id; };
+  store.toggleTodo = async (t: any) => { toggledTodoId = t.id; t.is_completed = t.is_completed ? 0 : 1; };
+
+  const swipeTask: any = {
+    id: 'swipe-1',
+    title: 'Đọc tài liệu',
+    due_date: '2026-11-27T07:00:00.000Z',
+    is_completed: 0,
+    _cardWidth: 360,
+    _isSwiping: true,
+    _swipeLocked: 'h',
+    _swipeX: 210, // > 55% of 360 (198) -> Full Leading Swipe Hoãn 15p
+  };
+  store.endCardSwipe(swipeTask);
+  await new Promise(r => setTimeout(r, 20));
+  assert.strictEqual(swipeTask.due_date, '2026-11-27T07:15:00.000Z', 'Full Leading Swipe phải cộng 15 phút');
+  assert.strictEqual(swipeTask._swipeX, 0, 'Full Swipe phải đóng thẻ mượt');
+  assert.strictEqual(canceledSwipeTaskId, 'swipe-1', 'Phải hủy chuỗi thông báo cũ');
+  assert.strictEqual(rescheduledSwipeTaskId, 'swipe-1', 'Phải lên lịch lại Rolling Queue');
+  assert.ok(persistedSwipe >= 1, 'Phải lưu dữ liệu cục bộ');
+  assert.ok(swipeToastMsg.includes('15 phút'), 'Phải hiện toast thông báo hoãn 15 phút');
+
+  // Test 16: Full Trailing Swipe (> 55%) -> Hoàn thành / Hoàn tác + Lightbox ảnh minh chứng
+  const completeSwipeTask: any = {
+    id: 'swipe-2',
+    title: 'Nộp báo cáo',
+    is_completed: 0,
+    _cardWidth: 360,
+    _isSwiping: true,
+    _swipeLocked: 'h',
+    _swipeX: -215, // < -55% -> Full Trailing Swipe Hoàn thành
+  };
+  store.endCardSwipe(completeSwipeTask);
+  assert.strictEqual(toggledTodoId, 'swipe-2', 'Full Trailing Swipe phải tự động gọi toggleTodo');
+  assert.strictEqual(completeSwipeTask.is_completed, 1, 'Task phải chuyển sang hoàn thành');
+  assert.strictEqual(completeSwipeTask._swipeX, 0);
+
+  // Proof image store reactivity + Lightbox open/close
+  store.activePhotoTodoId = 'swipe-2';
+  await store.saveProofDataUrl('data:image/jpeg;base64,PROOFDATA', 'proof.jpg');
+  const savedImgs = store.getTodoImages('swipe-2');
+  assert.strictEqual(savedImgs.length, 1);
+  assert.strictEqual(savedImgs[0].image_data, 'data:image/jpeg;base64,PROOFDATA');
+  store.openLightbox(savedImgs[0].image_data);
+  assert.strictEqual(store.showLightbox, true);
+  assert.strictEqual(store.lightboxImage, 'data:image/jpeg;base64,PROOFDATA');
+  store.closeLightbox();
+  assert.strictEqual(store.showLightbox, false);
+  assert.strictEqual(store.lightboxImage, null);
+  console.log('  ✅ PASS: Elastic Swipe (Hoãn 15p & Hoàn thành), Hủy/Đặt lại Rolling Queue & Lightbox minh chứng hoạt động chuẩn xác');
 
   console.log('🎉 TẤT CẢ KIỂM THỬ V3 & LOCAL NOTIFICATIONS ĐÃ VƯỢT QUA 100%!');
 }
