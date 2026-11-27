@@ -101,7 +101,7 @@ export function renderHTML(): string {
             brand: {
               50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd',
               400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8',
-              800: '#1e40af', 900: '#1e3a8a'
+              800: '#1e40af', 900: '#1e3a8a', 950: '#172554'
             }
           }
         }
@@ -200,9 +200,13 @@ export function renderHTML(): string {
     }
 
     /* Hiệu ứng thẻ mượt mà 60fps (GPU-accelerated transform + opacity) */
+    .swipe-card-wrap {
+      animation: cardEnter 0.28s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+      overflow-x: clip;
+      overflow-y: visible;
+    }
     .todo-card {
-      animation: cardEnter 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
-      transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.18s ease, background-color 0.18s ease, opacity 0.22s ease;
+      transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.18s ease, background-color 0.18s ease, opacity 0.22s ease;
       will-change: transform, opacity;
     }
     .todo-card-collapsing {
@@ -707,35 +711,47 @@ export function renderHTML(): string {
     <!-- ─── Todo List Item Cards (Tự động sắp xếp: Việc cần làm lên đầu, Quá hạn & Đã xong rớt xuống dưới) ─── -->
     <div class="space-y-3" x-show="viewMode === 'list' && !todosLoading && filteredSortedTodos.length > 0">
       <template x-for="todo in filteredSortedTodos" :key="todo.id">
-        <div class="swipe-card-wrap relative rounded-3xl overflow-hidden bg-slate-100/80 dark:bg-slate-800/60" :data-swipe-id="todo.id">
-          <!-- Leading Swipe (Trái -> Phải): Hoãn 15 phút (Bo tròn đàn hồi) -->
-          <div x-show="(todo._swipeX || 0) > 6" x-cloak
-               class="absolute inset-y-1 left-1 flex items-center justify-start pointer-events-none">
-            <button type="button" @click.stop="postponeTodo15m(todo, $event)" aria-label="Hoãn 15 phút"
-                    class="pointer-events-auto h-full rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex flex-col items-center justify-center gap-1 px-3 font-bold text-[11px] shadow-sm active:opacity-90 cursor-pointer overflow-hidden whitespace-nowrap"
-                    :style="'width: ' + Math.max(84, Math.round((todo._swipeX || 0) - 8)) + 'px;' + (!todo._isSwiping ? ' transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1);' : '')">
-              ${svgIcon('clock', 'w-5 h-5 transition-transform duration-150', ':class="todo._swipeFullReady && \'scale-110\'"')}
-              <span x-text="todo._swipeFullReady ? 'Thả: Hoãn 15p' : 'Hoãn 15p'"></span>
-            </button>
+        <div class="swipe-card-wrap relative rounded-3xl overflow-hidden" :data-swipe-id="todo.id">
+          <!-- Leading Swipe (Mép trái -> Phải): Hoãn 15p — Nút viên thuốc nổi chuẩn Messenger iOS -->
+          <div x-show="(todo._swipeX || 0) > 2" x-cloak class="absolute inset-y-0 left-0 z-0 pointer-events-none">
+            <div class="h-full flex items-center justify-center overflow-hidden px-2"
+                 :style="'width: ' + ((todo._swipeX || 0) > 2 ? Math.round(todo._swipeX) : 0) + 'px;'">
+              <div @click.stop="postponeTodo15m(todo, $event)" @touchstart.stop role="button" tabindex="0" aria-label="Hoãn 15 phút"
+                   class="pointer-events-auto flex flex-col items-center justify-center gap-1.5 cursor-pointer select-none"
+                   :style="'opacity: ' + Math.min(1, Math.max(0.08, ((todo._swipeX || 0) - 8) / 52)) + '; transform: scale(' + Math.min(1, Math.max(0.45, ((todo._swipeX || 0) + 12) / 88)) + '); transition: ' + (todo._isSwiping ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease') + '; will-change: transform, opacity;'">
+                <div class="h-10 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/35 ring-1 ring-white/25 active:scale-95"
+                     :style="'width: ' + ((todo._swipeX || 0) > 96 ? Math.max(40, Math.min(176, Math.round(40 + ((todo._swipeX || 0) - 96) * 0.85))) : 40) + 'px; transition: ' + (todo._isSwiping ? 'width 0.08s cubic-bezier(0.22, 1, 0.36, 1)' : 'width 0.3s cubic-bezier(0.22, 1, 0.36, 1)') + '; will-change: width;'">
+                  ${svgIcon('clock', 'w-5 h-5 flex-shrink-0')}
+                </div>
+                <span class="text-[11px] font-semibold text-slate-700 dark:text-slate-200 leading-none whitespace-nowrap drop-shadow-xs"
+                      x-text="todo._swipeFullReady ? 'Thả để hoãn 15p' : 'Hoãn 15p'"></span>
+              </div>
+            </div>
           </div>
 
-          <!-- Trailing Swipe (Phải -> Trái): Hoàn thành / Hoàn tác (Bo tròn đàn hồi) -->
-          <div x-show="(todo._swipeX || 0) < -6" x-cloak
-               class="absolute inset-y-1 right-1 flex items-center justify-end pointer-events-none">
-            <button type="button" @click.stop="toggleTodo(todo, $event)"
-                    :aria-label="todo.is_completed ? 'Hoàn tác công việc' : 'Hoàn thành công việc'"
-                    class="pointer-events-auto h-full rounded-2xl text-white flex flex-col items-center justify-center gap-1 px-3 font-bold text-[11px] shadow-sm active:opacity-90 cursor-pointer overflow-hidden whitespace-nowrap"
-                    :class="todo.is_completed ? 'bg-sky-600' : 'bg-emerald-500'"
-                    :style="'width: ' + Math.max(92, Math.round(Math.abs(todo._swipeX || 0) - 8)) + 'px;' + (!todo._isSwiping ? ' transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1);' : '')">
-              ${svgIcon('check', 'w-5 h-5 transition-transform duration-150', 'x-show="!todo.is_completed" :class="todo._swipeFullReady && \'scale-110\'"')}
-              ${svgIcon('undo', 'w-5 h-5 transition-transform duration-150', 'x-show="todo.is_completed" :class="todo._swipeFullReady && \'scale-110\'"')}
-              <span x-text="todo._swipeFullReady ? (todo.is_completed ? 'Thả: Hoàn tác' : 'Thả: Xong!') : (todo.is_completed ? 'Hoàn tác' : 'Hoàn thành')"></span>
-            </button>
+          <!-- Trailing Swipe (Mép phải -> Trái): Hoàn thành / Hoàn tác — Nút viên thuốc nổi chuẩn Messenger iOS -->
+          <div x-show="(todo._swipeX || 0) < -2" x-cloak class="absolute inset-y-0 right-0 z-0 pointer-events-none">
+            <div class="h-full flex items-center justify-center overflow-hidden px-2"
+                 :style="'width: ' + ((todo._swipeX || 0) < -2 ? Math.round(Math.abs(todo._swipeX)) : 0) + 'px;'">
+              <div @click.stop="toggleTodo(todo, $event)" @touchstart.stop role="button" tabindex="0"
+                   :aria-label="todo.is_completed ? 'Hoàn tác công việc' : 'Hoàn thành công việc'"
+                   class="pointer-events-auto flex flex-col items-center justify-center gap-1.5 cursor-pointer select-none"
+                   :style="'opacity: ' + Math.min(1, Math.max(0.08, (Math.abs(todo._swipeX || 0) - 8) / 52)) + '; transform: scale(' + Math.min(1, Math.max(0.45, (Math.abs(todo._swipeX || 0) + 12) / 88)) + '); transition: ' + (todo._isSwiping ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease') + '; will-change: transform, opacity;'">
+                <div class="h-10 rounded-full text-white flex items-center justify-center shadow-lg ring-1 ring-white/25 active:scale-95"
+                     :class="todo.is_completed ? 'bg-sky-500 shadow-sky-500/35' : 'bg-emerald-500 shadow-emerald-500/35'"
+                     :style="'width: ' + (Math.abs(todo._swipeX || 0) > 108 ? Math.max(40, Math.min(176, Math.round(40 + (Math.abs(todo._swipeX || 0) - 108) * 0.85))) : 40) + 'px; transition: ' + (todo._isSwiping ? 'width 0.08s cubic-bezier(0.22, 1, 0.36, 1)' : 'width 0.3s cubic-bezier(0.22, 1, 0.36, 1)') + '; will-change: width;'">
+                  ${svgIcon('check', 'w-5 h-5 flex-shrink-0', 'x-show="!todo.is_completed"')}
+                  ${svgIcon('undo', 'w-5 h-5 flex-shrink-0', 'x-show="todo.is_completed"')}
+                </div>
+                <span class="text-[11px] font-semibold text-slate-700 dark:text-slate-200 leading-none whitespace-nowrap drop-shadow-xs"
+                      x-text="todo._swipeFullReady ? (todo.is_completed ? 'Thả: Hoàn tác' : 'Thả: Hoàn thành') : (todo.is_completed ? 'Hoàn tác' : 'Hoàn thành')"></span>
+              </div>
+            </div>
           </div>
 
         <div :id="'todo-card-' + todo.id"
-             class="todo-card bg-white dark:bg-slate-900/95 rounded-3xl border border-slate-200/90 dark:border-slate-800/90 hover:shadow-md group relative"
-             :style="'touch-action: pan-y; ' + (todo._swipeX ? ('transform: translate3d(' + todo._swipeX + 'px, 0, 0);' + (todo._isSwiping ? '' : ' transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);')) : 'transform: translate3d(0, 0, 0);')"
+             class="todo-card bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800/90 shadow-xs hover:shadow-md group relative z-10"
+             :style="'touch-action: pan-y; ' + (todo._swipeX ? ('transform: translate3d(' + todo._swipeX + 'px, 0, 0);' + (todo._isSwiping ? ' transition: none;' : ' transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);')) : 'transform: translate3d(0, 0, 0);')"
              @touchstart="startCardSwipe($event, todo)"
              @touchmove="moveCardSwipe($event, todo)"
              @touchend="endCardSwipe(todo)"
@@ -1054,28 +1070,28 @@ export function renderHTML(): string {
     <button type="button" @click="setViewMode('list'); filterStatus='today'; triggerHaptic('light')"
             aria-label="Việc hôm nay"
             class="flex-1 flex flex-col items-center justify-center py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
-            :class="viewMode === 'list' && filterStatus === 'today' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/90 dark:bg-brand-950/70 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
+            :class="viewMode === 'list' && filterStatus === 'today' ? 'text-brand-600 dark:text-blue-400 bg-brand-50/90 dark:bg-blue-950/90 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
       ${svgIcon('sun', 'w-4 h-4')}
       <span class="text-[10px] mt-0.5">Hôm nay</span>
     </button>
     <button type="button" @click="setViewMode('list'); filterStatus='all'; triggerHaptic('light')"
             aria-label="Tất cả công việc"
             class="flex-1 flex flex-col items-center justify-center py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
-            :class="viewMode === 'list' && filterStatus !== 'today' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/90 dark:bg-brand-950/70 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
+            :class="viewMode === 'list' && filterStatus !== 'today' ? 'text-brand-600 dark:text-blue-400 bg-brand-50/90 dark:bg-blue-950/90 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
       ${svgIcon('list', 'w-4 h-4')}
       <span class="text-[10px] mt-0.5">Tất cả</span>
     </button>
     <button type="button" @click="setViewMode('calendar'); triggerHaptic('light')"
             aria-label="Xem theo lịch"
             class="flex-1 flex flex-col items-center justify-center py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
-            :class="viewMode === 'calendar' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/90 dark:bg-brand-950/70 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
+            :class="viewMode === 'calendar' ? 'text-brand-600 dark:text-blue-400 bg-brand-50/90 dark:bg-blue-950/90 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
       ${svgIcon('calendar', 'w-4 h-4')}
       <span class="text-[10px] mt-0.5">Lịch</span>
     </button>
     <button type="button" @click="openPomodoro(); triggerHaptic('light')"
             aria-label="Chế độ tập trung"
             class="flex-1 flex flex-col items-center justify-center py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
-            :class="showPomodoroModal || pomodoroRunning ? 'text-rose-600 dark:text-rose-400 bg-rose-50/90 dark:bg-rose-950/70 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
+            :class="showPomodoroModal || pomodoroRunning ? 'text-rose-600 dark:text-rose-400 bg-rose-50/90 dark:bg-rose-950/80 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
       ${svgIcon('stopwatch', 'w-4 h-4')}
       <span class="text-[10px] mt-0.5">Tập trung</span>
     </button>

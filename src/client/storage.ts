@@ -548,7 +548,7 @@ function getStorageModule() {
         this.swipedTodoId = null;
         this.postponeTodo15m(todo);
       } else if (x >= 48) {
-        todo._swipeX = 96;
+        todo._swipeX = 88;
         this.swipedTodoId = todo.id;
         if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
       } else if (x <= -fullThreshold) {
@@ -556,7 +556,7 @@ function getStorageModule() {
         this.swipedTodoId = null;
         this.toggleTodo(todo);
       } else if (x <= -48) {
-        todo._swipeX = -108;
+        todo._swipeX = -96;
         this.swipedTodoId = todo.id;
         if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
       } else {
@@ -1111,7 +1111,7 @@ function getStorageModule() {
       try {
         const payload = {
           app: 'ToDoList-Local',
-          version: '3.6.0',
+          version: '3.6.2',
           exported_at: new Date().toISOString(),
           todos: this.todos,
           categories: this.categories,
@@ -1165,7 +1165,7 @@ function getStorageModule() {
       try {
         const payload = {
           app: 'ToDoList-Local',
-          version: '3.6.0',
+          version: '3.6.2',
           exported_at: new Date().toISOString(),
           todos: this.todos,
           categories: this.categories,
@@ -1752,7 +1752,7 @@ function getStorageModule() {
 
     checkAppVersion(manual = false) {
       if (manual) {
-        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.6.0') + ')! 🎉', 'success');
+        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.6.2') + ')! 🎉', 'success');
       }
     },
 

@@ -88,7 +88,7 @@
             brand: {
               50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd',
               400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8',
-              800: '#1e40af', 900: '#1e3a8a'
+              800: '#1e40af', 900: '#1e3a8a', 950: '#172554'
             }
           }
         }
@@ -187,9 +187,13 @@
     }
 
     /* Hiệu ứng thẻ mượt mà 60fps (GPU-accelerated transform + opacity) */
+    .swipe-card-wrap {
+      animation: cardEnter 0.28s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+      overflow-x: clip;
+      overflow-y: visible;
+    }
     .todo-card {
-      animation: cardEnter 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
-      transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.18s ease, background-color 0.18s ease, opacity 0.22s ease;
+      transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.18s ease, background-color 0.18s ease, opacity 0.22s ease;
       will-change: transform, opacity;
     }
     .todo-card-collapsing {
@@ -694,35 +698,47 @@
     <!-- ─── Todo List Item Cards (Tự động sắp xếp: Việc cần làm lên đầu, Quá hạn & Đã xong rớt xuống dưới) ─── -->
     <div class="space-y-3" x-show="viewMode === 'list' && !todosLoading && filteredSortedTodos.length > 0">
       <template x-for="todo in filteredSortedTodos" :key="todo.id">
-        <div class="swipe-card-wrap relative rounded-3xl overflow-hidden bg-slate-100/80 dark:bg-slate-800/60" :data-swipe-id="todo.id">
-          <!-- Leading Swipe (Trái -> Phải): Hoãn 15 phút (Bo tròn đàn hồi) -->
-          <div x-show="(todo._swipeX || 0) > 6" x-cloak
-               class="absolute inset-y-1 left-1 flex items-center justify-start pointer-events-none">
-            <button type="button" @click.stop="postponeTodo15m(todo, $event)" aria-label="Hoãn 15 phút"
-                    class="pointer-events-auto h-full rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex flex-col items-center justify-center gap-1 px-3 font-bold text-[11px] shadow-sm active:opacity-90 cursor-pointer overflow-hidden whitespace-nowrap"
-                    :style="'width: ' + Math.max(84, Math.round((todo._swipeX || 0) - 8)) + 'px;' + (!todo._isSwiping ? ' transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1);' : '')">
-              <svg class="w-5 h-5 transition-transform duration-150" aria-hidden="true" :class="todo._swipeFullReady && 'scale-110'" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path d="M256,64C150,64,64,150,64,256s86,192,192,192,192-86,192-192S362,64,256,64Z" style="fill:none;stroke:currentColor;stroke-miterlimit:10;stroke-width:32px"/><polyline points="256 128 256 272 352 272" style="fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px"/></svg>
-              <span x-text="todo._swipeFullReady ? 'Thả: Hoãn 15p' : 'Hoãn 15p'"></span>
-            </button>
+        <div class="swipe-card-wrap relative rounded-3xl overflow-hidden" :data-swipe-id="todo.id">
+          <!-- Leading Swipe (Mép trái -> Phải): Hoãn 15p — Nút viên thuốc nổi chuẩn Messenger iOS -->
+          <div x-show="(todo._swipeX || 0) > 2" x-cloak class="absolute inset-y-0 left-0 z-0 pointer-events-none">
+            <div class="h-full flex items-center justify-center overflow-hidden px-2"
+                 :style="'width: ' + ((todo._swipeX || 0) > 2 ? Math.round(todo._swipeX) : 0) + 'px;'">
+              <div @click.stop="postponeTodo15m(todo, $event)" @touchstart.stop role="button" tabindex="0" aria-label="Hoãn 15 phút"
+                   class="pointer-events-auto flex flex-col items-center justify-center gap-1.5 cursor-pointer select-none"
+                   :style="'opacity: ' + Math.min(1, Math.max(0.08, ((todo._swipeX || 0) - 8) / 52)) + '; transform: scale(' + Math.min(1, Math.max(0.45, ((todo._swipeX || 0) + 12) / 88)) + '); transition: ' + (todo._isSwiping ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease') + '; will-change: transform, opacity;'">
+                <div class="h-10 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/35 ring-1 ring-white/25 active:scale-95"
+                     :style="'width: ' + ((todo._swipeX || 0) > 96 ? Math.max(40, Math.min(176, Math.round(40 + ((todo._swipeX || 0) - 96) * 0.85))) : 40) + 'px; transition: ' + (todo._isSwiping ? 'width 0.08s cubic-bezier(0.22, 1, 0.36, 1)' : 'width 0.3s cubic-bezier(0.22, 1, 0.36, 1)') + '; will-change: width;'">
+                  <svg class="w-5 h-5 flex-shrink-0" aria-hidden="true" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path d="M256,64C150,64,64,150,64,256s86,192,192,192,192-86,192-192S362,64,256,64Z" style="fill:none;stroke:currentColor;stroke-miterlimit:10;stroke-width:32px"/><polyline points="256 128 256 272 352 272" style="fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px"/></svg>
+                </div>
+                <span class="text-[11px] font-semibold text-slate-700 dark:text-slate-200 leading-none whitespace-nowrap drop-shadow-xs"
+                      x-text="todo._swipeFullReady ? 'Thả để hoãn 15p' : 'Hoãn 15p'"></span>
+              </div>
+            </div>
           </div>
 
-          <!-- Trailing Swipe (Phải -> Trái): Hoàn thành / Hoàn tác (Bo tròn đàn hồi) -->
-          <div x-show="(todo._swipeX || 0) < -6" x-cloak
-               class="absolute inset-y-1 right-1 flex items-center justify-end pointer-events-none">
-            <button type="button" @click.stop="toggleTodo(todo, $event)"
-                    :aria-label="todo.is_completed ? 'Hoàn tác công việc' : 'Hoàn thành công việc'"
-                    class="pointer-events-auto h-full rounded-2xl text-white flex flex-col items-center justify-center gap-1 px-3 font-bold text-[11px] shadow-sm active:opacity-90 cursor-pointer overflow-hidden whitespace-nowrap"
-                    :class="todo.is_completed ? 'bg-sky-600' : 'bg-emerald-500'"
-                    :style="'width: ' + Math.max(92, Math.round(Math.abs(todo._swipeX || 0) - 8)) + 'px;' + (!todo._isSwiping ? ' transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1);' : '')">
-              <svg class="w-5 h-5 transition-transform duration-150" aria-hidden="true" x-show="!todo.is_completed" :class="todo._swipeFullReady && 'scale-110'" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><polyline points="416 128 192 384 96 288" style="fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px"/></svg>
-              <svg class="w-5 h-5 transition-transform duration-150" aria-hidden="true" x-show="todo.is_completed" :class="todo._swipeFullReady && 'scale-110'" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path d="M240,424V328c116.4,0,159.39,33.76,208,96,0-119.23-39.57-240-208-240V88L64,256Z" style="fill:none;stroke:currentColor;stroke-linejoin:round;stroke-width:32px"/></svg>
-              <span x-text="todo._swipeFullReady ? (todo.is_completed ? 'Thả: Hoàn tác' : 'Thả: Xong!') : (todo.is_completed ? 'Hoàn tác' : 'Hoàn thành')"></span>
-            </button>
+          <!-- Trailing Swipe (Mép phải -> Trái): Hoàn thành / Hoàn tác — Nút viên thuốc nổi chuẩn Messenger iOS -->
+          <div x-show="(todo._swipeX || 0) < -2" x-cloak class="absolute inset-y-0 right-0 z-0 pointer-events-none">
+            <div class="h-full flex items-center justify-center overflow-hidden px-2"
+                 :style="'width: ' + ((todo._swipeX || 0) < -2 ? Math.round(Math.abs(todo._swipeX)) : 0) + 'px;'">
+              <div @click.stop="toggleTodo(todo, $event)" @touchstart.stop role="button" tabindex="0"
+                   :aria-label="todo.is_completed ? 'Hoàn tác công việc' : 'Hoàn thành công việc'"
+                   class="pointer-events-auto flex flex-col items-center justify-center gap-1.5 cursor-pointer select-none"
+                   :style="'opacity: ' + Math.min(1, Math.max(0.08, (Math.abs(todo._swipeX || 0) - 8) / 52)) + '; transform: scale(' + Math.min(1, Math.max(0.45, (Math.abs(todo._swipeX || 0) + 12) / 88)) + '); transition: ' + (todo._isSwiping ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease') + '; will-change: transform, opacity;'">
+                <div class="h-10 rounded-full text-white flex items-center justify-center shadow-lg ring-1 ring-white/25 active:scale-95"
+                     :class="todo.is_completed ? 'bg-sky-500 shadow-sky-500/35' : 'bg-emerald-500 shadow-emerald-500/35'"
+                     :style="'width: ' + (Math.abs(todo._swipeX || 0) > 108 ? Math.max(40, Math.min(176, Math.round(40 + (Math.abs(todo._swipeX || 0) - 108) * 0.85))) : 40) + 'px; transition: ' + (todo._isSwiping ? 'width 0.08s cubic-bezier(0.22, 1, 0.36, 1)' : 'width 0.3s cubic-bezier(0.22, 1, 0.36, 1)') + '; will-change: width;'">
+                  <svg class="w-5 h-5 flex-shrink-0" aria-hidden="true" x-show="!todo.is_completed" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><polyline points="416 128 192 384 96 288" style="fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px"/></svg>
+                  <svg class="w-5 h-5 flex-shrink-0" aria-hidden="true" x-show="todo.is_completed" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path d="M240,424V328c116.4,0,159.39,33.76,208,96,0-119.23-39.57-240-208-240V88L64,256Z" style="fill:none;stroke:currentColor;stroke-linejoin:round;stroke-width:32px"/></svg>
+                </div>
+                <span class="text-[11px] font-semibold text-slate-700 dark:text-slate-200 leading-none whitespace-nowrap drop-shadow-xs"
+                      x-text="todo._swipeFullReady ? (todo.is_completed ? 'Thả: Hoàn tác' : 'Thả: Hoàn thành') : (todo.is_completed ? 'Hoàn tác' : 'Hoàn thành')"></span>
+              </div>
+            </div>
           </div>
 
         <div :id="'todo-card-' + todo.id"
-             class="todo-card bg-white dark:bg-slate-900/95 rounded-3xl border border-slate-200/90 dark:border-slate-800/90 hover:shadow-md group relative"
-             :style="'touch-action: pan-y; ' + (todo._swipeX ? ('transform: translate3d(' + todo._swipeX + 'px, 0, 0);' + (todo._isSwiping ? '' : ' transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);')) : 'transform: translate3d(0, 0, 0);')"
+             class="todo-card bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800/90 shadow-xs hover:shadow-md group relative z-10"
+             :style="'touch-action: pan-y; ' + (todo._swipeX ? ('transform: translate3d(' + todo._swipeX + 'px, 0, 0);' + (todo._isSwiping ? ' transition: none;' : ' transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);')) : 'transform: translate3d(0, 0, 0);')"
              @touchstart="startCardSwipe($event, todo)"
              @touchmove="moveCardSwipe($event, todo)"
              @touchend="endCardSwipe(todo)"
@@ -1041,28 +1057,28 @@
     <button type="button" @click="setViewMode('list'); filterStatus='today'; triggerHaptic('light')"
             aria-label="Việc hôm nay"
             class="flex-1 flex flex-col items-center justify-center py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
-            :class="viewMode === 'list' && filterStatus === 'today' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/90 dark:bg-brand-950/70 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
+            :class="viewMode === 'list' && filterStatus === 'today' ? 'text-brand-600 dark:text-blue-400 bg-brand-50/90 dark:bg-blue-950/90 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
       <svg class="w-4 h-4" aria-hidden="true" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><line x1="256" y1="48" x2="256" y2="96" style="fill:none;stroke:currentColor;stroke-linecap:round;stroke-miterlimit:10;stroke-width:32px"/><line x1="256" y1="416" x2="256" y2="464" style="fill:none;stroke:currentColor;stroke-linecap:round;stroke-miterlimit:10;stroke-width:32px"/><line x1="403.08" y1="108.92" x2="369.14" y2="142.86" style="fill:none;stroke:currentColor;stroke-linecap:round;stroke-miterlimit:10;stroke-width:32px"/><line x1="142.86" y1="369.14" x2="108.92" y2="403.08" style="fill:none;stroke:currentColor;stroke-linecap:round;stroke-miterlimit:10;stroke-width:32px"/><line x1="464" y1="256" x2="416" y2="256" style="fill:none;stroke:currentColor;stroke-linecap:round;stroke-miterlimit:10;stroke-width:32px"/><line x1="96" y1="256" x2="48" y2="256" style="fill:none;stroke:currentColor;stroke-linecap:round;stroke-miterlimit:10;stroke-width:32px"/><line x1="403.08" y1="403.08" x2="369.14" y2="369.14" style="fill:none;stroke:currentColor;stroke-linecap:round;stroke-miterlimit:10;stroke-width:32px"/><line x1="142.86" y1="142.86" x2="108.92" y2="108.92" style="fill:none;stroke:currentColor;stroke-linecap:round;stroke-miterlimit:10;stroke-width:32px"/><circle cx="256" cy="256" r="80" style="fill:none;stroke:currentColor;stroke-linecap:round;stroke-miterlimit:10;stroke-width:32px"/></svg>
       <span class="text-[10px] mt-0.5">Hôm nay</span>
     </button>
     <button type="button" @click="setViewMode('list'); filterStatus='all'; triggerHaptic('light')"
             aria-label="Tất cả công việc"
             class="flex-1 flex flex-col items-center justify-center py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
-            :class="viewMode === 'list' && filterStatus !== 'today' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/90 dark:bg-brand-950/70 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
+            :class="viewMode === 'list' && filterStatus !== 'today' ? 'text-brand-600 dark:text-blue-400 bg-brand-50/90 dark:bg-blue-950/90 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
       <svg class="w-4 h-4" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"> <g data-name="Layer 2"> <g data-name="list"> <rect width="24" height="24" transform="rotate(180 12 12)" opacity="0"/> <circle cx="4" cy="7" r="1"/> <circle cx="4" cy="12" r="1"/> <circle cx="4" cy="17" r="1"/> <rect x="7" y="11" width="14" height="2" rx=".94" ry=".94"/> <rect x="7" y="16" width="14" height="2" rx=".94" ry=".94"/> <rect x="7" y="6" width="14" height="2" rx=".94" ry=".94"/> </g> </g> </svg>
       <span class="text-[10px] mt-0.5">Tất cả</span>
     </button>
     <button type="button" @click="setViewMode('calendar'); triggerHaptic('light')"
             aria-label="Xem theo lịch"
             class="flex-1 flex flex-col items-center justify-center py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
-            :class="viewMode === 'calendar' ? 'text-brand-600 dark:text-brand-400 bg-brand-50/90 dark:bg-brand-950/70 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
+            :class="viewMode === 'calendar' ? 'text-brand-600 dark:text-blue-400 bg-brand-50/90 dark:bg-blue-950/90 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
       <svg class="w-4 h-4" aria-hidden="true" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><rect fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="32" x="48" y="80" width="416" height="384" rx="48"/><circle cx="296" cy="232" r="24"/><circle cx="376" cy="232" r="24"/><circle cx="296" cy="312" r="24"/><circle cx="376" cy="312" r="24"/><circle cx="136" cy="312" r="24"/><circle cx="216" cy="312" r="24"/><circle cx="136" cy="392" r="24"/><circle cx="216" cy="392" r="24"/><circle cx="296" cy="392" r="24"/><line fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="32" stroke-linecap="round" x1="128" y1="48" x2="128" y2="80"/><line fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="32" stroke-linecap="round" x1="384" y1="48" x2="384" y2="80"/><line fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="32" x1="464" y1="160" x2="48" y2="160"/></svg>
       <span class="text-[10px] mt-0.5">Lịch</span>
     </button>
     <button type="button" @click="openPomodoro(); triggerHaptic('light')"
             aria-label="Chế độ tập trung"
             class="flex-1 flex flex-col items-center justify-center py-1 rounded-full transition-all duration-150 active:scale-95 cursor-pointer"
-            :class="showPomodoroModal || pomodoroRunning ? 'text-rose-600 dark:text-rose-400 bg-rose-50/90 dark:bg-rose-950/70 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
+            :class="showPomodoroModal || pomodoroRunning ? 'text-rose-600 dark:text-rose-400 bg-rose-50/90 dark:bg-rose-950/80 font-bold' : 'text-slate-500 dark:text-slate-400 font-medium'">
       <svg class="w-4 h-4" aria-hidden="true" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><line x1="256" y1="232" x2="256" y2="152" style="fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px"/><line x1="256" y1="88" x2="256" y2="72" style="fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:48px"/><line x1="132" y1="132" x2="120" y2="120" style="fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:48px"/><circle cx="256" cy="272" r="32" style="fill:none;stroke:currentColor;stroke-miterlimit:10;stroke-width:32px"/><path d="M256,96A176,176,0,1,0,432,272,176,176,0,0,0,256,96Z" style="fill:none;stroke:currentColor;stroke-miterlimit:10;stroke-width:32px"/></svg>
       <span class="text-[10px] mt-0.5">Tập trung</span>
     </button>
@@ -2598,7 +2614,7 @@ function getStorageModule() {
         this.swipedTodoId = null;
         this.postponeTodo15m(todo);
       } else if (x >= 48) {
-        todo._swipeX = 96;
+        todo._swipeX = 88;
         this.swipedTodoId = todo.id;
         if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
       } else if (x <= -fullThreshold) {
@@ -2606,7 +2622,7 @@ function getStorageModule() {
         this.swipedTodoId = null;
         this.toggleTodo(todo);
       } else if (x <= -48) {
-        todo._swipeX = -108;
+        todo._swipeX = -96;
         this.swipedTodoId = todo.id;
         if (typeof this.triggerHaptic === 'function') this.triggerHaptic('light');
       } else {
@@ -3161,7 +3177,7 @@ function getStorageModule() {
       try {
         const payload = {
           app: 'ToDoList-Local',
-          version: '3.6.0',
+          version: '3.6.2',
           exported_at: new Date().toISOString(),
           todos: this.todos,
           categories: this.categories,
@@ -3215,7 +3231,7 @@ function getStorageModule() {
       try {
         const payload = {
           app: 'ToDoList-Local',
-          version: '3.6.0',
+          version: '3.6.2',
           exported_at: new Date().toISOString(),
           todos: this.todos,
           categories: this.categories,
@@ -3802,7 +3818,7 @@ function getStorageModule() {
 
     checkAppVersion(manual = false) {
       if (manual) {
-        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.6.0') + ')! 🎉', 'success');
+        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.6.2') + ')! 🎉', 'success');
       }
     },
 
@@ -5506,7 +5522,7 @@ function app() {
     toasts: [],
     toastId: 0,
     showAboutModal: false,
-    appVersion: '3.6.0',
+    appVersion: '3.6.2',
     isRefreshing: false,
 
     // ── GỘP CÁC MODULE CON ĐỘC LẬP ──
