@@ -2167,7 +2167,11 @@ function getStorageModule() {
     async saveToPreferences(key, value) {
       try {
         const str = JSON.stringify(value);
-        localStorage.setItem(key, str);
+        try {
+          localStorage.setItem(key, str);
+        } catch (lsErr) {
+          console.warn('localStorage quota warning for ' + key + ':', lsErr);
+        }
         const Prefs = window.Capacitor?.Plugins?.Preferences;
         if (Prefs?.set) {
           await Prefs.set({ key, value: str });
@@ -2465,11 +2469,42 @@ function getStorageModule() {
         cancelAnimationFrame(todo._swipeRaf);
         todo._swipeRaf = null;
       }
+
       const cardEl = e.currentTarget;
-      todo._cardWidth = cardEl?.offsetWidth || window.innerWidth || 360;
-      todo._touchStartX = e.touches[0].clientX;
-      todo._touchStartY = e.touches[0].clientY;
-      todo._baseSwipeX = todo._swipeX || 0;
+      const rect = cardEl?.getBoundingClientRect ? cardEl.getBoundingClientRect() : null;
+      const width = rect?.width || cardEl?.offsetWidth || window.innerWidth || 360;
+      const touchX = e.touches[0].clientX;
+      const touchY = e.touches[0].clientY;
+      const baseSwipeX = todo._swipeX || 0;
+
+      // Edge-Zone Detection (~18%–22% hai mép trái/phải, giới hạn 56px–68px)
+      const edgeZone = Math.max(56, Math.min(68, Math.round(width * 0.2)));
+      const relX = rect ? (touchX - rect.left) : touchX;
+
+      let swipeEdge = null;
+      if (baseSwipeX > 0) {
+        swipeEdge = 'left';
+      } else if (baseSwipeX < 0) {
+        swipeEdge = 'right';
+      } else if (relX <= edgeZone) {
+        swipeEdge = 'left';
+      } else if (relX >= width - edgeZone) {
+        swipeEdge = 'right';
+      }
+
+      // Vùng giữa thẻ: TUYỆT ĐỐI khóa kéo ngang
+      if (!swipeEdge) {
+        todo._swipeEdge = null;
+        todo._isSwiping = false;
+        todo._swipeLocked = null;
+        return;
+      }
+
+      todo._cardWidth = width;
+      todo._swipeEdge = swipeEdge;
+      todo._touchStartX = touchX;
+      todo._touchStartY = touchY;
+      todo._baseSwipeX = baseSwipeX;
       todo._swipeLocked = null;
       todo._swipeHapticFired = false;
       todo._swipeFullReady = false;
@@ -2477,14 +2512,27 @@ function getStorageModule() {
     },
 
     moveCardSwipe(e, todo) {
-      if (!todo._isSwiping || !e.touches || !e.touches[0]) return;
+      if (!todo._isSwiping || !todo._swipeEdge || !e.touches || !e.touches[0]) return;
       const clientX = e.touches[0].clientX;
       const clientY = e.touches[0].clientY;
       const dx = clientX - (todo._touchStartX || 0);
       const dy = clientY - (todo._touchStartY || 0);
 
       if (todo._swipeLocked === null) {
-        if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.35) {
+        const isHorizontal = Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.35;
+        if (isHorizontal) {
+          if ((todo._baseSwipeX || 0) === 0) {
+            if (todo._swipeEdge === 'left' && dx < 0) {
+              todo._swipeLocked = 'v';
+              todo._isSwiping = false;
+              return;
+            }
+            if (todo._swipeEdge === 'right' && dx > 0) {
+              todo._swipeLocked = 'v';
+              todo._isSwiping = false;
+              return;
+            }
+          }
           todo._swipeLocked = 'h';
         } else if (Math.abs(dy) > 10) {
           todo._swipeLocked = 'v';
@@ -2499,13 +2547,16 @@ function getStorageModule() {
         if (e.cancelable) e.preventDefault();
         const width = todo._cardWidth || 360;
         const fullThreshold = Math.max(150, Math.round(width * 0.55));
-        const rawNext = (todo._baseSwipeX || 0) + dx;
+        let rawNext = (todo._baseSwipeX || 0) + dx;
+        if (todo._swipeEdge === 'left') rawNext = Math.max(0, rawNext);
+        if (todo._swipeEdge === 'right') rawNext = Math.min(0, rawNext);
+
         const maxDrag = Math.round(width * 0.82);
         const softCap = Math.round(width * 0.68);
         const sign = rawNext >= 0 ? 1 : -1;
         const absRaw = Math.abs(rawNext);
         const elasticAbs = absRaw <= softCap ? absRaw : (softCap + (absRaw - softCap) * 0.35);
-        const nextX = sign * Math.min(maxDrag, Math.round(elasticAbs));
+        const nextX = absRaw === 0 ? 0 : (sign * Math.min(maxDrag, Math.round(elasticAbs)));
         const reachedFull = Math.abs(nextX) >= fullThreshold;
 
         if (reachedFull && !todo._swipeHapticFired) {
@@ -2529,7 +2580,10 @@ function getStorageModule() {
         cancelAnimationFrame(todo._swipeRaf);
         todo._swipeRaf = null;
       }
-      if (!todo._isSwiping && todo._swipeLocked !== 'h') return;
+      if (!todo._isSwiping && todo._swipeLocked !== 'h') {
+        todo._swipeEdge = null;
+        return;
+      }
       todo._isSwiping = false;
       const width = todo._cardWidth || 360;
       const fullThreshold = Math.max(150, Math.round(width * 0.55));
@@ -2537,6 +2591,7 @@ function getStorageModule() {
       todo._swipeFullReady = false;
       todo._swipeHapticFired = false;
       todo._swipeLocked = null;
+      todo._swipeEdge = null;
 
       if (x >= fullThreshold) {
         todo._swipeX = 0;
@@ -3106,7 +3161,7 @@ function getStorageModule() {
       try {
         const payload = {
           app: 'ToDoList-Local',
-          version: '3.5.0',
+          version: '3.6.0',
           exported_at: new Date().toISOString(),
           todos: this.todos,
           categories: this.categories,
@@ -3160,7 +3215,7 @@ function getStorageModule() {
       try {
         const payload = {
           app: 'ToDoList-Local',
-          version: '3.5.0',
+          version: '3.6.0',
           exported_at: new Date().toISOString(),
           todos: this.todos,
           categories: this.categories,
@@ -3513,7 +3568,7 @@ function getStorageModule() {
           const img = new Image();
           img.onload = () => {
             try {
-              const maxDim = 1280;
+              const maxDim = 960;
               let w = img.naturalWidth || img.width || 800;
               let h = img.naturalHeight || img.height || 800;
               if (w > maxDim || h > maxDim) {
@@ -3531,7 +3586,7 @@ function getStorageModule() {
               const ctx = canvas.getContext('2d');
               if (!ctx) return resolve(rawDataUrl);
               ctx.drawImage(img, 0, 0, w, h);
-              const compressed = canvas.toDataURL('image/jpeg', 0.82);
+              const compressed = canvas.toDataURL('image/jpeg', 0.75);
               resolve(compressed || rawDataUrl);
             } catch {
               resolve(rawDataUrl);
@@ -3647,9 +3702,10 @@ function getStorageModule() {
             promptLabelPicture: 'Chụp ảnh mới',
             promptLabelCancel: 'Hủy'
           });
-          if (photo?.dataUrl) {
-            const optimized = await this.compressImageToDataUrl(photo.dataUrl);
-            await this.saveProofDataUrl(optimized || photo.dataUrl, 'proof_' + Date.now() + '.jpg');
+          const rawUri = photo?.dataUrl || (photo?.base64String ? ('data:image/' + (photo.format || 'jpeg') + ';base64,' + photo.base64String) : photo?.webPath);
+          if (rawUri) {
+            const optimized = await this.compressImageToDataUrl(rawUri);
+            await this.saveProofDataUrl(optimized || rawUri, 'proof_' + Date.now() + '.jpg');
             return;
           }
         } catch (err) {
@@ -3680,9 +3736,10 @@ function getStorageModule() {
             resultType: 'dataUrl',
             source: mode === 'camera' ? 'CAMERA' : 'PHOTOS'
           });
-          if (photo?.dataUrl) {
-            const optimized = await this.compressImageToDataUrl(photo.dataUrl);
-            await this.saveProofDataUrl(optimized || photo.dataUrl, 'proof_' + Date.now() + '.jpg');
+          const rawUri = photo?.dataUrl || (photo?.base64String ? ('data:image/' + (photo.format || 'jpeg') + ';base64,' + photo.base64String) : photo?.webPath);
+          if (rawUri) {
+            const optimized = await this.compressImageToDataUrl(rawUri);
+            await this.saveProofDataUrl(optimized || rawUri, 'proof_' + Date.now() + '.jpg');
             return;
           }
         } catch (err) {
@@ -3745,7 +3802,7 @@ function getStorageModule() {
 
     checkAppVersion(manual = false) {
       if (manual) {
-        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.5.0') + ')! 🎉', 'success');
+        this.showToast('Bạn đang sử dụng phiên bản mới nhất (' + (this.appVersion || '3.6.0') + ')! 🎉', 'success');
       }
     },
 
@@ -5449,7 +5506,7 @@ function app() {
     toasts: [],
     toastId: 0,
     showAboutModal: false,
-    appVersion: '3.5.0',
+    appVersion: '3.6.0',
     isRefreshing: false,
 
     // ── GỘP CÁC MODULE CON ĐỘC LẬP ──

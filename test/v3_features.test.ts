@@ -392,7 +392,37 @@ async function run() {
   store.closeLightbox();
   assert.strictEqual(store.showLightbox, false);
   assert.strictEqual(store.lightboxImage, null);
-  console.log('  ✅ PASS: Elastic Swipe (Hoãn 15p & Hoàn thành), Hủy/Đặt lại Rolling Queue & Lightbox minh chứng hoạt động chuẩn xác');
+
+  // Test 17: Edge-Zone Swipe Detection (mép trái/phải cho kéo ngang, vùng giữa khóa cứng)
+  const edgeTask: any = { id: 'edge-1', title: 'Test Edge', _swipeX: 0 };
+  const makeTouchEvt = (clientX: number, clientY = 100) => ({
+    currentTarget: { getBoundingClientRect: () => ({ left: 0, width: 360 }), offsetWidth: 360 },
+    touches: [{ clientX, clientY }],
+    cancelable: true,
+    preventDefault: () => {}
+  });
+  // Chạm vùng giữa (x = 180 trên width 360) -> khóa cứng
+  store.startCardSwipe(makeTouchEvt(180), edgeTask);
+  assert.strictEqual(edgeTask._isSwiping, false, 'Vùng giữa không được kích hoạt kéo ngang');
+  assert.strictEqual(edgeTask._swipeEdge, null);
+  store.moveCardSwipe(makeTouchEvt(280), edgeTask);
+  assert.strictEqual(edgeTask._swipeX, 0, 'Kéo từ vùng giữa phải giữ _swipeX = 0');
+
+  // Chạm mép trái (x = 24 <= edgeZone) -> chỉ cho phép kéo phải
+  store.startCardSwipe(makeTouchEvt(24), edgeTask);
+  assert.strictEqual(edgeTask._isSwiping, true);
+  assert.strictEqual(edgeTask._swipeEdge, 'left');
+  store.moveCardSwipe(makeTouchEvt(120), edgeTask);
+  assert.ok(edgeTask._swipeX > 0, 'Kéo từ mép trái sang phải phải mở _swipeX > 0');
+  edgeTask._swipeX = 0;
+
+  // Chạm mép phải (x = 340 >= 360 - edgeZone) -> chỉ cho phép kéo trái
+  store.startCardSwipe(makeTouchEvt(340), edgeTask);
+  assert.strictEqual(edgeTask._isSwiping, true);
+  assert.strictEqual(edgeTask._swipeEdge, 'right');
+  store.moveCardSwipe(makeTouchEvt(230), edgeTask);
+  assert.ok(edgeTask._swipeX < 0, 'Kéo từ mép phải sang trái phải mở _swipeX < 0');
+  console.log('  ✅ PASS: Elastic Swipe Edge-Zone (Hoãn 15p & Hoàn thành), Hủy/Đặt lại Rolling Queue & Lightbox hoạt động chuẩn xác');
 
   console.log('🎉 TẤT CẢ KIỂM THỬ V3 & LOCAL NOTIFICATIONS ĐÃ VƯỢT QUA 100%!');
 }
